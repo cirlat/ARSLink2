@@ -9,6 +9,9 @@ import PatientDetails from "./components/patients/PatientDetails";
 import PatientForm from "./components/patients/PatientForm";
 import TopNavigation from "./components/layout/TopNavigation";
 import Settings from "./components/settings/Settings";
+import ForgotPasswordForm from "./components/auth/ForgotPasswordForm";
+import ResetPasswordForm from "./components/auth/ResetPasswordForm";
+import SetupWizard from "./setup/SetupWizard";
 import routes from "tempo-routes";
 
 function App() {
@@ -29,6 +32,9 @@ function App() {
           <Route path="/patients/:id/edit" element={<PatientForm />} />
           <Route path="/notifications" element={<NotificationCenter />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/forgot-password" element={<ForgotPasswordForm />} />
+          <Route path="/reset-password" element={<ResetPasswordForm />} />
+          <Route path="/setup" element={<SetupWizard />} />
         </Routes>
         {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
       </>

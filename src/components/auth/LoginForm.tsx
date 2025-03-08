@@ -175,7 +175,7 @@ const LoginForm = ({
             </form>
           </Form>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex flex-col space-y-4">
           <Button
             className="w-full"
             onClick={form.handleSubmit(handleSubmit)}
@@ -183,6 +183,14 @@ const LoginForm = ({
           >
             {isLoading ? "Accesso in corso..." : "Accedi"}
           </Button>
+          <div className="text-center">
+            <a
+              href="/forgot-password"
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Password dimenticata?
+            </a>
+          </div>
         </CardFooter>
       </Card>
     </div>
