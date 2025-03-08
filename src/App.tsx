@@ -1,0 +1,39 @@
+import { Suspense } from "react";
+import { useRoutes, Routes, Route, useLocation } from "react-router-dom";
+import Home from "./components/home";
+import Dashboard from "./components/dashboard/Dashboard";
+import CalendarView from "./components/dashboard/CalendarView";
+import PatientList from "./components/dashboard/PatientList";
+import NotificationCenter from "./components/dashboard/NotificationCenter";
+import PatientDetails from "./components/patients/PatientDetails";
+import PatientForm from "./components/patients/PatientForm";
+import TopNavigation from "./components/layout/TopNavigation";
+import Settings from "./components/settings/Settings";
+import routes from "tempo-routes";
+
+function App() {
+  const location = useLocation();
+  const isLoginPage =
+    location.pathname === "/" && !localStorage.getItem("isAuthenticated");
+
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <>
+        {!isLoginPage && <TopNavigation />}
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/calendar" element={<CalendarView />} />
+          <Route path="/patients" element={<PatientList />} />
+          <Route path="/patients/new" element={<PatientForm />} />
+          <Route path="/patients/:id" element={<PatientDetails />} />
+          <Route path="/patients/:id/edit" element={<PatientForm />} />
+          <Route path="/notifications" element={<NotificationCenter />} />
+          <Route path="/settings" element={<Settings />} />
+        </Routes>
+        {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
+      </>
+    </Suspense>
+  );
+}
+
+export default App;
