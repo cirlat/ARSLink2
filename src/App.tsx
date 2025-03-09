@@ -12,7 +12,8 @@ import Settings from "./components/settings/Settings";
 import ForgotPasswordForm from "./components/auth/ForgotPasswordForm";
 import ResetPasswordForm from "./components/auth/ResetPasswordForm";
 import SetupWizard from "./setup/SetupWizard";
-import routes from "tempo-routes";
+// Placeholder for tempo-routes
+const routes = [];
 
 function App() {
   const location = useLocation();
@@ -36,7 +37,7 @@ function App() {
           <Route path="/reset-password" element={<ResetPasswordForm />} />
           <Route path="/setup" element={<SetupWizard />} />
         </Routes>
-        {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
+        {/* Tempo routes disabled temporarily */}
       </>
     </Suspense>
   );
