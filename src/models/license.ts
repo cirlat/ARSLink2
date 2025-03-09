@@ -54,6 +54,15 @@ export class LicenseModel {
   }
 
   async isLicenseValid(): Promise<boolean> {
+    // Verifica prima nel localStorage
+    const storedLicenseExpiry = localStorage.getItem("licenseExpiry");
+    if (storedLicenseExpiry) {
+      const expiryDate = new Date(storedLicenseExpiry);
+      const today = new Date();
+      return expiryDate >= today;
+    }
+
+    // Se non c'è nel localStorage, verifica nel database
     const license = await this.getCurrentLicense();
     if (!license) return false;
 

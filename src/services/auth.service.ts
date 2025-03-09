@@ -29,7 +29,8 @@ export class AuthService {
         return {
           user: null,
           token: null,
-          error: "La licenza è scaduta. Contattare l'amministratore.",
+          error:
+            "La licenza è scaduta. Vai nelle impostazioni per aggiornare la licenza.",
         };
       }
 

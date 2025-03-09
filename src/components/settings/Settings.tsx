@@ -31,13 +31,15 @@ import {
   Shield,
   User,
   Lock,
+  Key,
 } from "lucide-react";
 import BackupStatus from "../system/BackupStatus";
 import LicenseAlert from "../system/LicenseAlert";
+import LicenseSettings from "./LicenseSettings";
 
 const Settings = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("general");
+  const [activeTab, setActiveTab] = useState("license");
   const [autoBackup, setAutoBackup] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -60,6 +62,14 @@ const Settings = () => {
         <Card className="md:col-span-1">
           <CardContent className="p-4">
             <div className="flex flex-col items-start h-auto bg-transparent space-y-1">
+              <Button
+                variant={activeTab === "license" ? "default" : "ghost"}
+                className="w-full justify-start px-2 py-1.5 h-9"
+                onClick={() => setActiveTab("license")}
+              >
+                <Key className="h-4 w-4 mr-2" />
+                Licenza
+              </Button>
               <Button
                 variant={activeTab === "general" ? "default" : "ghost"}
                 className="w-full justify-start px-2 py-1.5 h-9"
@@ -93,14 +103,6 @@ const Settings = () => {
                 Integrazioni
               </Button>
               <Button
-                variant={activeTab === "license" ? "default" : "ghost"}
-                className="w-full justify-start px-2 py-1.5 h-9"
-                onClick={() => setActiveTab("license")}
-              >
-                <Shield className="h-4 w-4 mr-2" />
-                Licenza
-              </Button>
-              <Button
                 variant={activeTab === "security" ? "default" : "ghost"}
                 className="w-full justify-start px-2 py-1.5 h-9"
                 onClick={() => setActiveTab("security")}
@@ -113,6 +115,12 @@ const Settings = () => {
         </Card>
 
         <div className="md:col-span-3 space-y-6">
+          {activeTab === "license" && (
+            <div className="space-y-6 mt-0">
+              <LicenseSettings />
+            </div>
+          )}
+
           {activeTab === "general" && (
             <div className="space-y-6 mt-0">
               <Card>
@@ -441,90 +449,6 @@ const Settings = () => {
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          )}
-
-          {activeTab === "license" && (
-            <div className="space-y-6 mt-0">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Informazioni Licenza</CardTitle>
-                  <CardDescription>
-                    Gestisci la tua licenza e visualizza le informazioni
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-muted-foreground">
-                          Tipo Licenza
-                        </Label>
-                        <p className="font-medium">Professional</p>
-                      </div>
-                      <div>
-                        <Label className="text-muted-foreground">Stato</Label>
-                        <p className="font-medium text-green-600">Attiva</p>
-                      </div>
-                      <div>
-                        <Label className="text-muted-foreground">
-                          Data Scadenza
-                        </Label>
-                        <p className="font-medium">30 Giugno 2024</p>
-                      </div>
-                      <div>
-                        <Label className="text-muted-foreground">
-                          Giorni Rimanenti
-                        </Label>
-                        <p className="font-medium">120 giorni</p>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div>
-                      <Label className="text-muted-foreground">
-                        Chiave di Licenza
-                      </Label>
-                      <div className="flex mt-1">
-                        <Input
-                          value="XXXX-XXXX-XXXX-XXXX"
-                          readOnly
-                          type={showLicenseInfo ? "text" : "password"}
-                          className="font-mono"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowLicenseInfo(!showLicenseInfo)}
-                          className="ml-2"
-                        >
-                          {showLicenseInfo ? "Nascondi" : "Mostra"}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-muted-foreground">
-                        Registrato a
-                      </Label>
-                      <p className="font-medium">Studio Medico Dr. Rossi</p>
-                      <p className="text-sm text-muted-foreground">
-                        info@studiomedico.it
-                      </p>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex justify-between">
-                    <Button variant="outline">Verifica Licenza</Button>
-                    <Button>Rinnova Licenza</Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <LicenseAlert daysRemaining={120} isExpired={false} />
             </div>
           )}
 

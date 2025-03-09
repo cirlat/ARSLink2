@@ -6,6 +6,7 @@ import CalendarView from "./CalendarView";
 import PatientList from "./PatientList";
 import NotificationCenter from "./NotificationCenter";
 import DashboardContent from "./DashboardContent";
+import LicenseExpiredAlert from "../system/LicenseExpiredAlert";
 
 interface DashboardProps {
   userName?: string;
@@ -30,10 +31,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState<string>("dashboard");
   const [showLicenseAlert, setShowLicenseAlert] = useState<boolean>(
-    licenseExpiryDays < 15,
+    licenseExpiryDays < 15 || localStorage.getItem("licenseExpired") === "true",
   );
   const [showBackupStatus, setShowBackupStatus] = useState<boolean>(
     lastBackupStatus === "failed",
+  );
+  const [isLicenseExpired, setIsLicenseExpired] = useState<boolean>(
+    localStorage.getItem("licenseExpired") === "true",
   );
 
   // Aggiorna la pagina attiva in base al percorso corrente
@@ -103,26 +107,30 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Contenuto principale */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Avvisi di sistema */}
-        {showLicenseAlert && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <span className="text-yellow-400">⚠️</span>
+        {isLicenseExpired ? (
+          <LicenseExpiredAlert onDismiss={() => setShowLicenseAlert(false)} />
+        ) : (
+          showLicenseAlert && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <span className="text-yellow-400">⚠️</span>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-yellow-700">
+                    La tua licenza scadrà tra {licenseExpiryDays} giorni. Vai
+                    nelle impostazioni per rinnovarla.
+                  </p>
+                </div>
+                <button
+                  className="ml-auto pl-3"
+                  onClick={() => setShowLicenseAlert(false)}
+                >
+                  ✕
+                </button>
               </div>
-              <div className="ml-3">
-                <p className="text-sm text-yellow-700">
-                  La tua licenza scadrà tra {licenseExpiryDays} giorni. Contatta
-                  l'amministratore per rinnovarla.
-                </p>
-              </div>
-              <button
-                className="ml-auto pl-3"
-                onClick={() => setShowLicenseAlert(false)}
-              >
-                ✕
-              </button>
             </div>
-          </div>
+          )
         )}
 
         {showBackupStatus && lastBackupStatus === "failed" && (

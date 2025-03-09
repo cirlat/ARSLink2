@@ -54,7 +54,20 @@ const Home = ({
         localStorage.setItem("userRole", data.role);
         localStorage.setItem("userName", `Dr. ${data.username}`);
       } else {
-        setLoginError(result.error || "Credenziali non valide");
+        // Se l'errore è relativo alla licenza, mostra un messaggio speciale
+        if (result.error && result.error.includes("licenza")) {
+          // Permetti comunque l'accesso ma con un messaggio di avviso
+          setAuthenticated(true);
+          setLoginError("");
+          localStorage.setItem("isAuthenticated", "true");
+          localStorage.setItem("userRole", data.role);
+          localStorage.setItem("userName", `Dr. ${data.username}`);
+          localStorage.setItem("licenseExpired", "true");
+          // Reindirizza alle impostazioni della licenza
+          window.location.href = "/settings";
+        } else {
+          setLoginError(result.error || "Credenziali non valide");
+        }
       }
     } catch (error) {
       console.error("Errore durante il login:", error);
