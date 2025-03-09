@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Calendar, Users, Bell, Settings, Home } from "lucide-react";
 
@@ -7,6 +7,7 @@ interface TopNavigationProps {}
 
 const TopNavigation: React.FC<TopNavigationProps> = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const path = location.pathname;
 
   const isActive = (route: string) => {
@@ -19,16 +20,20 @@ const TopNavigation: React.FC<TopNavigationProps> = () => {
     <div className="sticky top-0 z-10 w-full bg-white border-b border-slate-200 px-4 py-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-1">
-          <Link to="/">
-            <Button
-              variant={isActive("/") ? "default" : "ghost"}
-              size="sm"
-              className="flex items-center"
-            >
-              <Home className="h-4 w-4 mr-2" />
-              Dashboard
-            </Button>
-          </Link>
+          <Button
+            variant={isActive("/") ? "default" : "ghost"}
+            size="sm"
+            className="flex items-center"
+            onClick={() => {
+              // Verifica se l'utente è autenticato
+              if (localStorage.getItem("isAuthenticated")) {
+                navigate("/");
+              }
+            }}
+          >
+            <Home className="h-4 w-4 mr-2" />
+            Dashboard
+          </Button>
           <Link to="/calendar">
             <Button
               variant={isActive("/calendar") ? "default" : "ghost"}

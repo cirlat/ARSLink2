@@ -295,47 +295,55 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
           <div className="space-y-4">
             <h3 className="text-md font-medium">Opzioni di Notifica</h3>
             <div className="space-y-2">
-              <FormField
-                control={form.control}
-                name="sendWhatsAppNotification"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                    <div className="space-y-0.5">
-                      <FormLabel>Notifica WhatsApp</FormLabel>
-                      <FormDescription>
-                        Invia conferma appuntamento via WhatsApp
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+              {/* Verifica se l'utente ha una licenza che include WhatsApp */}
+              {(localStorage.getItem("licenseType") === "whatsapp" ||
+                localStorage.getItem("licenseType") === "full") && (
+                <FormField
+                  control={form.control}
+                  name="sendWhatsAppNotification"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                      <div className="space-y-0.5">
+                        <FormLabel>Notifica WhatsApp</FormLabel>
+                        <FormDescription>
+                          Invia conferma appuntamento via WhatsApp
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
 
-              <FormField
-                control={form.control}
-                name="googleCalendarSync"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                    <div className="space-y-0.5">
-                      <FormLabel>Sincronizzazione Google Calendar</FormLabel>
-                      <FormDescription>
-                        Sincronizza questo appuntamento con Google Calendar
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+              {/* Verifica se l'utente ha una licenza che include Google Calendar */}
+              {(localStorage.getItem("licenseType") === "google" ||
+                localStorage.getItem("licenseType") === "full") && (
+                <FormField
+                  control={form.control}
+                  name="googleCalendarSync"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                      <div className="space-y-0.5">
+                        <FormLabel>Sincronizzazione Google Calendar</FormLabel>
+                        <FormDescription>
+                          Sincronizza questo appuntamento con Google Calendar
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
           </div>
 

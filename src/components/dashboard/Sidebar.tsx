@@ -37,16 +37,26 @@ const Sidebar = ({
 }: SidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
 
+  // Verifica se l'utente ha una licenza che include WhatsApp
+  const hasWhatsAppLicense =
+    localStorage.getItem("licenseType") === "whatsapp" ||
+    localStorage.getItem("licenseType") === "full";
+
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: Home, path: "/" },
     { id: "calendar", label: "Calendario", icon: Calendar, path: "/calendar" },
     { id: "patients", label: "Pazienti", icon: Users, path: "/patients" },
-    {
-      id: "notifications",
-      label: "Notifiche",
-      icon: Bell,
-      path: "/notifications",
-    },
+    // Mostra le notifiche solo se l'utente ha una licenza che include WhatsApp
+    ...(hasWhatsAppLicense
+      ? [
+          {
+            id: "notifications",
+            label: "Notifiche",
+            icon: Bell,
+            path: "/notifications",
+          },
+        ]
+      : []),
     {
       id: "settings",
       label: "Impostazioni",

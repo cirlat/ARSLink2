@@ -1,0 +1,22 @@
+[
+  { "nome": "Roma", "codice": "H501" },
+  { "nome": "Milano", "codice": "F205" },
+  { "nome": "Napoli", "codice": "F839" },
+  { "nome": "Torino", "codice": "L219" },
+  { "nome": "Palermo", "codice": "G273" },
+  { "nome": "Genova", "codice": "D969" },
+  { "nome": "Bologna", "codice": "A944" },
+  { "nome": "Firenze", "codice": "D612" },
+  { "nome": "Bari", "codice": "A662" },
+  { "nome": "Catania", "codice": "C351" },
+  { "nome": "Venezia", "codice": "L736" },
+  { "nome": "Verona", "codice": "L781" },
+  { "nome": "Messina", "codice": "F158" },
+  { "nome": "Padova", "codice": "G224" },
+  { "nome": "Trieste", "codice": "L424" },
+  { "nome": "Brescia", "codice": "B157" },
+  { "nome": "Parma", "codice": "G337" },
+  { "nome": "Taranto", "codice": "L049" },
+  { "nome": "Prato", "codice": "G999" },
+  { "nome": "Modena", "codice": "F257" }
+]

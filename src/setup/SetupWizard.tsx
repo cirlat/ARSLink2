@@ -126,28 +126,69 @@ const SetupWizard = () => {
     }
   };
 
-  const completeSetup = () => {
-    // In a real implementation, this would:
-    // 1. Create the database
-    // 2. Create tables
-    // 3. Create admin user
-    // 4. Install and validate license
-    // 5. Configure Google Calendar and WhatsApp if needed
-    // 6. Set up server autostart
+  const completeSetup = async () => {
+    try {
+      // 1. Inizializza il database
+      const database = Database.getInstance();
+      await database.initializeDatabase();
 
-    // For now, we'll just simulate success and redirect to login
-    console.log("Setup completed with:", {
-      dbConfig,
-      adminUser,
-      licenseType,
-      licenseKey,
-      googleConfig,
-      whatsappConfig,
-      serverConfig,
-    });
+      // 2. Crea l'utente amministratore
+      const userModel = new UserModel();
+      await userModel.create({
+        username: adminUser.username,
+        password: adminUser.password,
+        full_name: adminUser.fullName,
+        email: adminUser.email,
+        role: "Medico",
+      });
 
-    // Redirect to login page
-    navigate("/");
+      // 3. Installa e valida la licenza
+      if (licenseKey) {
+        const { installLicense } = await import("@/utils/licenseUtils");
+        const licenseResult = await installLicense(licenseKey);
+
+        if (!licenseResult.success) {
+          alert(`Errore con la licenza: ${licenseResult.message}`);
+          return;
+        }
+
+        // Salva il tipo di licenza per l'uso nell'applicazione
+        localStorage.setItem("licenseType", licenseResult.licenseType || "");
+      } else {
+        // Licenza base di default
+        localStorage.setItem("licenseType", "basic");
+      }
+
+      // 4. Configura Google Calendar se necessario
+      if (
+        isLicenseWithGoogle() &&
+        googleConfig.clientId &&
+        googleConfig.clientSecret
+      ) {
+        localStorage.setItem("googleConfig", JSON.stringify(googleConfig));
+      }
+
+      // 5. Configura WhatsApp se necessario
+      if (isLicenseWithWhatsApp() && whatsappConfig.enabled) {
+        localStorage.setItem("whatsappConfig", JSON.stringify(whatsappConfig));
+      }
+
+      // 6. Salva le configurazioni del server
+      localStorage.setItem("serverConfig", JSON.stringify(serverConfig));
+
+      // 7. Salva le configurazioni del database
+      localStorage.setItem("dbConfig", JSON.stringify(dbConfig));
+
+      console.log("Setup completato con successo!");
+
+      // Reindirizza alla pagina di login
+      navigate("/");
+    } catch (error) {
+      console.error("Errore durante il setup:", error);
+      alert(
+        "Si è verificato un errore durante il setup. Controlla la console per i dettagli.",
+      );
+    }
   };
 
   const isLicenseWithGoogle = () => {
