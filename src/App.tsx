@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { useRoutes, Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Home from "./components/home";
 import Dashboard from "./components/dashboard/Dashboard";
 import CalendarView from "./components/dashboard/CalendarView";
@@ -12,8 +12,6 @@ import Settings from "./components/settings/Settings";
 import ForgotPasswordForm from "./components/auth/ForgotPasswordForm";
 import ResetPasswordForm from "./components/auth/ResetPasswordForm";
 import SetupWizard from "./setup/SetupWizard";
-// Placeholder for tempo-routes
-const routes = [];
 
 function App() {
   const location = useLocation();
@@ -37,7 +35,6 @@ function App() {
           <Route path="/reset-password" element={<ResetPasswordForm />} />
           <Route path="/setup" element={<SetupWizard />} />
         </Routes>
-        {/* Tempo routes disabled temporarily */}
       </>
     </Suspense>
   );
