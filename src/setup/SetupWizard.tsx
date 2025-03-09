@@ -181,6 +181,8 @@ const SetupWizard = () => {
 
       console.log("Setup completato con successo!");
 
+      // Segna il setup come completato
+      localStorage.setItem("setupCompleted", "true");
       // Reindirizza alla pagina di login
       navigate("/");
     } catch (error) {

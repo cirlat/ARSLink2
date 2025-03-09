@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Generatore Licenze - ARSLink2</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f9fafb;
+      }
+      .card {
+        box-shadow:
+          0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-gray-50">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">
+          Generatore Licenze ARSLink2
+        </h1>
+        <p class="text-gray-600 mt-2">
+          Strumento amministrativo per generare chiavi di licenza
+        </p>
+      </div>
+
+      <div class="card bg-white rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4 flex items-center">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 mr-2 text-blue-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+            />
+          </svg>
+          Genera Nuova Licenza
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"
+              >Tipo di Licenza</label
+            >
+            <select
+              id="licenseType"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="basic">Base</option>
+              <option value="google">Base + Google Calendar</option>
+              <option value="whatsapp">Base + WhatsApp</option>
+              <option value="full">Completa</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"
+              >Durata (mesi)</label
+            >
+            <select
+              id="duration"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="1">1 mese</option>
+              <option value="3">3 mesi</option>
+              <option value="6">6 mesi</option>
+              <option value="12" selected>1 anno</option>
+              <option value="24">2 anni</option>
+              <option value="36">3 anni</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mt-6">
+          <button
+            id="generateBtn"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out"
+          >
+            Genera Licenza
+          </button>
+        </div>
+
+        <div id="licenseResult" class="mt-6 hidden">
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Licenza Generata</label
+          >
+          <div class="flex">
+            <input
+              id="licenseKey"
+              type="text"
+              readonly
+              class="flex-grow px-3 py-2 border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-50 font-mono text-sm"
+            />
+            <button
+              id="copyBtn"
+              class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-r-md focus:outline-none focus:shadow-outline transition duration-150 ease-in-out"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                />
+              </svg>
+            </button>
+          </div>
+          <div id="copyMessage" class="mt-2 text-sm text-green-600 hidden">
+            Copiato negli appunti!
+          </div>
+        </div>
+      </div>
+
+      <div class="card bg-white rounded-lg p-6">
+        <h2 class="text-xl font-semibold mb-4 flex items-center">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 mr-2 text-blue-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+            />
+          </svg>
+          Licenze Generate
+        </h2>
+
+        <div class="overflow-x-auto">
+          <table id="licenseTable" class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Tipo
+                </th>
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Chiave
+                </th>
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Scadenza
+                </th>
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Azioni
+                </th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <!-- Le licenze generate verranno inserite qui -->
+            </tbody>
+          </table>
+        </div>
+
+        <div id="noLicenses" class="text-center py-4 text-gray-500">
+          Nessuna licenza generata
+        </div>
+      </div>
+    </div>
+
+    <script src="license-generator.js"></script>
+  </body>
+</html>

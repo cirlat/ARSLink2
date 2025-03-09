@@ -23,7 +23,12 @@ function App() {
   // Verifica se è il primo avvio dell'applicazione
   useEffect(() => {
     const isFirstRun = !localStorage.getItem("setupCompleted");
-    if (isFirstRun && location.pathname !== "/setup") {
+    // Non reindirizzare se siamo in una pagina admin o se non è il primo avvio
+    if (
+      isFirstRun &&
+      !location.pathname.startsWith("/admin") &&
+      location.pathname !== "/setup"
+    ) {
       navigate("/setup");
     }
   }, [location.pathname, navigate]);
@@ -44,10 +49,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordForm />} />
           <Route path="/reset-password" element={<ResetPasswordForm />} />
           <Route path="/setup" element={<SetupWizard />} />
-          <Route
-            path="/admin/license-generator"
-            element={<LicenseGenerator />}
-          />
+          {/* Rimosso il generatore di licenze dall'app principale */}
         </Routes>
       </>
     </Suspense>
