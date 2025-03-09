@@ -55,31 +55,14 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Lista dei comuni italiani con codice catastale (versione ridotta per esempio)
-// In un'implementazione reale, questo sarebbe un file JSON importato o caricato da un'API
-const italianCities = [
-  { name: "Roma", code: "H501" },
-  { name: "Milano", code: "F205" },
-  { name: "Napoli", code: "F839" },
-  { name: "Torino", code: "L219" },
-  { name: "Palermo", code: "G273" },
-  { name: "Genova", code: "D969" },
-  { name: "Bologna", code: "A944" },
-  { name: "Firenze", code: "D612" },
-  { name: "Bari", code: "A662" },
-  { name: "Catania", code: "C351" },
-  { name: "Venezia", code: "L736" },
-  { name: "Verona", code: "L781" },
-  { name: "Messina", code: "F158" },
-  { name: "Padova", code: "G224" },
-  { name: "Trieste", code: "L424" },
-  { name: "Brescia", code: "B157" },
-  { name: "Parma", code: "G337" },
-  { name: "Taranto", code: "L049" },
-  { name: "Prato", code: "G999" },
-  { name: "Modena", code: "F257" },
-  // Aggiungi qui altri comuni o importa da un file JSON esterno
-];
+// Importa la lista dei comuni italiani dal file JSON
+import comuniItalianiData from "@/data/comuni-italiani.json";
+
+// Converte il formato dei dati per l'uso nel componente
+const italianCities = comuniItalianiData.map((comune) => ({
+  name: comune.nome,
+  code: comune.codice,
+}));
 
 // Funzione per aggiungere un nuovo comune
 const addCity = (name: string, code: string) => {
@@ -198,12 +181,11 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
               onValueChange={setActiveTab}
               className="w-full"
             >
-              <TabsList className="grid grid-cols-3 w-full">
+              <TabsList className="grid grid-cols-2 w-full">
                 <TabsTrigger value="personal">
                   Informazioni Personali
                 </TabsTrigger>
                 <TabsTrigger value="medical">Informazioni Mediche</TabsTrigger>
-                <TabsTrigger value="consent">Consensi & Privacy</TabsTrigger>
               </TabsList>
 
               {/* Tab Informazioni Personali */}
@@ -271,68 +253,21 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                         <FormLabel>Data di Nascita</FormLabel>
                         <div className="space-y-2">
                           <div className="flex gap-2">
-                            <Select
+                            <Input
+                              type="date"
                               value={
                                 field.value
-                                  ? getMonth(field.value).toString()
-                                  : "0"
+                                  ? format(field.value, "yyyy-MM-dd")
+                                  : ""
                               }
-                              onValueChange={(value) => {
-                                const newDate = new Date(field.value);
-                                newDate.setMonth(parseInt(value));
-                                field.onChange(newDate);
+                              onChange={(e) => {
+                                const date = e.target.value
+                                  ? new Date(e.target.value)
+                                  : new Date();
+                                field.onChange(date);
                               }}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Mese" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Array.from({ length: 12 }, (_, i) => i).map(
-                                  (month) => (
-                                    <SelectItem
-                                      key={month}
-                                      value={month.toString()}
-                                    >
-                                      {format(
-                                        new Date(2000, month, 1),
-                                        "MMMM",
-                                        { locale: it },
-                                      )}
-                                    </SelectItem>
-                                  ),
-                                )}
-                              </SelectContent>
-                            </Select>
-
-                            <Select
-                              value={
-                                field.value
-                                  ? getYear(field.value).toString()
-                                  : "1990"
-                              }
-                              onValueChange={(value) => {
-                                const newDate = new Date(field.value);
-                                newDate.setFullYear(parseInt(value));
-                                field.onChange(newDate);
-                              }}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Anno" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Array.from(
-                                  { length: 100 },
-                                  (_, i) => new Date().getFullYear() - i,
-                                ).map((year) => (
-                                  <SelectItem
-                                    key={year}
-                                    value={year.toString()}
-                                  >
-                                    {year}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              className="w-full"
+                            />
                           </div>
 
                           <Popover>
@@ -534,6 +469,76 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                     </FormItem>
                   )}
                 />
+                {/* Consensi & Privacy */}
+                <div className="space-y-4 mt-6 pt-4 border-t">
+                  <h3 className="text-lg font-medium">Consensi & Privacy</h3>
+
+                  <div className="bg-muted p-4 rounded-md mb-4">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <h4 className="font-medium">
+                          Informazioni sulla Privacy
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          I seguenti consensi sono necessari per il trattamento
+                          dei dati del paziente in conformità con il GDPR e le
+                          leggi italiane sulla privacy.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="privacyConsent"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            Consenso Privacy{" "}
+                            <span className="text-destructive">*</span>
+                          </FormLabel>
+                          <FormDescription>
+                            Acconsento al trattamento dei miei dati personali
+                            per finalità sanitarie come descritto
+                            nell'informativa sulla privacy.
+                          </FormDescription>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="marketingConsent"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>Comunicazioni</FormLabel>
+                          <FormDescription>
+                            Acconsento a ricevere promemoria per appuntamenti,
+                            follow-up e altre comunicazioni relative alla mia
+                            assistenza sanitaria.
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </TabsContent>
 
               {/* Tab Informazioni Mediche */}
@@ -606,75 +611,6 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                         />
                       </FormControl>
                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </TabsContent>
-
-              {/* Tab Consensi & Privacy */}
-              <TabsContent value="consent" className="space-y-4 mt-4">
-                <div className="bg-muted p-4 rounded-md mb-4">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
-                    <div>
-                      <h4 className="font-medium">
-                        Informazioni sulla Privacy
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        I seguenti consensi sono necessari per il trattamento
-                        dei dati del paziente in conformità con il GDPR e le
-                        leggi italiane sulla privacy.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="privacyConsent"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>
-                          Consenso Privacy{" "}
-                          <span className="text-destructive">*</span>
-                        </FormLabel>
-                        <FormDescription>
-                          Acconsento al trattamento dei miei dati personali per
-                          finalità sanitarie come descritto nell'informativa
-                          sulla privacy.
-                        </FormDescription>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="marketingConsent"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>Comunicazioni</FormLabel>
-                        <FormDescription>
-                          Acconsento a ricevere promemoria per appuntamenti,
-                          follow-up e altre comunicazioni relative alla mia
-                          assistenza sanitaria.
-                        </FormDescription>
-                      </div>
                     </FormItem>
                   )}
                 />

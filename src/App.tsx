@@ -1,5 +1,5 @@
-import { Suspense } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Suspense, useEffect } from "react";
+import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import Home from "./components/home";
 import Dashboard from "./components/dashboard/Dashboard";
 import CalendarView from "./components/dashboard/CalendarView";
@@ -12,16 +12,26 @@ import Settings from "./components/settings/Settings";
 import ForgotPasswordForm from "./components/auth/ForgotPasswordForm";
 import ResetPasswordForm from "./components/auth/ResetPasswordForm";
 import SetupWizard from "./setup/SetupWizard";
+import LicenseGenerator from "./components/admin/LicenseGenerator";
 
 function App() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isLoginPage =
     location.pathname === "/" && !localStorage.getItem("isAuthenticated");
+
+  // Verifica se è il primo avvio dell'applicazione
+  useEffect(() => {
+    const isFirstRun = !localStorage.getItem("setupCompleted");
+    if (isFirstRun && location.pathname !== "/setup") {
+      navigate("/setup");
+    }
+  }, [location.pathname, navigate]);
 
   return (
     <Suspense fallback={<p>Loading...</p>}>
       <>
-        {!isLoginPage && <TopNavigation />}
+        {!isLoginPage && location.pathname !== "/setup" && <TopNavigation />}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/calendar" element={<CalendarView />} />
@@ -34,6 +44,10 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordForm />} />
           <Route path="/reset-password" element={<ResetPasswordForm />} />
           <Route path="/setup" element={<SetupWizard />} />
+          <Route
+            path="/admin/license-generator"
+            element={<LicenseGenerator />}
+          />
         </Routes>
       </>
     </Suspense>

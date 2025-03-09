@@ -33,19 +33,30 @@ const Home = ({
   );
 
   // Handle login submission
-  const handleLogin = (data: {
+  const handleLogin = async (data: {
     username: string;
     password: string;
     role: "Medico" | "Assistente";
   }) => {
-    // In a real app, this would validate credentials against a backend
-    if (data.username && data.password) {
-      setAuthenticated(true);
-      setLoginError("");
-      // Imposta un flag per indicare che l'utente è autenticato
-      localStorage.setItem("isAuthenticated", "true");
-    } else {
-      setLoginError("Invalid username or password");
+    // Verifica se esiste un utente nel database
+    try {
+      // Simuliamo una chiamata al database
+      const authService = AuthService.getInstance();
+      const result = await authService.login(data.username, data.password);
+
+      if (result.user) {
+        setAuthenticated(true);
+        setLoginError("");
+        // Imposta un flag per indicare che l'utente è autenticato
+        localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem("userRole", data.role);
+        localStorage.setItem("userName", `Dr. ${data.username}`);
+      } else {
+        setLoginError(result.error || "Credenziali non valide");
+      }
+    } catch (error) {
+      console.error("Errore durante il login:", error);
+      setLoginError("Si è verificato un errore durante il login");
     }
   };
 

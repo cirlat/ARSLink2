@@ -156,6 +156,19 @@ const PatientList: React.FC<PatientListProps> = ({
     }
   };
 
+  // Gestione dell'eliminazione di un paziente
+  const handleDeleteConfirm = (id: string) => {
+    // Qui implementeremo la logica di eliminazione effettiva
+    console.log(`Paziente ${id} eliminato`);
+    // Rimuovi il paziente dall'array locale (in un'app reale, questo sarebbe gestito dal database)
+    const updatedPatients = patients.filter((patient) => patient.id !== id);
+    // Aggiorna lo stato o ricarica i dati
+    setDeleteConfirmOpen(false);
+    setPatientToDelete(null);
+    // Mostra un messaggio di conferma
+    alert("Paziente eliminato con successo");
+  };
+
   // Filtra i pazienti in base al termine di ricerca
   const filteredPatients = patients.filter(
     (patient) =>
@@ -184,9 +197,11 @@ const PatientList: React.FC<PatientListProps> = ({
 
   const confirmDelete = () => {
     if (patientToDelete) {
-      onDeletePatient(patientToDelete);
-      setDeleteConfirmOpen(false);
-      setPatientToDelete(null);
+      if (onDeletePatient) {
+        onDeletePatient(patientToDelete);
+      } else {
+        handleDeleteConfirm(patientToDelete);
+      }
     }
   };
 

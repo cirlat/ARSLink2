@@ -148,45 +148,10 @@ export class LicenseModel {
     valid: boolean;
     licenseType?: "basic" | "google" | "whatsapp" | "full";
     expiryDate?: Date;
+    error?: string;
   }> {
-    // In un'implementazione reale, questa funzione verificherebbe la chiave di licenza
-    // con un server di licenze o un algoritmo di verifica
-
-    // Per questa simulazione, consideriamo valide le chiavi che iniziano con specifici prefissi
-    if (licenseKey.startsWith("BASIC-")) {
-      return {
-        valid: true,
-        licenseType: "basic",
-        expiryDate: new Date(
-          new Date().setFullYear(new Date().getFullYear() + 1),
-        ),
-      };
-    } else if (licenseKey.startsWith("GOOGLE-")) {
-      return {
-        valid: true,
-        licenseType: "google",
-        expiryDate: new Date(
-          new Date().setFullYear(new Date().getFullYear() + 1),
-        ),
-      };
-    } else if (licenseKey.startsWith("WHATSAPP-")) {
-      return {
-        valid: true,
-        licenseType: "whatsapp",
-        expiryDate: new Date(
-          new Date().setFullYear(new Date().getFullYear() + 1),
-        ),
-      };
-    } else if (licenseKey.startsWith("FULL-")) {
-      return {
-        valid: true,
-        licenseType: "full",
-        expiryDate: new Date(
-          new Date().setFullYear(new Date().getFullYear() + 1),
-        ),
-      };
-    }
-
-    return { valid: false };
+    // Utilizziamo la funzione di verifica dalla utility delle licenze
+    const { verifyLicenseKey } = await import("@/utils/licenseUtils");
+    return verifyLicenseKey(licenseKey);
   }
 }
