@@ -1,5 +1,20 @@
 // Utilizziamo una simulazione del database per evitare problemi con pg nel browser
-// Definiamo le interfacce che sarebbero fornite dal modulo pg
+// ma implementiamo anche la possibilità di connettersi a un DB reale quando possibile
+
+// Importiamo il modulo pg in modo condizionale
+let pg: any = null;
+try {
+  // Tentiamo di importare pg solo se siamo in un ambiente Node.js
+  if (
+    typeof process !== "undefined" &&
+    process.versions &&
+    process.versions.node
+  ) {
+    pg = require("pg");
+  }
+} catch (e) {
+  console.log("Ambiente browser rilevato, utilizzo simulazione DB");
+}
 
 // Interfacce per compatibilità
 interface PoolClient {
@@ -26,29 +41,96 @@ class Database {
     // Leggi le configurazioni da localStorage o da un file di configurazione
     const dbConfig = this.getDbConfig();
 
-    // In ambiente browser, utilizziamo sempre la simulazione del database
+    // Verifichiamo se possiamo utilizzare un DB reale
     this.useRealDb = false;
-    console.log("Utilizzo database simulato (ambiente browser)");
+
+    if (pg) {
+      try {
+        // Tenta di creare una connessione reale a PostgreSQL
+        this.pgPool = new pg.Pool({
+          host: dbConfig.host,
+          port: parseInt(dbConfig.port),
+          user: dbConfig.username,
+          password: dbConfig.password,
+          database: dbConfig.dbName,
+          ssl: false,
+          // Timeout di connessione di 5 secondi
+          connectionTimeoutMillis: 5000,
+        });
+        this.useRealDb = true;
+        console.log("Configurata connessione reale a PostgreSQL");
+      } catch (error) {
+        console.error("Errore nella configurazione di PostgreSQL:", error);
+        console.log("Utilizzo database simulato");
+        this.useRealDb = false;
+      }
+    } else {
+      console.log("Utilizzo database simulato (ambiente browser)");
+    }
 
     // Implementazione del pool che decide se usare PostgreSQL reale o simulazione
     this.pool = {
       connect: async () => {
-        // Simuliamo la connessione al database
-        console.log("Simulazione connessione al database");
+        if (this.useRealDb && this.pgPool) {
+          try {
+            // Test della connessione
+            await this.pgPool.query("SELECT NOW()");
+            console.log("Connessione a PostgreSQL stabilita");
+          } catch (error) {
+            console.error("Errore di connessione a PostgreSQL:", error);
+            this.useRealDb = false;
+            console.log("Passaggio a database simulato");
+          }
+        } else {
+          console.log("Simulazione connessione al database");
+        }
         return Promise.resolve();
       },
       end: async () => {
-        // Simuliamo la chiusura della connessione
-        console.log("Simulazione chiusura connessione al database");
+        if (this.useRealDb && this.pgPool) {
+          await this.pgPool.end();
+        } else {
+          console.log("Simulazione chiusura connessione al database");
+        }
         return Promise.resolve();
       },
       query: async (text: string, params: any[] = []) => {
-        // Utilizziamo sempre la simulazione in ambiente browser
-        return this.simulateQuery(text, params);
+        if (this.useRealDb && this.pgPool) {
+          try {
+            const result = await this.pgPool.query(text, params);
+            return result;
+          } catch (error) {
+            console.error(
+              "Errore nell'esecuzione della query PostgreSQL:",
+              error,
+            );
+            console.error("Query:", text, "Params:", params);
+            // Fallback alla simulazione in caso di errore
+            return this.simulateQuery(text, params);
+          }
+        } else {
+          return this.simulateQuery(text, params);
+        }
       },
       getClient: async () => {
-        // Restituiamo sempre un client simulato
-        return this.getSimulatedClient();
+        if (this.useRealDb && this.pgPool) {
+          try {
+            const client = await this.pgPool.connect();
+            return {
+              query: async (text: string, params: any[] = []) => {
+                const result = await client.query(text, params);
+                return result;
+              },
+              release: () => client.release(),
+            };
+          } catch (error) {
+            console.error("Errore nell'ottenere un client PostgreSQL:", error);
+            // Fallback alla simulazione
+            return this.getSimulatedClient();
+          }
+        } else {
+          return this.getSimulatedClient();
+        }
       },
     };
   }

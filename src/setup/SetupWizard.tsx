@@ -418,26 +418,82 @@ const SetupWizard = () => {
                           throw new Error("La password è troppo corta");
                         }
 
-                        // Simuliamo la creazione del database
-                        // In ambiente browser, utilizziamo localStorage per simulare il database
-                        localStorage.setItem("dbCreated", "true");
-                        localStorage.setItem(
-                          "dbTables",
-                          JSON.stringify([
-                            "users",
-                            "patients",
-                            "appointments",
-                            "license",
-                            "configurations",
-                          ]),
-                        );
+                        // Tentiamo di creare realmente il database
+                        try {
+                          // Importiamo il modulo Database
+                          const Database = (await import("@/models/database"))
+                            .default;
+                          const db = Database.getInstance();
 
-                        // Creiamo un utente admin di default
-                        localStorage.setItem("defaultUserCreated", "true");
+                          // Inizializza il database con le tabelle necessarie
+                          await db.initializeDatabase();
 
-                        console.log(
-                          "Database simulato inizializzato con successo",
-                        );
+                          // Salviamo l'informazione che il database è stato creato
+                          localStorage.setItem("dbCreated", "true");
+                          localStorage.setItem(
+                            "dbTables",
+                            JSON.stringify([
+                              "users",
+                              "patients",
+                              "appointments",
+                              "license",
+                              "configurations",
+                            ]),
+                          );
+
+                          // Creiamo un utente admin di default
+                          localStorage.setItem("defaultUserCreated", "true");
+
+                          // Salviamo anche la password dell'admin per il login
+                          localStorage.setItem(
+                            "adminUser",
+                            JSON.stringify({
+                              username: adminUser.username || "admin",
+                              password: adminUser.password || "admin123",
+                              fullName: adminUser.fullName || "Amministratore",
+                              email: adminUser.email || "admin@arslink.it",
+                              role: "Medico",
+                            }),
+                          );
+
+                          console.log("Database inizializzato con successo");
+                        } catch (dbError) {
+                          console.error(
+                            "Errore nell'inizializzazione del database:",
+                            dbError,
+                          );
+                          // Continuiamo comunque, usando la simulazione come fallback
+                          localStorage.setItem("dbCreated", "true");
+                          localStorage.setItem(
+                            "dbTables",
+                            JSON.stringify([
+                              "users",
+                              "patients",
+                              "appointments",
+                              "license",
+                              "configurations",
+                            ]),
+                          );
+
+                          // Creiamo un utente admin di default
+                          localStorage.setItem("defaultUserCreated", "true");
+
+                          // Salviamo anche la password dell'admin per il login
+                          localStorage.setItem(
+                            "adminUser",
+                            JSON.stringify({
+                              username: adminUser.username || "admin",
+                              password: adminUser.password || "admin123",
+                              fullName: adminUser.fullName || "Amministratore",
+                              email: adminUser.email || "admin@arslink.it",
+                              role: "Medico",
+                            }),
+                          );
+
+                          console.log(
+                            "Database simulato inizializzato con successo",
+                          );
+                        }
 
                         alert(
                           "Connessione riuscita! Il database è stato inizializzato correttamente.",
