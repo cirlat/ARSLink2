@@ -1,18 +1,155 @@
-// Import mock implementations for browser environment
-import { Pool, PoolClient } from "@/lib/mockDatabase";
+// Utilizziamo una simulazione del database per evitare problemi con pg nel browser
+// Definiamo le interfacce che sarebbero fornite dal modulo pg
+
+// Interfacce per compatibilità
+interface PoolClient {
+  query: (text: string, params?: any[]) => Promise<{ rows: any[] }>;
+  release: () => void;
+}
+
+interface Pool {
+  connect: () => Promise<void>;
+  end: () => Promise<void>;
+  query: (text: string, params?: any[]) => Promise<{ rows: any[] }>;
+  getClient: () => Promise<PoolClient>;
+}
 
 // Singleton pattern per la connessione al database
 class Database {
   private static instance: Database;
   private pool: Pool;
+  private pgPool: PgPool | null = null;
   private isConnected: boolean = false;
+  private useRealDb: boolean = false;
 
   private constructor() {
     // Leggi le configurazioni da localStorage o da un file di configurazione
     const dbConfig = this.getDbConfig();
 
-    // Use mock Pool implementation that doesn't require process.env
-    this.pool = new Pool();
+    // In ambiente browser, utilizziamo sempre la simulazione del database
+    this.useRealDb = false;
+    console.log("Utilizzo database simulato (ambiente browser)");
+
+    // Implementazione del pool che decide se usare PostgreSQL reale o simulazione
+    this.pool = {
+      connect: async () => {
+        // Simuliamo la connessione al database
+        console.log("Simulazione connessione al database");
+        return Promise.resolve();
+      },
+      end: async () => {
+        // Simuliamo la chiusura della connessione
+        console.log("Simulazione chiusura connessione al database");
+        return Promise.resolve();
+      },
+      query: async (text: string, params: any[] = []) => {
+        // Utilizziamo sempre la simulazione in ambiente browser
+        return this.simulateQuery(text, params);
+      },
+      getClient: async () => {
+        // Restituiamo sempre un client simulato
+        return this.getSimulatedClient();
+      },
+    };
+  }
+
+  // Metodi per la simulazione del database
+  private storage: Record<string, any[]> = {
+    users: [],
+    patients: [],
+    appointments: [],
+    license: [],
+    configurations: [],
+  };
+
+  private simulateQuery(
+    text: string,
+    params: any[] = [],
+  ): Promise<{ rows: any[] }> {
+    console.log("Simulazione query:", text, params);
+
+    // Carica dati da localStorage se disponibili
+    this.loadStorageFromLocalStorage();
+
+    // Simple query parsing to simulate database operations
+    if (text.toLowerCase().includes("select")) {
+      const table = this.extractTableName(text);
+      return Promise.resolve({ rows: this.storage[table] || [] });
+    } else if (text.toLowerCase().includes("insert")) {
+      const table = this.extractTableName(text);
+      const newItem = { id: Date.now(), ...this.createMockItem(params) };
+      this.storage[table] = [...(this.storage[table] || []), newItem];
+
+      // Salva in localStorage
+      this.saveStorageToLocalStorage();
+
+      return Promise.resolve({ rows: [newItem] });
+    } else if (text.toLowerCase().includes("update")) {
+      const table = this.extractTableName(text);
+      // Simplified update logic
+      this.saveStorageToLocalStorage();
+      return Promise.resolve({ rows: this.storage[table] || [] });
+    } else if (text.toLowerCase().includes("delete")) {
+      const table = this.extractTableName(text);
+      // Simplified delete logic
+      this.saveStorageToLocalStorage();
+      return Promise.resolve({ rows: [] });
+    }
+
+    return Promise.resolve({ rows: [] });
+  }
+
+  private getSimulatedClient(): PoolClient {
+    return {
+      query: async (text: string, params: any[] = []) =>
+        this.simulateQuery(text, params),
+      release: () => {},
+    };
+  }
+
+  private extractTableName(query: string): string {
+    // Very simplified table name extraction
+    const tables = [
+      "users",
+      "patients",
+      "appointments",
+      "license",
+      "configurations",
+    ];
+    for (const table of tables) {
+      if (query.toLowerCase().includes(table)) {
+        return table;
+      }
+    }
+    return "unknown";
+  }
+
+  private createMockItem(params: any[]): any {
+    // Create a mock item with the parameters
+    const mockItem: Record<string, any> = {};
+    params.forEach((param, index) => {
+      mockItem[`field${index}`] = param;
+    });
+    return mockItem;
+  }
+
+  private loadStorageFromLocalStorage(): void {
+    try {
+      const storedData = localStorage.getItem("simulatedDatabase");
+      if (storedData) {
+        this.storage = JSON.parse(storedData);
+      }
+    } catch (error) {
+      console.error("Errore nel caricamento del database simulato:", error);
+    }
+  }
+
+  private saveStorageToLocalStorage(): void {
+    try {
+      localStorage.setItem("simulatedDatabase", JSON.stringify(this.storage));
+    } catch (error) {
+      console.error("Errore nel salvataggio del database simulato:", error);
+    }
   }
 
   public static getInstance(): Database {

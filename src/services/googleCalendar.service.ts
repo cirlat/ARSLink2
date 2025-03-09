@@ -83,24 +83,104 @@ export class GoogleCalendarService {
     }
 
     try {
-      // In un'implementazione reale, qui creeremmo o aggiorneremmo un evento in Google Calendar
-      // Per ora, simuliamo il successo
+      // Verifica che l'appuntamento abbia tutti i dati necessari
+      if (
+        !appointment.id ||
+        !appointment.patient_id ||
+        !appointment.date ||
+        !appointment.time
+      ) {
+        console.error(
+          "Dati appuntamento incompleti per la sincronizzazione con Google Calendar",
+        );
+        return false;
+      }
 
-      // Genera un ID evento fittizio
-      const eventId = `event_${appointment.id}_${Date.now()}`;
+      // In un'implementazione reale, qui utilizzeremmo l'API di Google Calendar
+      // Per ora, implementiamo una simulazione più realistica
+
+      // Recupera le informazioni del paziente (in un'app reale)
+      // const patient = await patientModel.findById(appointment.patient_id);
+
+      // Costruisci l'oggetto evento per Google Calendar
+      const eventDetails = {
+        summary: `Appuntamento: ${appointment.appointment_type}`,
+        description: appointment.notes || "Nessuna nota",
+        start: {
+          dateTime: `${new Date(appointment.date).toISOString().split("T")[0]}T${appointment.time}:00`,
+          timeZone: "Europe/Rome",
+        },
+        end: {
+          // Calcola l'ora di fine in base alla durata
+          dateTime: this.calculateEndTime(
+            appointment.date,
+            appointment.time,
+            appointment.duration,
+          ),
+          timeZone: "Europe/Rome",
+        },
+        // Altre proprietà che sarebbero presenti in un evento reale
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: "email", minutes: 24 * 60 },
+            { method: "popup", minutes: 30 },
+          ],
+        },
+      };
+
+      console.log(
+        "Simulazione sincronizzazione con Google Calendar:",
+        eventDetails,
+      );
+
+      // Genera un ID evento fittizio ma più realistico
+      const eventId = `google_event_${appointment.id}_${Date.now().toString(36)}`;
 
       // Aggiorna lo stato di sincronizzazione dell'appuntamento
       await this.appointmentModel.updateGoogleCalendarSync(
-        appointment.id!,
+        appointment.id,
         true,
         eventId,
       );
+
+      // Salva i dettagli dell'evento in localStorage per simulazione
+      try {
+        const syncedEvents = JSON.parse(
+          localStorage.getItem("googleCalendarEvents") || "{}",
+        );
+        syncedEvents[eventId] = {
+          ...eventDetails,
+          appointmentId: appointment.id,
+          syncedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(
+          "googleCalendarEvents",
+          JSON.stringify(syncedEvents),
+        );
+      } catch (e) {
+        console.error("Errore nel salvataggio dell'evento in localStorage:", e);
+      }
 
       return true;
     } catch (error) {
       console.error("Error syncing appointment with Google Calendar:", error);
       return false;
     }
+  }
+
+  // Metodo helper per calcolare l'ora di fine dell'appuntamento
+  private calculateEndTime(
+    date: Date,
+    startTime: string,
+    durationMinutes: number,
+  ): string {
+    const [hours, minutes] = startTime.split(":").map(Number);
+    const startDate = new Date(date);
+    startDate.setHours(hours, minutes, 0, 0);
+
+    const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
+    return endDate.toISOString();
   }
 
   async deleteAppointment(appointment: Appointment): Promise<boolean> {

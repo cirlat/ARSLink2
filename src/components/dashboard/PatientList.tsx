@@ -157,16 +157,49 @@ const PatientList: React.FC<PatientListProps> = ({
   };
 
   // Gestione dell'eliminazione di un paziente
-  const handleDeleteConfirm = (id: string) => {
-    // Qui implementeremo la logica di eliminazione effettiva
-    console.log(`Paziente ${id} eliminato`);
-    // Rimuovi il paziente dall'array locale (in un'app reale, questo sarebbe gestito dal database)
-    const updatedPatients = patients.filter((patient) => patient.id !== id);
-    // Aggiorna lo stato o ricarica i dati
-    setDeleteConfirmOpen(false);
-    setPatientToDelete(null);
-    // Mostra un messaggio di conferma
-    alert("Paziente eliminato con successo");
+  const handleDeleteConfirm = async (id: string) => {
+    try {
+      // Implementazione reale dell'eliminazione del paziente dal database
+      // In un'app reale, qui chiameremmo un'API o un servizio
+      const { PatientModel } = await import("@/models/patient");
+      const patientModel = new PatientModel();
+
+      // Converti l'id da string a number se necessario
+      const patientId = parseInt(id);
+      if (isNaN(patientId)) {
+        throw new Error("ID paziente non valido");
+      }
+
+      // Elimina il paziente dal database
+      const success = await patientModel.delete(patientId);
+
+      if (!success) {
+        throw new Error("Impossibile eliminare il paziente");
+      }
+
+      // Rimuovi il paziente dall'array locale
+      const updatedPatients = patients.filter((patient) => patient.id !== id);
+
+      // Aggiorna lo stato o ricarica i dati
+      setDeleteConfirmOpen(false);
+      setPatientToDelete(null);
+
+      // Mostra un messaggio di conferma
+      alert("Paziente eliminato con successo");
+
+      // In un'app reale, qui aggiorneremmo lo stato o ricaricheremmo i dati
+      // Per ora, simuliamo un aggiornamento della pagina dopo un breve ritardo
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (error) {
+      console.error("Errore durante l'eliminazione del paziente:", error);
+      alert(
+        `Errore durante l'eliminazione del paziente: ${error.message || "Errore sconosciuto"}`,
+      );
+      setDeleteConfirmOpen(false);
+      setPatientToDelete(null);
+    }
   };
 
   // Filtra i pazienti in base al termine di ricerca

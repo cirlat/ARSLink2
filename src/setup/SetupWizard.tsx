@@ -419,6 +419,7 @@ const SetupWizard = () => {
                         }
 
                         // Simuliamo la creazione del database
+                        // In ambiente browser, utilizziamo localStorage per simulare il database
                         localStorage.setItem("dbCreated", "true");
                         localStorage.setItem(
                           "dbTables",
@@ -433,6 +434,10 @@ const SetupWizard = () => {
 
                         // Creiamo un utente admin di default
                         localStorage.setItem("defaultUserCreated", "true");
+
+                        console.log(
+                          "Database simulato inizializzato con successo",
+                        );
 
                         alert(
                           "Connessione riuscita! Il database è stato inizializzato correttamente.",

@@ -109,20 +109,95 @@ export class WhatsAppService {
     }
 
     try {
-      // In un'implementazione reale, qui invieremmo un messaggio WhatsApp tramite Selenium
-      // Per ora, simuliamo il successo
+      // Verifica che l'appuntamento e il numero di telefono siano validi
+      if (!appointment.id || !phoneNumber) {
+        console.error("Dati incompleti per l'invio della notifica WhatsApp");
+        return false;
+      }
+
+      // Verifica che il numero di telefono sia in un formato valido
+      if (!this.isValidPhoneNumber(phoneNumber)) {
+        console.error("Formato numero di telefono non valido:", phoneNumber);
+        return false;
+      }
+
+      // In un'implementazione reale, qui utilizzeremmo Selenium per controllare WhatsApp Web
+      // Simuliamo un processo più realistico
+
+      console.log(`Simulazione invio WhatsApp a ${phoneNumber}: ${message}`);
+
+      // Simulazione del processo di invio con possibilità di fallimento casuale
+      const isSuccessful = Math.random() > 0.1; // 90% di successo
+
+      if (!isSuccessful) {
+        throw new Error("Simulazione fallimento invio WhatsApp");
+      }
+
+      // Salva la notifica in localStorage per simulazione
+      try {
+        const notifications = JSON.parse(
+          localStorage.getItem("whatsappNotifications") || "[]",
+        );
+        notifications.push({
+          appointmentId: appointment.id,
+          phoneNumber,
+          message,
+          sentAt: new Date().toISOString(),
+          status: "sent",
+        });
+        localStorage.setItem(
+          "whatsappNotifications",
+          JSON.stringify(notifications),
+        );
+      } catch (e) {
+        console.error(
+          "Errore nel salvataggio della notifica in localStorage:",
+          e,
+        );
+      }
 
       // Aggiorna lo stato di notifica dell'appuntamento
       await this.appointmentModel.updateWhatsAppNotification(
-        appointment.id!,
+        appointment.id,
         true,
       );
 
       return true;
     } catch (error) {
       console.error("Error sending WhatsApp notification:", error);
+
+      // Registra il fallimento in localStorage
+      try {
+        const failedNotifications = JSON.parse(
+          localStorage.getItem("failedWhatsappNotifications") || "[]",
+        );
+        failedNotifications.push({
+          appointmentId: appointment.id,
+          phoneNumber,
+          message,
+          attemptedAt: new Date().toISOString(),
+          error: error.message || "Unknown error",
+        });
+        localStorage.setItem(
+          "failedWhatsappNotifications",
+          JSON.stringify(failedNotifications),
+        );
+      } catch (e) {
+        console.error(
+          "Errore nel salvataggio della notifica fallita in localStorage:",
+          e,
+        );
+      }
+
       return false;
     }
+  }
+
+  // Metodo helper per validare il formato del numero di telefono
+  private isValidPhoneNumber(phoneNumber: string): boolean {
+    // Formato base: +39 123 456 7890 o varianti
+    const phoneRegex = /^\+?[0-9\s]{10,15}$/;
+    return phoneRegex.test(phoneNumber.replace(/\s/g, ""));
   }
 
   async sendAppointmentConfirmation(

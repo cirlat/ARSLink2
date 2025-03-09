@@ -30,6 +30,17 @@ export class PatientModel {
 
   async create(patient: Patient): Promise<Patient> {
     try {
+      // Verifica che i campi obbligatori siano presenti
+      if (
+        !patient.name ||
+        !patient.codice_fiscale ||
+        !patient.date_of_birth ||
+        !patient.gender ||
+        !patient.phone
+      ) {
+        throw new Error("Campi obbligatori mancanti");
+      }
+
       const result = await this.db.query(
         `INSERT INTO patients (
           name, codice_fiscale, date_of_birth, gender, email, phone, 
@@ -55,6 +66,18 @@ export class PatientModel {
           patient.marketing_consent || false,
         ],
       );
+
+      // Salva anche in localStorage come backup
+      try {
+        const patients = JSON.parse(localStorage.getItem("patients") || "[]");
+        patients.push(result[0]);
+        localStorage.setItem("patients", JSON.stringify(patients));
+      } catch (e) {
+        console.error(
+          "Errore nel salvataggio del paziente in localStorage:",
+          e,
+        );
+      }
 
       return result[0];
     } catch (error) {
