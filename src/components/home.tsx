@@ -41,6 +41,8 @@ const Home = ({
     // Verifica se esiste un utente nel database
     try {
       // Simuliamo una chiamata al database
+      // Importiamo il servizio di autenticazione
+      const { AuthService } = await import("@/services/auth.service");
       const authService = AuthService.getInstance();
       const result = await authService.login(data.username, data.password);
 

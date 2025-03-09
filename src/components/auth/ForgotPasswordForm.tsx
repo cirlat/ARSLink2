@@ -143,7 +143,9 @@ const ForgotPasswordForm = ({ onBackToLogin }: ForgotPasswordFormProps) => {
           <Button
             variant="ghost"
             className="w-full"
-            onClick={onBackToLogin}
+            onClick={
+              onBackToLogin ? onBackToLogin : () => (window.location.href = "/")
+            }
             type="button"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
