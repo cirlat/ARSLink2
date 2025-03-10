@@ -1,23 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { format, getMonth, getYear } from "date-fns";
+import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  CalendarIcon,
-  Save,
-  User,
-  Phone,
-  Mail,
-  MapPin,
-  FileText,
-  AlertCircle,
-  Building,
-  Plus,
-} from "lucide-react";
+import { CalendarIcon, Save, Plus, AlertCircle } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -64,6 +53,104 @@ const italianCities = comuniItalianiData.map((comune) => ({
   code: comune.codice,
 }));
 
+// Funzione per calcolare il carattere di controllo del codice fiscale
+const calculateControlChar = (fiscalCode: string): string => {
+  if (!fiscalCode || fiscalCode.length !== 15) return "X";
+
+  const evenChars: { [key: string]: number } = {
+    "0": 0,
+    "1": 1,
+    "2": 2,
+    "3": 3,
+    "4": 4,
+    "5": 5,
+    "6": 6,
+    "7": 7,
+    "8": 8,
+    "9": 9,
+    A: 0,
+    B: 1,
+    C: 2,
+    D: 3,
+    E: 4,
+    F: 5,
+    G: 6,
+    H: 7,
+    I: 8,
+    J: 9,
+    K: 10,
+    L: 11,
+    M: 12,
+    N: 13,
+    O: 14,
+    P: 15,
+    Q: 16,
+    R: 17,
+    S: 18,
+    T: 19,
+    U: 20,
+    V: 21,
+    W: 22,
+    X: 23,
+    Y: 24,
+    Z: 25,
+  };
+
+  const oddChars: { [key: string]: number } = {
+    "0": 1,
+    "1": 0,
+    "2": 5,
+    "3": 7,
+    "4": 9,
+    "5": 13,
+    "6": 15,
+    "7": 17,
+    "8": 19,
+    "9": 21,
+    A: 1,
+    B: 0,
+    C: 5,
+    D: 7,
+    E: 9,
+    F: 13,
+    G: 15,
+    H: 17,
+    I: 19,
+    J: 21,
+    K: 2,
+    L: 4,
+    M: 18,
+    N: 20,
+    O: 11,
+    P: 3,
+    Q: 6,
+    R: 8,
+    S: 12,
+    T: 14,
+    U: 16,
+    V: 10,
+    W: 22,
+    X: 25,
+    Y: 24,
+    Z: 23,
+  };
+
+  let sum = 0;
+  for (let i = 0; i < fiscalCode.length; i++) {
+    const char = fiscalCode.charAt(i).toUpperCase();
+    if (i % 2 === 0) {
+      // Posizioni dispari (0-based index)
+      sum += oddChars[char] || 0;
+    } else {
+      // Posizioni pari (0-based index)
+      sum += evenChars[char] || 0;
+    }
+  }
+
+  const remainder = sum % 26;
+  return String.fromCharCode(65 + remainder); // A-Z
+};
+
 // Funzione per aggiungere un nuovo comune
 const addCity = (name: string, code: string) => {
   // Aggiungi il nuovo comune all'array
@@ -80,28 +167,6 @@ const addCity = (name: string, code: string) => {
     console.error("Errore nel salvataggio dei comuni:", error);
   }
 };
-
-// Carica i comuni da localStorage se disponibili
-React.useEffect(() => {
-  const savedCities = localStorage.getItem("italianCities");
-  if (savedCities) {
-    try {
-      const parsedCities = JSON.parse(savedCities);
-      // Aggiorna l'array dei comuni con quelli salvati
-      // Nota: in un'implementazione reale, dovresti gestire meglio questo aggiornamento
-      // per evitare duplicati o problemi di concorrenza
-      italianCities.length = 0; // Svuota l'array
-      parsedCities.forEach((city: { name: string; code: string }) => {
-        italianCities.push(city);
-      });
-    } catch (error) {
-      console.error(
-        "Errore nel caricamento dei comuni da localStorage:",
-        error,
-      );
-    }
-  }
-}, []);
 
 // Schema di validazione del form
 const formSchema = z.object({
@@ -243,17 +308,39 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
       // Combina tutte le parti
       const fiscalCode = `${lastNameCode}${firstNameCode}${year}${month}${day}${birthPlaceCode}`;
 
-      // In un'implementazione reale, qui calcoleremmo anche il carattere di controllo
-      // Per semplicità, usiamo un carattere fisso
-      return fiscalCode;
+      // Calcolo del carattere di controllo
+      const controlChar = calculateControlChar(fiscalCode);
+      return fiscalCode + controlChar;
     } catch (error) {
       console.error("Errore nella generazione del codice fiscale:", error);
       return "";
     }
   };
 
+  // Carica i comuni da localStorage se disponibili
+  useEffect(() => {
+    const savedCities = localStorage.getItem("italianCities");
+    if (savedCities) {
+      try {
+        const parsedCities = JSON.parse(savedCities);
+        // Aggiorna l'array dei comuni con quelli salvati
+        // Nota: in un'implementazione reale, dovresti gestire meglio questo aggiornamento
+        // per evitare duplicati o problemi di concorrenza
+        italianCities.length = 0; // Svuota l'array
+        parsedCities.forEach((city: { name: string; code: string }) => {
+          italianCities.push(city);
+        });
+      } catch (error) {
+        console.error(
+          "Errore nel caricamento dei comuni da localStorage:",
+          error,
+        );
+      }
+    }
+  }, []);
+
   // Aggiorna il codice fiscale quando cambiano i campi rilevanti
-  React.useEffect(() => {
+  useEffect(() => {
     const values = form.getValues();
     if (
       values.firstName &&
@@ -277,6 +364,7 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
     form.watch("dateOfBirth"),
     form.watch("gender"),
     form.watch("birthPlace"),
+    form,
   ]);
 
   const handleSubmit = (data: PatientFormValues) => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
-import TopNavigation from "../layout/TopNavigation";
+// TopNavigation rimosso come richiesto
 import CalendarView from "./CalendarView";
 import PatientList from "./PatientList";
 import NotificationCenter from "./NotificationCenter";

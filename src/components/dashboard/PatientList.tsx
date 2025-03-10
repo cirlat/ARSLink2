@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -68,59 +68,76 @@ interface PatientListProps {
 }
 
 const PatientList: React.FC<PatientListProps> = ({
-  patients = [
-    {
-      id: "1",
-      name: "Marco Rossi",
-      codiceFiscale: "RSSMRC80A01H501U",
-      phone: "+39 333 1234567",
-      email: "marco.rossi@example.com",
-      lastAppointment: "10/05/2023",
-      nextAppointment: "15/06/2023",
-    },
-    {
-      id: "2",
-      name: "Giulia Bianchi",
-      codiceFiscale: "BNCGLI85B42H501V",
-      phone: "+39 333 7654321",
-      email: "giulia.bianchi@example.com",
-      lastAppointment: "22/04/2023",
-      nextAppointment: null,
-    },
-    {
-      id: "3",
-      name: "Luca Verdi",
-      codiceFiscale: "VRDLCU75C03H501W",
-      phone: "+39 333 9876543",
-      email: "luca.verdi@example.com",
-      lastAppointment: "05/05/2023",
-      nextAppointment: "20/06/2023",
-    },
-    {
-      id: "4",
-      name: "Sofia Esposito",
-      codiceFiscale: "SPSSFO90D44H501X",
-      phone: "+39 333 5432167",
-      email: "sofia.esposito@example.com",
-      lastAppointment: "30/04/2023",
-      nextAppointment: "18/06/2023",
-    },
-    {
-      id: "5",
-      name: "Alessandro Romano",
-      codiceFiscale: "RMNLSN82E05H501Y",
-      phone: "+39 333 6789012",
-      email: "alessandro.romano@example.com",
-      lastAppointment: "15/05/2023",
-      nextAppointment: null,
-    },
-  ],
+  patients: propPatients,
+
   onAddPatient,
   onEditPatient = (id) => console.log("Edit patient", id),
   onDeletePatient = (id) => console.log("Delete patient", id),
   onViewPatient = (id) => console.log("View patient", id),
 }) => {
   const navigate = useNavigate();
+
+  // Carica i pazienti da localStorage
+  const [patients, setPatients] = useState<Patient[]>([]);
+
+  useEffect(() => {
+    try {
+      const storedPatients = JSON.parse(
+        localStorage.getItem("patients") || "[]",
+      );
+      if (storedPatients.length > 0) {
+        // Converti i dati dal formato di storage al formato richiesto dal componente
+        const formattedPatients = storedPatients.map((p: any) => ({
+          id: p.id || String(Date.now()),
+          name: `${p.firstName} ${p.lastName}`,
+          codiceFiscale: p.fiscalCode || "",
+          phone: p.phone || "",
+          email: p.email || "",
+          lastAppointment: "N/A", // In un'implementazione reale, questo verrebbe calcolato dagli appuntamenti
+          nextAppointment: null, // In un'implementazione reale, questo verrebbe calcolato dagli appuntamenti
+        }));
+        setPatients(formattedPatients);
+      } else if (propPatients) {
+        setPatients(propPatients);
+      } else {
+        // Dati di esempio se non ci sono pazienti
+        setPatients([
+          {
+            id: "1",
+            name: "Marco Rossi",
+            codiceFiscale: "RSSMRC80A01H501U",
+            phone: "+39 333 1234567",
+            email: "marco.rossi@example.com",
+            lastAppointment: "10/05/2023",
+            nextAppointment: "15/06/2023",
+          },
+          {
+            id: "2",
+            name: "Giulia Bianchi",
+            codiceFiscale: "BNCGLI85B42H501V",
+            phone: "+39 333 7654321",
+            email: "giulia.bianchi@example.com",
+            lastAppointment: "22/04/2023",
+            nextAppointment: null,
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error("Errore nel caricamento dei pazienti:", error);
+      // Usa dati di fallback
+      setPatients([
+        {
+          id: "1",
+          name: "Marco Rossi",
+          codiceFiscale: "RSSMRC80A01H501U",
+          phone: "+39 333 1234567",
+          email: "marco.rossi@example.com",
+          lastAppointment: "10/05/2023",
+          nextAppointment: "15/06/2023",
+        },
+      ]);
+    }
+  }, [propPatients]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState("10");
@@ -164,26 +181,14 @@ const PatientList: React.FC<PatientListProps> = ({
   // Gestione dell'eliminazione di un paziente
   const handleDeleteConfirm = async (id: string) => {
     try {
-      // Implementazione reale dell'eliminazione del paziente dal database
-      // In un'app reale, qui chiameremmo un'API o un servizio
-      const { PatientModel } = await import("@/models/patient");
-      const patientModel = new PatientModel();
-
-      // Converti l'id da string a number se necessario
-      const patientId = parseInt(id);
-      if (isNaN(patientId)) {
-        throw new Error("ID paziente non valido");
-      }
-
-      // Elimina il paziente dal database
-      const success = await patientModel.delete(patientId);
-
-      if (!success) {
-        throw new Error("Impossibile eliminare il paziente");
-      }
-
-      // Rimuovi il paziente dall'array locale
-      const updatedPatients = patients.filter((patient) => patient.id !== id);
+      // Elimina il paziente da localStorage
+      const storedPatients = JSON.parse(
+        localStorage.getItem("patients") || "[]",
+      );
+      const updatedPatients = storedPatients.filter(
+        (patient: any) => patient.id !== id,
+      );
+      localStorage.setItem("patients", JSON.stringify(updatedPatients));
 
       // Aggiorna lo stato o ricarica i dati
       setDeleteConfirmOpen(false);
@@ -192,11 +197,10 @@ const PatientList: React.FC<PatientListProps> = ({
       // Mostra un messaggio di conferma
       alert("Paziente eliminato con successo");
 
-      // In un'app reale, qui aggiorneremmo lo stato o ricaricheremmo i dati
-      // Per ora, simuliamo un aggiornamento della pagina dopo un breve ritardo
+      // Ricarica la pagina per mostrare i dati aggiornati
       setTimeout(() => {
         window.location.reload();
-      }, 1500);
+      }, 500);
     } catch (error) {
       console.error("Errore durante l'eliminazione del paziente:", error);
       alert(

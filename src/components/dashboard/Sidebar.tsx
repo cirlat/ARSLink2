@@ -29,7 +29,9 @@ interface SidebarProps {
 }
 
 const Sidebar = ({
-  userName = localStorage.getItem("userName") || "Dr. Mario Rossi",
+  userName = localStorage.getItem("userName") ||
+    localStorage.getItem("clinicName") ||
+    "Dr. Mario Rossi",
   userRole = localStorage.getItem("userRole") || "Medico",
   userAvatar = "",
   activePage = "dashboard",

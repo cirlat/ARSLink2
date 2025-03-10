@@ -36,7 +36,7 @@ function App() {
   return (
     <Suspense fallback={<p>Loading...</p>}>
       <>
-        {!isLoginPage && location.pathname !== "/setup" && <TopNavigation />}
+        {/* Rimosso TopNavigation come richiesto */}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/calendar" element={<CalendarView />} />
