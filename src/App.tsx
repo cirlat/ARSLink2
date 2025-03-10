@@ -76,6 +76,71 @@ function App() {
     return <SetupWizard />;
   }
 
+  // Inizializza le impostazioni di default se non esistono
+  useEffect(() => {
+    // Impostazioni generali
+    if (!localStorage.getItem("generalSettings")) {
+      const defaultGeneralSettings = {
+        clinicName: "Studio Medico Dr. Rossi",
+        address: "Via Roma 123, 00100 Roma",
+        email: "info@studiomedico.it",
+        phone: "+39 06 12345678",
+        darkMode: false,
+        language: "it",
+      };
+      localStorage.setItem(
+        "generalSettings",
+        JSON.stringify(defaultGeneralSettings),
+      );
+    }
+
+    // Impostazioni backup
+    if (!localStorage.getItem("backupSettings")) {
+      const defaultBackupSettings = {
+        autoBackup: true,
+        backupFrequency: "daily",
+        backupPath: "C:\\ProgramData\\PatientAppointmentSystem\\Backups",
+      };
+      localStorage.setItem(
+        "backupSettings",
+        JSON.stringify(defaultBackupSettings),
+      );
+    }
+
+    // Impostazioni notifiche
+    if (!localStorage.getItem("notificationSettings")) {
+      const defaultNotificationSettings = {
+        notificationsEnabled: true,
+        reminderTime: "24",
+      };
+      localStorage.setItem(
+        "notificationSettings",
+        JSON.stringify(defaultNotificationSettings),
+      );
+    }
+
+    // Impostazioni sicurezza
+    if (!localStorage.getItem("securitySettings")) {
+      const defaultSecuritySettings = {
+        sessionTimeout: "30",
+        autoLock: true,
+      };
+      localStorage.setItem(
+        "securitySettings",
+        JSON.stringify(defaultSecuritySettings),
+      );
+    }
+
+    // Licenza di default (per scopi dimostrativi)
+    if (!localStorage.getItem("licenseType")) {
+      localStorage.setItem("licenseType", "full");
+      localStorage.setItem(
+        "licenseExpiry",
+        new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      );
+    }
+  }, []);
+
   // Tempo routes
   if (import.meta.env.VITE_TEMPO && routes.length > 0) {
     useRoutes(routes);

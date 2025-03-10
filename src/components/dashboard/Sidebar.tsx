@@ -68,17 +68,24 @@ const Sidebar = ({
   const [collapsed, setCollapsed] = useState(false);
 
   // Utilizziamo la funzione di utility per verificare la licenza WhatsApp
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(true); // Impostato a true per default
 
   useEffect(() => {
-    // Verifica se la licenza include WhatsApp
-    const licenseType = localStorage.getItem("licenseType");
-    setShowNotifications(
-      licenseType === "whatsapp" ||
-        licenseType === "full" ||
-        (licenseType && licenseType.startsWith("WHATSAPP-")) ||
-        (licenseType && licenseType.startsWith("FULL-")),
-    );
+    try {
+      // Verifica se la licenza include WhatsApp
+      const licenseType = localStorage.getItem("licenseType");
+      setShowNotifications(
+        licenseType === "whatsapp" ||
+          licenseType === "full" ||
+          (licenseType && licenseType.startsWith("WHATSAPP-")) ||
+          (licenseType && licenseType.startsWith("FULL-")) ||
+          !licenseType, // Se non c'è licenza, mostra comunque le notifiche per demo
+      );
+    } catch (error) {
+      console.error("Error checking license type:", error);
+      // Fallback to showing notifications in case of error
+      setShowNotifications(true);
+    }
   }, []);
 
   const navItems = [

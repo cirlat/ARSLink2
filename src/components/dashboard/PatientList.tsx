@@ -281,7 +281,7 @@ const PatientList: React.FC<PatientListProps> = ({
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Pazienti</h1>
           <Button
-            onClick={handleAddPatient}
+            onClick={() => navigate("/patients/new")}
             className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />

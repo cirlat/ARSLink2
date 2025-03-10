@@ -27,7 +27,6 @@ import {
   Plus,
   MessageSquare,
   Calendar,
-  Eye,
 } from "lucide-react";
 import {
   Dialog,
@@ -47,8 +46,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// Importa la funzione di utilità per verificare la licenza WhatsApp
-import { hasWhatsAppLicense } from "@/utils/licenseUtils";
 
 interface Notification {
   id: string;
@@ -148,13 +145,6 @@ const NotificationCenter = () => {
       (n) => n.id === notificationId,
     );
     if (!notificationToSend) return;
-
-    // Verifica se la licenza include WhatsApp
-    const licenseType = localStorage.getItem("licenseType");
-    if (licenseType !== "whatsapp" && licenseType !== "full") {
-      alert("La tua licenza non include la funzionalità WhatsApp");
-      return;
-    }
 
     // Simula l'invio della notifica
     const success = Math.random() > 0.2; // 80% di probabilità di successo
@@ -282,39 +272,6 @@ const NotificationCenter = () => {
     if (activeTab === "all") return true;
     return notification.status === activeTab;
   });
-
-  // Verifica se la licenza include WhatsApp
-  const licenseType = localStorage.getItem("licenseType");
-  const hasWhatsApp =
-    licenseType === "whatsapp" ||
-    licenseType === "full" ||
-    (licenseType && licenseType.startsWith("WHATSAPP-")) ||
-    (licenseType && licenseType.startsWith("FULL-"));
-
-  if (!hasWhatsApp) {
-    return (
-      <div className="container mx-auto p-6">
-        <Card className="w-full max-w-md mx-auto mt-8">
-          <CardHeader>
-            <CardTitle className="text-center">
-              Funzionalità non disponibile
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-center mb-4">
-              Le notifiche WhatsApp sono disponibili solo con le licenze che
-              includono questa funzionalità.
-            </p>
-            <div className="flex justify-center">
-              <Button onClick={() => (window.location.href = "/settings")}>
-                Vai alle impostazioni
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto p-6">
