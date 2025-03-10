@@ -17,7 +17,8 @@ import AppointmentForm from "./components/appointments/AppointmentForm";
 import Settings from "./components/settings/Settings";
 import SetupWizard from "./setup/SetupWizard";
 import LicenseExpiredAlert from "./components/system/LicenseExpiredAlert";
-import routes from "tempo-routes";
+// Import tempo-routes only when in Tempo environment
+const routes = import.meta.env.VITE_TEMPO ? require("tempo-routes") : [];
 
 function App() {
   const navigate = useNavigate();
@@ -69,8 +70,8 @@ function App() {
   }
 
   // Tempo routes
-  {
-    import.meta.env.VITE_TEMPO && useRoutes(routes);
+  if (import.meta.env.VITE_TEMPO) {
+    useRoutes(routes);
   }
 
   return (

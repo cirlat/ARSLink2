@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Bell, Calendar, Settings, Home } from "lucide-react";
+import { Bell, Calendar, Settings, Home, Users } from "lucide-react";
 import { hasWhatsAppLicense } from "@/utils/licenseUtils";
 
 interface TopNavigationProps {}

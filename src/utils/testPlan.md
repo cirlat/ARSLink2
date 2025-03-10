@@ -129,4 +129,73 @@
 - [ ] Inserisci un messaggio
 - [ ] Seleziona data e ora (opzionale)
 - [ ] Clicca su "Salva Notifica"
-- [ ] Ver
+- [ ] Verifica che la notifica venga creata correttamente
+
+### 5.3 Invio Notifica
+- [ ] Vai in Notifiche
+- [ ] Trova una notifica in stato "In attesa"
+- [ ] Clicca su "Invia"
+- [ ] Verifica che la notifica cambi stato in "Inviata"
+
+## 6. Test di Licenza
+
+### 6.1 Verifica Funzionalità con Licenza Base
+- [ ] Imposta una licenza base
+- [ ] Verifica che le funzionalità di base siano disponibili
+- [ ] Verifica che le funzionalità premium (WhatsApp, Google Calendar) non siano disponibili
+
+### 6.2 Verifica Funzionalità con Licenza WhatsApp
+- [ ] Imposta una licenza WhatsApp
+- [ ] Verifica che le funzionalità di base siano disponibili
+- [ ] Verifica che le funzionalità WhatsApp siano disponibili
+- [ ] Verifica che le funzionalità Google Calendar non siano disponibili
+
+### 6.3 Verifica Funzionalità con Licenza Completa
+- [ ] Imposta una licenza completa
+- [ ] Verifica che tutte le funzionalità siano disponibili
+
+### 6.4 Verifica Scadenza Licenza
+- [ ] Imposta una licenza con data di scadenza passata
+- [ ] Verifica che venga mostrato l'avviso di licenza scaduta
+- [ ] Verifica che le funzionalità premium non siano disponibili
+
+## 7. Test di Backup e Ripristino
+
+### 7.1 Backup Manuale
+- [ ] Vai in Impostazioni -> Backup e Ripristino
+- [ ] Clicca su "Esegui Backup Manuale"
+- [ ] Verifica che il backup venga eseguito correttamente
+
+### 7.2 Ripristino da Backup
+- [ ] Vai in Impostazioni -> Backup e Ripristino
+- [ ] Clicca su "Ripristina da Backup"
+- [ ] Seleziona un file di backup
+- [ ] Verifica che il ripristino venga eseguito correttamente
+- [ ] Verifica che i dati siano stati ripristinati correttamente
+
+## 8. Test di Responsività
+
+### 8.1 Desktop
+- [ ] Verifica che l'applicazione si visualizzi correttamente su schermi desktop
+- [ ] Verifica che tutte le funzionalità siano accessibili
+
+### 8.2 Tablet
+- [ ] Verifica che l'applicazione si adatti correttamente a schermi tablet
+- [ ] Verifica che tutte le funzionalità siano accessibili
+
+### 8.3 Mobile
+- [ ] Verifica che l'applicazione si adatti correttamente a schermi mobile
+- [ ] Verifica che tutte le funzionalità siano accessibili
+
+## 9. Test di Sicurezza
+
+### 9.1 Timeout Sessione
+- [ ] Configura un timeout di sessione breve
+- [ ] Lascia l'applicazione inattiva per il periodo configurato
+- [ ] Verifica che la sessione scada e che venga richiesto il login
+
+### 9.2 Cambio Password
+- [ ] Vai in Impostazioni -> Sicurezza
+- [ ] Cambia la password dell'utente corrente
+- [ ] Effettua il logout
+- [ ] Verifica che sia possibile effettuare il login con la nuova password
