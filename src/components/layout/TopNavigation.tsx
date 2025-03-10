@@ -55,7 +55,16 @@ const TopNavigation: React.FC<TopNavigationProps> = () => {
               Pazienti
             </Button>
           </Link>
-          {hasWhatsAppLicense() && (
+          {/* Verifica se la licenza include WhatsApp */}
+          {(() => {
+            const licenseType = localStorage.getItem("licenseType");
+            return (
+              licenseType === "whatsapp" ||
+              licenseType === "full" ||
+              (licenseType && licenseType.startsWith("WHATSAPP-")) ||
+              (licenseType && licenseType.startsWith("FULL-"))
+            );
+          })() && (
             <Link to="/notifications">
               <Button
                 variant={isActive("/notifications") ? "default" : "ghost"}

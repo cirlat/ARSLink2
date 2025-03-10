@@ -18,7 +18,14 @@ import Settings from "./components/settings/Settings";
 import SetupWizard from "./setup/SetupWizard";
 import LicenseExpiredAlert from "./components/system/LicenseExpiredAlert";
 // Import tempo-routes only when in Tempo environment
-const routes = import.meta.env.VITE_TEMPO ? require("tempo-routes") : [];
+let routes = [];
+if (import.meta.env.VITE_TEMPO) {
+  try {
+    routes = require("tempo-routes");
+  } catch (e) {
+    console.warn("Failed to load tempo-routes", e);
+  }
+}
 
 function App() {
   const navigate = useNavigate();
@@ -70,7 +77,7 @@ function App() {
   }
 
   // Tempo routes
-  if (import.meta.env.VITE_TEMPO) {
+  if (import.meta.env.VITE_TEMPO && routes.length > 0) {
     useRoutes(routes);
   }
 

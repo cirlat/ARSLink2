@@ -47,6 +47,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+// Importa la funzione di utilità per verificare la licenza WhatsApp
 import { hasWhatsAppLicense } from "@/utils/licenseUtils";
 
 interface Notification {
@@ -282,7 +283,15 @@ const NotificationCenter = () => {
     return notification.status === activeTab;
   });
 
-  if (!hasWhatsAppLicense()) {
+  // Verifica se la licenza include WhatsApp
+  const licenseType = localStorage.getItem("licenseType");
+  const hasWhatsApp =
+    licenseType === "whatsapp" ||
+    licenseType === "full" ||
+    (licenseType && licenseType.startsWith("WHATSAPP-")) ||
+    (licenseType && licenseType.startsWith("FULL-"));
+
+  if (!hasWhatsApp) {
     return (
       <div className="container mx-auto p-6">
         <Card className="w-full max-w-md mx-auto mt-8">
