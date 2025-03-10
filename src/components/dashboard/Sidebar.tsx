@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
@@ -19,6 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { hasWhatsAppLicense } from "@/utils/licenseUtils";
 
 interface SidebarProps {
   userName?: string;
@@ -29,25 +30,51 @@ interface SidebarProps {
 }
 
 const Sidebar = ({
-  userName = "Dr. Mario Rossi",
+  userName,
   userRole = "Medico",
   userAvatar = "",
   activePage = "dashboard",
   onLogout = () => console.log("Logout clicked"),
 }: SidebarProps) => {
+  // Carica il nome dello studio dalle impostazioni generali
+  const [clinicName, setClinicName] = useState<string>("Studio Medico");
+
+  useEffect(() => {
+    // Carica le impostazioni generali
+    const savedGeneralSettings = localStorage.getItem("generalSettings");
+    if (savedGeneralSettings) {
+      const settings = JSON.parse(savedGeneralSettings);
+      if (settings.clinicName) {
+        setClinicName(settings.clinicName);
+      }
+    }
+
+    // Se non è stato fornito un nome utente, carica quello dal localStorage
+    if (!userName) {
+      const currentUser = localStorage.getItem("currentUser");
+      if (currentUser) {
+        const user = JSON.parse(currentUser);
+        setUserName(user.full_name || "Dr. Mario Rossi");
+      } else {
+        setUserName("Dr. Mario Rossi");
+      }
+    }
+  }, [userName]);
+
+  // Stato locale per il nome utente
+  const [localUserName, setUserName] = useState<string>(
+    userName || "Dr. Mario Rossi",
+  );
   const [collapsed, setCollapsed] = useState(false);
 
-  // Verifica se l'utente ha una licenza che include WhatsApp
-  const hasWhatsAppLicense =
-    localStorage.getItem("licenseType") === "whatsapp" ||
-    localStorage.getItem("licenseType") === "full";
+  // Utilizziamo la funzione di utility per verificare la licenza WhatsApp
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: Home, path: "/" },
     { id: "calendar", label: "Calendario", icon: Calendar, path: "/calendar" },
     { id: "patients", label: "Pazienti", icon: Users, path: "/patients" },
     // Mostra le notifiche solo se l'utente ha una licenza che include WhatsApp
-    ...(hasWhatsAppLicense
+    ...(hasWhatsAppLicense()
       ? [
           {
             id: "notifications",
@@ -98,8 +125,13 @@ const Sidebar = ({
         </Avatar>
         {!collapsed && (
           <div className="flex flex-col overflow-hidden">
-            <span className="font-medium text-sm truncate">{userName}</span>
+            <span className="font-medium text-sm truncate">
+              {localUserName}
+            </span>
             <span className="text-xs text-slate-500 truncate">{userRole}</span>
+            <span className="text-xs text-slate-400 truncate">
+              {clinicName}
+            </span>
           </div>
         )}
       </div>
