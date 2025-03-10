@@ -142,16 +142,7 @@ const PatientList: React.FC<PatientListProps> = ({
       onViewPatient(id);
     } else {
       console.log(`Visualizzazione dettagli paziente ${id}`);
-      // Carica i dettagli del paziente dal localStorage
-      const patients = JSON.parse(localStorage.getItem("patients") || "[]");
-      const patient = patients.find((p: any) => p.id === id);
-
-      if (patient) {
-        // Naviga alla pagina dei dettagli del paziente
-        navigate(`/patients/${id}`);
-      } else {
-        alert("Paziente non trovato");
-      }
+      navigate(`/patients/${id}`);
     }
   };
 
@@ -161,57 +152,29 @@ const PatientList: React.FC<PatientListProps> = ({
       onEditPatient(id);
     } else {
       console.log(`Modifica paziente ${id}`);
-      // Carica i dettagli del paziente dal localStorage
-      const patients = JSON.parse(localStorage.getItem("patients") || "[]");
-      const patient = patients.find((p: any) => p.id === id);
-
-      if (patient) {
-        // Naviga alla pagina di modifica del paziente
-        navigate(`/patients/${id}/edit`);
-      } else {
-        alert("Paziente non trovato");
-      }
+      navigate(`/patients/${id}/edit`);
     }
   };
 
   // Gestione dell'eliminazione di un paziente
   const handleDeleteConfirm = async (id: string) => {
     try {
-      // Carica i pazienti dal localStorage
-      const storedPatients = JSON.parse(
-        localStorage.getItem("patients") || "[]",
-      );
-
-      // Trova l'indice del paziente da eliminare
-      const patientIndex = storedPatients.findIndex((p: any) => p.id === id);
-
-      if (patientIndex === -1) {
-        throw new Error("Paziente non trovato");
-      }
-
-      // Rimuovi il paziente dall'array
-      storedPatients.splice(patientIndex, 1);
-
-      // Salva l'array aggiornato nel localStorage
-      localStorage.setItem("patients", JSON.stringify(storedPatients));
-
       // Implementazione reale dell'eliminazione del paziente dal database
       // In un'app reale, qui chiameremmo un'API o un servizio
-      try {
-        const { PatientModel } = await import("@/models/patient");
-        const patientModel = new PatientModel();
+      const { PatientModel } = await import("@/models/patient");
+      const patientModel = new PatientModel();
 
-        // Converti l'id da string a number se necessario
-        const patientId = parseInt(id);
-        if (!isNaN(patientId)) {
-          // Elimina il paziente dal database
-          await patientModel.delete(patientId);
-        }
-      } catch (dbError) {
-        console.warn(
-          "Errore durante l'eliminazione dal database, ma il paziente è stato rimosso dal localStorage:",
-          dbError,
-        );
+      // Converti l'id da string a number se necessario
+      const patientId = parseInt(id);
+      if (isNaN(patientId)) {
+        throw new Error("ID paziente non valido");
+      }
+
+      // Elimina il paziente dal database
+      const success = await patientModel.delete(patientId);
+
+      if (!success) {
+        throw new Error("Impossibile eliminare il paziente");
       }
 
       // Rimuovi il paziente dall'array locale
@@ -228,7 +191,7 @@ const PatientList: React.FC<PatientListProps> = ({
       // Per ora, simuliamo un aggiornamento della pagina dopo un breve ritardo
       setTimeout(() => {
         window.location.reload();
-      }, 1000);
+      }, 1500);
     } catch (error) {
       console.error("Errore durante l'eliminazione del paziente:", error);
       alert(
@@ -281,7 +244,7 @@ const PatientList: React.FC<PatientListProps> = ({
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Pazienti</h1>
           <Button
-            onClick={() => navigate("/patients/new")}
+            onClick={handleAddPatient}
             className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />

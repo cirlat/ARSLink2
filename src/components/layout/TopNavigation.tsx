@@ -1,8 +1,7 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Bell, Calendar, Settings, Home, Users } from "lucide-react";
-import { hasWhatsAppLicense } from "@/utils/licenseUtils";
+import { Calendar, Users, Bell, Settings, Home } from "lucide-react";
 
 interface TopNavigationProps {}
 
@@ -28,7 +27,7 @@ const TopNavigation: React.FC<TopNavigationProps> = () => {
             onClick={() => {
               // Verifica se l'utente è autenticato
               if (localStorage.getItem("isAuthenticated")) {
-                navigate("/dashboard");
+                navigate("/");
               }
             }}
           >
@@ -55,27 +54,16 @@ const TopNavigation: React.FC<TopNavigationProps> = () => {
               Pazienti
             </Button>
           </Link>
-          {/* Verifica se la licenza include WhatsApp */}
-          {(() => {
-            const licenseType = localStorage.getItem("licenseType");
-            return (
-              licenseType === "whatsapp" ||
-              licenseType === "full" ||
-              (licenseType && licenseType.startsWith("WHATSAPP-")) ||
-              (licenseType && licenseType.startsWith("FULL-"))
-            );
-          })() && (
-            <Link to="/notifications">
-              <Button
-                variant={isActive("/notifications") ? "default" : "ghost"}
-                size="sm"
-                className="flex items-center"
-              >
-                <Bell className="h-4 w-4 mr-2" />
-                Notifiche
-              </Button>
-            </Link>
-          )}
+          <Link to="/notifications">
+            <Button
+              variant={isActive("/notifications") ? "default" : "ghost"}
+              size="sm"
+              className="flex items-center"
+            >
+              <Bell className="h-4 w-4 mr-2" />
+              Notifiche
+            </Button>
+          </Link>
           <Link to="/settings">
             <Button
               variant={isActive("/settings") ? "default" : "ghost"}

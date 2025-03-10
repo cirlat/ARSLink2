@@ -1,16 +1,5 @@
-import React, { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import React from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
   Card,
@@ -30,139 +19,131 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Lock, User, AlertCircle } from "lucide-react";
 
-const formSchema = z.object({
-  username: z.string().min(1, { message: "Username è obbligatorio" }),
-  password: z.string().min(1, { message: "Password è obbligatoria" }),
-  role: z.enum(["Medico", "Assistente"]),
-});
-
-type FormValues = z.infer<typeof formSchema>;
-
 interface LoginFormProps {
-  onSubmit?: (data: FormValues) => void;
+  onSubmit?: (data: {
+    username: string;
+    password: string;
+    role: string;
+  }) => void;
   isLoading?: boolean;
   error?: string;
 }
 
-const LoginForm = ({
-  onSubmit = () => {},
-  isLoading = false,
-  error = "",
-}: LoginFormProps) => {
-  const [showPassword, setShowPassword] = useState(false);
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-      role: "Medico",
-    },
-  });
-
-  const handleSubmit = (data: FormValues) => {
-    onSubmit(data);
+class LoginFormClass extends React.Component<LoginFormProps> {
+  state = {
+    showPassword: false,
+    username: "admin",
+    password: "admin123",
+    role: "Medico",
+    localError: "",
   };
 
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-slate-50">
-      <Card className="w-full max-w-md bg-white">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            Sistema Gestione Appuntamenti
-          </CardTitle>
-          <CardDescription className="text-center">
-            Inserisci le tue credenziali per accedere al sistema
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+  handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const { username, password, role } = this.state;
 
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(handleSubmit)}
-              className="space-y-4"
-            >
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome utente</FormLabel>
-                    <div className="relative">
-                      <User className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
-                      <FormControl>
-                        <Input
-                          placeholder="Inserisci il tuo nome utente"
-                          className="pl-10"
-                          {...field}
-                        />
-                      </FormControl>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+    if (!username || !password) {
+      this.setState({ localError: "Username e password sono obbligatori" });
+      return;
+    }
 
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
-                      <FormControl>
-                        <Input
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Inserisci la tua password"
-                          className="pl-10"
-                          autoComplete="current-password"
-                          {...field}
-                        />
-                      </FormControl>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+    if (this.props.onSubmit) {
+      this.props.onSubmit({ username, password, role });
+    }
+  };
 
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ruolo</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona il tuo ruolo" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Medico">Medico</SelectItem>
-                        <SelectItem value="Assistente">Assistente</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+  toggleShowPassword = () => {
+    this.setState((prevState) => ({ showPassword: !prevState.showPassword }));
+  };
+
+  handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    this.setState({ [name]: value, localError: "" });
+  };
+
+  handleRoleChange = (value: string) => {
+    this.setState({ role: value, localError: "" });
+  };
+
+  render() {
+    const { isLoading = false, error = "" } = this.props;
+    const { showPassword, username, password, role, localError } = this.state;
+
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <Card className="w-full max-w-md bg-white">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold text-center">
+              Sistema Gestione Appuntamenti
+            </CardTitle>
+            <CardDescription className="text-center">
+              Inserisci le tue credenziali per accedere al sistema
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {(error || localError) && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error || localError}</AlertDescription>
+              </Alert>
+            )}
+
+            <form onSubmit={this.handleSubmit} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Nome utente
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    name="username"
+                    placeholder="Inserisci il tuo nome utente"
+                    className="pl-10"
+                    value={username}
+                    onChange={this.handleInputChange}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    placeholder="Inserisci la tua password"
+                    className="pl-10"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={this.handleInputChange}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Ruolo
+                </label>
+                <Select value={role} onValueChange={this.handleRoleChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona il tuo ruolo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Medico">Medico</SelectItem>
+                    <SelectItem value="Assistente">Assistente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="flex items-center space-x-2">
                 <input
                   type="checkbox"
                   id="show-password"
                   className="rounded border-gray-300"
-                  onChange={() => setShowPassword(!showPassword)}
+                  onChange={this.toggleShowPassword}
                   checked={showPassword}
                 />
                 <label
@@ -172,29 +153,34 @@ const LoginForm = ({
                   Mostra password
                 </label>
               </div>
+
+              <Button
+                className="w-full mt-4"
+                type="submit"
+                disabled={isLoading}
+              >
+                {isLoading ? "Accesso in corso..." : "Accedi"}
+              </Button>
             </form>
-          </Form>
-        </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <Button
-            className="w-full"
-            onClick={form.handleSubmit(handleSubmit)}
-            disabled={isLoading}
-          >
-            {isLoading ? "Accesso in corso..." : "Accedi"}
-          </Button>
-          <div className="text-center">
-            <a
-              href="/forgot-password"
-              className="text-sm text-blue-600 hover:text-blue-800"
-            >
-              Password dimenticata?
-            </a>
-          </div>
-        </CardFooter>
-      </Card>
-    </div>
-  );
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <div className="text-center">
+              <a
+                href="/forgot-password"
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Password dimenticata?
+              </a>
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+}
+
+const LoginForm = (props: LoginFormProps) => {
+  return <LoginFormClass {...props} />;
 };
 
 export default LoginForm;

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -7,7 +7,6 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import LoginForm from "@/components/auth/LoginForm";
 import Dashboard from "@/components/dashboard/Dashboard";
 import LicenseAlert from "@/components/system/LicenseAlert";
@@ -36,7 +35,7 @@ const Home = ({
   const handleLogin = async (data: {
     username: string;
     password: string;
-    role: "Medico" | "Assistente";
+    role: string;
   }) => {
     // Verifica se esiste un utente nel database
     try {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
@@ -19,7 +19,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { hasWhatsAppLicense } from "@/utils/licenseUtils";
 
 interface SidebarProps {
   userName?: string;
@@ -30,70 +29,61 @@ interface SidebarProps {
 }
 
 const Sidebar = ({
-  userName,
+  userName = "Dr. Mario Rossi",
   userRole = "Medico",
   userAvatar = "",
   activePage = "dashboard",
   onLogout = () => console.log("Logout clicked"),
 }: SidebarProps) => {
-  // Carica il nome dello studio dalle impostazioni generali
-  const [clinicName, setClinicName] = useState<string>("Studio Medico");
+  // Use a class-based approach instead of hooks
+  const toggleCollapsed = (event) => {
+    const sidebar = event.currentTarget.closest(
+      'div[class*="flex flex-col h-full"]',
+    );
+    if (sidebar) {
+      sidebar.classList.toggle("w-20");
+      sidebar.classList.toggle("w-72");
 
-  useEffect(() => {
-    // Carica le impostazioni generali
-    const savedGeneralSettings = localStorage.getItem("generalSettings");
-    if (savedGeneralSettings) {
-      const settings = JSON.parse(savedGeneralSettings);
-      if (settings.clinicName) {
-        setClinicName(settings.clinicName);
+      // Toggle rotation for the chevron
+      const chevron = event.currentTarget.querySelector("svg");
+      if (chevron) {
+        chevron.classList.toggle("rotate-180");
+      }
+
+      // Update collapsed state for other elements
+      const isCollapsed = sidebar.classList.contains("w-20");
+
+      // Update user info section
+      const userInfo = sidebar.querySelector("div.flex.flex-col");
+      if (userInfo) {
+        userInfo.style.display = isCollapsed ? "none" : "flex";
+      }
+
+      // Update navigation items
+      const navItems = sidebar.querySelectorAll("nav a span");
+      navItems.forEach((span) => {
+        span.style.display = isCollapsed ? "none" : "inline";
+      });
+
+      // Update logout button text
+      const logoutText = sidebar.querySelector("div.p-4.mt-auto button span");
+      if (logoutText) {
+        logoutText.style.display = isCollapsed ? "none" : "inline";
       }
     }
+  };
 
-    // Se non è stato fornito un nome utente, carica quello dal localStorage
-    if (!userName) {
-      const currentUser = localStorage.getItem("currentUser");
-      if (currentUser) {
-        const user = JSON.parse(currentUser);
-        setUserName(user.full_name || "Dr. Mario Rossi");
-      } else {
-        setUserName("Dr. Mario Rossi");
-      }
-    }
-  }, [userName]);
-
-  // Stato locale per il nome utente
-  const [localUserName, setUserName] = useState<string>(
-    userName || "Dr. Mario Rossi",
-  );
-  const [collapsed, setCollapsed] = useState(false);
-
-  // Utilizziamo la funzione di utility per verificare la licenza WhatsApp
-  const [showNotifications, setShowNotifications] = useState(true); // Impostato a true per default
-
-  useEffect(() => {
-    try {
-      // Verifica se la licenza include WhatsApp
-      const licenseType = localStorage.getItem("licenseType");
-      setShowNotifications(
-        licenseType === "whatsapp" ||
-          licenseType === "full" ||
-          (licenseType && licenseType.startsWith("WHATSAPP-")) ||
-          (licenseType && licenseType.startsWith("FULL-")) ||
-          !licenseType, // Se non c'è licenza, mostra comunque le notifiche per demo
-      );
-    } catch (error) {
-      console.error("Error checking license type:", error);
-      // Fallback to showing notifications in case of error
-      setShowNotifications(true);
-    }
-  }, []);
+  // Verifica se l'utente ha una licenza che include WhatsApp
+  const hasWhatsAppLicense =
+    localStorage.getItem("licenseType") === "whatsapp" ||
+    localStorage.getItem("licenseType") === "full";
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: Home, path: "/" },
     { id: "calendar", label: "Calendario", icon: Calendar, path: "/calendar" },
     { id: "patients", label: "Pazienti", icon: Users, path: "/patients" },
     // Mostra le notifiche solo se l'utente ha una licenza che include WhatsApp
-    ...(showNotifications
+    ...(hasWhatsAppLicense
       ? [
           {
             id: "notifications",
@@ -111,6 +101,9 @@ const Sidebar = ({
     },
   ];
 
+  // Initial state is not collapsed
+  const collapsed = false;
+
   return (
     <div
       className={cn(
@@ -121,7 +114,7 @@ const Sidebar = ({
       {/* Pulsante di toggle */}
       <button
         className="absolute -right-3 top-20 bg-white rounded-full p-1 border border-slate-200 shadow-sm z-10"
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={toggleCollapsed}
       >
         <ChevronRight
           className={cn(
@@ -144,13 +137,8 @@ const Sidebar = ({
         </Avatar>
         {!collapsed && (
           <div className="flex flex-col overflow-hidden">
-            <span className="font-medium text-sm truncate">
-              {localUserName}
-            </span>
+            <span className="font-medium text-sm truncate">{userName}</span>
             <span className="text-xs text-slate-500 truncate">{userRole}</span>
-            <span className="text-xs text-slate-400 truncate">
-              {clinicName}
-            </span>
           </div>
         )}
       </div>
