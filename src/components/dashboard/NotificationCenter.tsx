@@ -47,6 +47,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { hasWhatsAppLicense } from "@/utils/licenseUtils";
 
 interface Notification {
   id: string;
@@ -280,8 +281,6 @@ const NotificationCenter = () => {
     if (activeTab === "all") return true;
     return notification.status === activeTab;
   });
-
-  // Utilizziamo la funzione di utility per verificare la licenza WhatsApp
 
   if (!hasWhatsAppLicense()) {
     return (
