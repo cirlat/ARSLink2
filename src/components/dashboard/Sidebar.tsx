@@ -29,8 +29,8 @@ interface SidebarProps {
 }
 
 const Sidebar = ({
-  userName = "Dr. Mario Rossi",
-  userRole = "Medico",
+  userName = localStorage.getItem("userName") || "Dr. Mario Rossi",
+  userRole = localStorage.getItem("userRole") || "Medico",
   userAvatar = "",
   activePage = "dashboard",
   onLogout = () => console.log("Logout clicked"),

@@ -44,7 +44,7 @@ const SetupWizard = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [progress, setProgress] = useState(0);
-  const totalSteps = 6;
+  const totalSteps = 8;
 
   // Database configuration
   const [dbConfig, setDbConfig] = useState({
@@ -92,6 +92,23 @@ const SetupWizard = () => {
     startWithWindows: true,
   });
 
+  // Backup settings
+  const [backupConfig, setBackupConfig] = useState({
+    backupPath: "C:\\ProgramData\\PatientAppointmentSystem\\Backups",
+    autoBackup: true,
+    backupFrequency: "daily",
+  });
+
+  // General settings
+  const [generalSettings, setGeneralSettings] = useState({
+    clinicName: "Studio Medico Dr. Rossi",
+    address: "Via Roma 123, 00100 Roma",
+    email: "info@studiomedico.it",
+    phone: "+39 06 12345678",
+    darkMode: false,
+    language: "it",
+  });
+
   const handleDbConfigChange = (field: string, value: string) => {
     setDbConfig({ ...dbConfig, [field]: value });
   };
@@ -113,6 +130,17 @@ const SetupWizard = () => {
 
   const handleServerConfigChange = (field: string, value: string | boolean) => {
     setServerConfig({ ...serverConfig, [field]: value });
+  };
+
+  const handleBackupConfigChange = (field: string, value: string | boolean) => {
+    setBackupConfig({ ...backupConfig, [field]: value });
+  };
+
+  const handleGeneralSettingsChange = (
+    field: string,
+    value: string | boolean,
+  ) => {
+    setGeneralSettings({ ...generalSettings, [field]: value });
   };
 
   const isLicenseWithGoogle = () => {
@@ -261,6 +289,14 @@ const SetupWizard = () => {
 
       // 6. Salva le configurazioni del server
       localStorage.setItem("serverConfig", JSON.stringify(serverConfig));
+
+      // 7. Salva le configurazioni di backup
+      localStorage.setItem("backupConfig", JSON.stringify(backupConfig));
+      localStorage.setItem("backupPath", backupConfig.backupPath);
+
+      // 8. Salva le impostazioni generali
+      localStorage.setItem("generalSettings", JSON.stringify(generalSettings));
+      localStorage.setItem("clinicName", generalSettings.clinicName);
 
       console.log("Setup completato con successo!");
 
@@ -940,6 +976,200 @@ const SetupWizard = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
+                <Database className="mr-2 h-5 w-5" />
+                Configurazione Backup
+              </CardTitle>
+              <CardDescription>
+                Configura le impostazioni di backup automatico
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="auto-backup"
+                  checked={backupConfig.autoBackup}
+                  onCheckedChange={(checked) =>
+                    handleBackupConfigChange("autoBackup", checked === true)
+                  }
+                />
+                <Label htmlFor="auto-backup">Abilita backup automatico</Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="backup-frequency">Frequenza Backup</Label>
+                <Select
+                  value={backupConfig.backupFrequency}
+                  onValueChange={(value) =>
+                    handleBackupConfigChange("backupFrequency", value)
+                  }
+                  disabled={!backupConfig.autoBackup}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Seleziona frequenza" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Giornaliera</SelectItem>
+                    <SelectItem value="weekly">Settimanale</SelectItem>
+                    <SelectItem value="monthly">Mensile</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="backup-path">Percorso Backup</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="backup-path"
+                    value={backupConfig.backupPath}
+                    onChange={(e) =>
+                      handleBackupConfigChange("backupPath", e.target.value)
+                    }
+                    disabled={!backupConfig.autoBackup}
+                    className="flex-1"
+                  />
+                  <Button
+                    variant="outline"
+                    disabled={!backupConfig.autoBackup}
+                    onClick={() => {
+                      // Crea un input di tipo file nascosto
+                      const input = document.createElement("input");
+                      input.type = "file";
+                      input.webkitdirectory = true;
+                      input.directory = true;
+
+                      input.onchange = (e) => {
+                        const files = e.target.files;
+                        if (files && files.length > 0) {
+                          // Prendi la directory selezionata (il percorso del primo file fino all'ultima cartella)
+                          const path = files[0].path
+                            .split("\\")
+                            .slice(0, -1)
+                            .join("\\");
+                          handleBackupConfigChange("backupPath", path);
+                        }
+                      };
+
+                      input.click();
+                    }}
+                  >
+                    Sfoglia
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case 7:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Settings className="mr-2 h-5 w-5" />
+                Informazioni Generali
+              </CardTitle>
+              <CardDescription>
+                Configura le informazioni generali dello studio medico
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="clinic-name">Nome Studio Medico</Label>
+                <Input
+                  id="clinic-name"
+                  value={generalSettings.clinicName}
+                  onChange={(e) =>
+                    handleGeneralSettingsChange("clinicName", e.target.value)
+                  }
+                  placeholder="Studio Medico Dr. Rossi"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="address">Indirizzo</Label>
+                <Input
+                  id="address"
+                  value={generalSettings.address}
+                  onChange={(e) =>
+                    handleGeneralSettingsChange("address", e.target.value)
+                  }
+                  placeholder="Via Roma 123, 00100 Roma"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={generalSettings.email}
+                    onChange={(e) =>
+                      handleGeneralSettingsChange("email", e.target.value)
+                    }
+                    placeholder="info@studiomedico.it"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Telefono</Label>
+                  <Input
+                    id="phone"
+                    value={generalSettings.phone}
+                    onChange={(e) =>
+                      handleGeneralSettingsChange("phone", e.target.value)
+                    }
+                    placeholder="+39 06 12345678"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="dark-mode">Modalità Scura</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Attiva la modalità scura per l'interfaccia
+                  </p>
+                </div>
+                <Switch
+                  id="dark-mode"
+                  checked={generalSettings.darkMode}
+                  onCheckedChange={(checked) =>
+                    handleGeneralSettingsChange("darkMode", checked)
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="language">Lingua</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Seleziona la lingua dell'interfaccia
+                  </p>
+                </div>
+                <Select
+                  value={generalSettings.language}
+                  onValueChange={(value) =>
+                    handleGeneralSettingsChange("language", value)
+                  }
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Seleziona lingua" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="it">Italiano</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case 8:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
                 <Server className="mr-2 h-5 w-5" />
                 Configurazione Server
               </CardTitle>
@@ -1025,6 +1255,13 @@ const SetupWizard = () => {
                         ? "Abilitato"
                         : "Disabilitato"
                       : "Non disponibile"}
+                  </p>
+                  <p>
+                    <strong>Backup:</strong>{" "}
+                    {backupConfig.autoBackup ? "Automatico" : "Manuale"}
+                  </p>
+                  <p>
+                    <strong>Studio:</strong> {generalSettings.clinicName}
                   </p>
                   <p>
                     <strong>Porta Server:</strong> {serverConfig.port}

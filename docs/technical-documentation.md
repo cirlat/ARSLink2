@@ -409,6 +409,39 @@ Per aggiornare lo schema del database:
 2. Creare una funzione di migrazione per aggiornare i database esistenti
 3. Aggiornare i modelli interessati con i nuovi campi/metodi
 
+### Generazione del Codice Fiscale
+
+Il sistema genera automaticamente il codice fiscale italiano basandosi sui dati anagrafici del paziente. L'algoritmo di generazione è implementato nel componente `PatientForm.tsx` e segue queste regole:
+
+1. **Cognome**: Prende le prime 3 consonanti del cognome. Se non ci sono abbastanza consonanti, usa le vocali. Se il cognome è troppo corto, aggiunge delle X.
+
+2. **Nome**: Se il nome ha almeno 4 consonanti, prende la 1ª, 3ª e 4ª consonante. Altrimenti, prende le prime 3 consonanti. Se non ci sono abbastanza consonanti, usa le vocali. Se il nome è troppo corto, aggiunge delle X.
+
+3. **Data di nascita e genere**:
+   - Anno: Le ultime 2 cifre dell'anno di nascita
+   - Mese: Una lettera da A a T secondo la tabella dei mesi (A=gennaio, B=febbraio, ecc.)
+   - Giorno: Il giorno di nascita (01-31) per i maschi, il giorno + 40 per le femmine
+
+4. **Comune di nascita**: Il codice catastale del comune di nascita (4 caratteri alfanumerici)
+
+5. **Carattere di controllo**: Nell'implementazione attuale, questo carattere non viene calcolato per semplicità.
+
+#### Gestione dei Comuni
+
+I comuni italiani e i relativi codici catastali sono memorizzati nel file `src/data/comuni-italiani.json`. È possibile aggiungere nuovi comuni in due modi:
+
+1. **Tramite l'interfaccia utente**:
+   - Nel form di inserimento paziente, quando si seleziona la città di nascita, è possibile aggiungere un nuovo comune cliccando sul pulsante "+"
+   - Inserire il nome del comune e il codice catastale
+   - Il nuovo comune viene salvato in localStorage e sarà disponibile per future selezioni
+
+2. **Modificando il file JSON**:
+   - Aprire il file `src/data/comuni-italiani.json`
+   - Aggiungere un nuovo oggetto con la seguente struttura: `{ "nome": "NomeComune", "codice": "XXXX" }`
+   - Il codice catastale deve essere di 4 caratteri (solitamente una lettera seguita da 3 numeri)
+
+I comuni aggiunti tramite l'interfaccia utente vengono salvati in localStorage con la chiave 'italianCities' e vengono caricati all'avvio dell'applicazione.
+
 ### Risoluzione dei Problemi Comuni
 
 1. **Problemi di Autenticazione**:
@@ -430,3 +463,13 @@ Per aggiornare lo schema del database:
    - Verificare la connessione al database in `Database.getInstance()`
    - Controllare i log di errore per le query fallite
    - Verificare che lo schema del database sia aggiornato
+   
+5. **Problemi di Backup**:
+   - Verificare che il percorso di backup specificato esista e sia accessibile
+   - Controllare i permessi di scrittura nella directory di backup
+   - Verificare lo spazio disponibile sul disco
+   
+6. **Problemi con il Codice Fiscale**:
+   - Verificare che tutti i dati anagrafici siano inseriti correttamente
+   - Controllare che il comune di nascita sia presente nell'elenco con il codice catastale corretto
+   - Se il codice generato non è corretto, è possibile inserirlo manualmente

@@ -142,6 +142,8 @@ const PatientList: React.FC<PatientListProps> = ({
       onViewPatient(id);
     } else {
       console.log(`Visualizzazione dettagli paziente ${id}`);
+      // Salva l'ID del paziente selezionato in localStorage
+      localStorage.setItem("selectedPatientId", id);
       navigate(`/patients/${id}`);
     }
   };
@@ -152,6 +154,9 @@ const PatientList: React.FC<PatientListProps> = ({
       onEditPatient(id);
     } else {
       console.log(`Modifica paziente ${id}`);
+      // Salva l'ID del paziente selezionato in localStorage
+      localStorage.setItem("selectedPatientId", id);
+      localStorage.setItem("editMode", "true");
       navigate(`/patients/${id}/edit`);
     }
   };

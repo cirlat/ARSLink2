@@ -54,16 +54,20 @@ const TopNavigation: React.FC<TopNavigationProps> = () => {
               Pazienti
             </Button>
           </Link>
-          <Link to="/notifications">
-            <Button
-              variant={isActive("/notifications") ? "default" : "ghost"}
-              size="sm"
-              className="flex items-center"
-            >
-              <Bell className="h-4 w-4 mr-2" />
-              Notifiche
-            </Button>
-          </Link>
+          {/* Mostra le notifiche solo se l'utente ha una licenza che include WhatsApp */}
+          {(localStorage.getItem("licenseType") === "whatsapp" ||
+            localStorage.getItem("licenseType") === "full") && (
+            <Link to="/notifications">
+              <Button
+                variant={isActive("/notifications") ? "default" : "ghost"}
+                size="sm"
+                className="flex items-center"
+              >
+                <Bell className="h-4 w-4 mr-2" />
+                Notifiche
+              </Button>
+            </Link>
+          )}
           <Link to="/settings">
             <Button
               variant={isActive("/settings") ? "default" : "ghost"}

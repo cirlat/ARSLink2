@@ -66,9 +66,42 @@ const italianCities = comuniItalianiData.map((comune) => ({
 
 // Funzione per aggiungere un nuovo comune
 const addCity = (name: string, code: string) => {
+  // Aggiungi il nuovo comune all'array
   italianCities.push({ name, code });
-  // In un'implementazione reale, qui salveresti i dati in localStorage o in un database
+
+  // Salva l'array aggiornato in localStorage
+  try {
+    const updatedCities = JSON.stringify(italianCities);
+    localStorage.setItem("italianCities", updatedCities);
+
+    // In un'implementazione reale, qui salveresti i dati nel database
+    console.log(`Nuovo comune aggiunto: ${name} (${code})`);
+  } catch (error) {
+    console.error("Errore nel salvataggio dei comuni:", error);
+  }
 };
+
+// Carica i comuni da localStorage se disponibili
+React.useEffect(() => {
+  const savedCities = localStorage.getItem("italianCities");
+  if (savedCities) {
+    try {
+      const parsedCities = JSON.parse(savedCities);
+      // Aggiorna l'array dei comuni con quelli salvati
+      // Nota: in un'implementazione reale, dovresti gestire meglio questo aggiornamento
+      // per evitare duplicati o problemi di concorrenza
+      italianCities.length = 0; // Svuota l'array
+      parsedCities.forEach((city: { name: string; code: string }) => {
+        italianCities.push(city);
+      });
+    } catch (error) {
+      console.error(
+        "Errore nel caricamento dei comuni da localStorage:",
+        error,
+      );
+    }
+  }
+}, []);
 
 // Schema di validazione del form
 const formSchema = z.object({
@@ -143,18 +176,136 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
     defaultValues,
   });
 
+  // Funzione per generare il codice fiscale
+  const generateFiscalCode = (
+    firstName: string,
+    lastName: string,
+    birthDate: Date,
+    gender: string,
+    birthPlace: string,
+  ) => {
+    try {
+      // Trova il comune selezionato
+      const selectedCity = italianCities.find(
+        (city) => city.code === birthPlace,
+      );
+      if (!selectedCity) return "";
+
+      // Estrai le consonanti dal cognome
+      const lastNameConsonants = lastName
+        .toUpperCase()
+        .replace(/[^BCDFGHJKLMNPQRSTVWXYZ]/g, "");
+      // Estrai le vocali dal cognome
+      const lastNameVowels = lastName.toUpperCase().replace(/[^AEIOU]/g, "");
+      // Combina consonanti e vocali, prendi i primi 3 caratteri
+      let lastNameCode = (
+        lastNameConsonants +
+        lastNameVowels +
+        "XXX"
+      ).substring(0, 3);
+
+      // Estrai le consonanti dal nome
+      const firstNameConsonants = firstName
+        .toUpperCase()
+        .replace(/[^BCDFGHJKLMNPQRSTVWXYZ]/g, "");
+      // Estrai le vocali dal nome
+      const firstNameVowels = firstName.toUpperCase().replace(/[^AEIOU]/g, "");
+      // Combina consonanti e vocali, prendi i primi 3 caratteri
+      let firstNameCode;
+      if (firstNameConsonants.length >= 4) {
+        // Se ci sono almeno 4 consonanti, prendi la 1ª, 3ª e 4ª
+        firstNameCode =
+          firstNameConsonants[0] +
+          firstNameConsonants[2] +
+          firstNameConsonants[3];
+      } else {
+        // Altrimenti prendi le consonanti e aggiungi vocali se necessario
+        firstNameCode = (
+          firstNameConsonants +
+          firstNameVowels +
+          "XXX"
+        ).substring(0, 3);
+      }
+
+      // Calcola il codice per la data di nascita e il genere
+      const year = birthDate.getFullYear().toString().substring(2);
+      const months = "ABCDEHLMPRST";
+      const month = months.charAt(birthDate.getMonth());
+      let day = birthDate.getDate().toString();
+      if (gender === "female") {
+        day = (birthDate.getDate() + 40).toString();
+      }
+      day = day.padStart(2, "0");
+
+      // Codice del comune di nascita
+      const birthPlaceCode = selectedCity.code;
+
+      // Combina tutte le parti
+      const fiscalCode = `${lastNameCode}${firstNameCode}${year}${month}${day}${birthPlaceCode}`;
+
+      // In un'implementazione reale, qui calcoleremmo anche il carattere di controllo
+      // Per semplicità, usiamo un carattere fisso
+      return fiscalCode;
+    } catch (error) {
+      console.error("Errore nella generazione del codice fiscale:", error);
+      return "";
+    }
+  };
+
+  // Aggiorna il codice fiscale quando cambiano i campi rilevanti
+  React.useEffect(() => {
+    const values = form.getValues();
+    if (
+      values.firstName &&
+      values.lastName &&
+      values.dateOfBirth &&
+      values.gender &&
+      values.birthPlace
+    ) {
+      const fiscalCode = generateFiscalCode(
+        values.firstName,
+        values.lastName,
+        values.dateOfBirth,
+        values.gender,
+        values.birthPlace,
+      );
+      form.setValue("fiscalCode", fiscalCode);
+    }
+  }, [
+    form.watch("firstName"),
+    form.watch("lastName"),
+    form.watch("dateOfBirth"),
+    form.watch("gender"),
+    form.watch("birthPlace"),
+  ]);
+
   const handleSubmit = (data: PatientFormValues) => {
     // Genera il Codice Fiscale se non fornito
     if (!data.fiscalCode) {
-      // In un'implementazione reale, questa funzione genererebbe il codice
-      // basato su nome, data di nascita, genere e luogo di nascita
-      data.fiscalCode = "CODICE_FISCALE_GENERATO_AUTOMATICAMENTE";
+      data.fiscalCode = generateFiscalCode(
+        data.firstName,
+        data.lastName,
+        data.dateOfBirth,
+        data.gender,
+        data.birthPlace,
+      );
     }
 
     if (onSubmit) {
       onSubmit(data);
     } else {
       console.log("Form inviato:", data);
+
+      // Salva il paziente in localStorage
+      const patients = JSON.parse(localStorage.getItem("patients") || "[]");
+      const newPatient = {
+        ...data,
+        id: Date.now().toString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      patients.push(newPatient);
+      localStorage.setItem("patients", JSON.stringify(patients));
     }
 
     // Torna alla lista pazienti dopo il salvataggio

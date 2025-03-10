@@ -52,7 +52,54 @@ const Settings = () => {
     <div className="container mx-auto p-6 max-w-6xl">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Impostazioni</h1>
-        <Button>
+        <Button onClick={() => {
+          // Salva tutte le impostazioni in localStorage
+          
+          // Impostazioni generali
+          const clinicName = document.getElementById('clinic-name')?.value;
+          const address = document.getElementById('address')?.value;
+          const email = document.getElementById('email')?.value;
+          const phone = document.getElementById('phone')?.value;
+          
+          // Backup
+          const backupPath = document.getElementById('backup-path')?.value;
+          const backupFrequency = document.querySelector('[id^="backup-frequency"]')?.value || 'daily';
+          
+          // Salva in localStorage
+          if (clinicName) localStorage.setItem('clinicName', clinicName);
+          if (address) localStorage.setItem('address', address);
+          if (email) localStorage.setItem('email', email);
+          if (phone) localStorage.setItem('phone', phone);
+          if (backupPath) localStorage.setItem('backupPath', backupPath);
+          
+          // Salva le impostazioni come oggetto JSON
+          const generalSettings = {
+            clinicName: clinicName || 'Studio Medico Dr. Rossi',
+            address: address || 'Via Roma 123, 00100 Roma',
+            email: email || 'info@studiomedico.it',
+            phone: phone || '+39 06 12345678',
+            darkMode: darkMode,
+            language: document.querySelector('[id^="language"]')?.value || 'it'
+          };
+          
+          const backupConfig = {
+            backupPath: backupPath || 'C:\\ProgramData\\PatientAppointmentSystem\\Backups',
+            autoBackup: autoBackup,
+            backupFrequency: backupFrequency
+          };
+          
+          localStorage.setItem('generalSettings', JSON.stringify(generalSettings));
+          localStorage.setItem('backupConfig', JSON.stringify(backupConfig));
+          
+          // Applica la modalità scura se necessario
+          if (darkMode) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+          
+          alert('Impostazioni salvate con successo!');
+        }}>
           <Save className="h-4 w-4 mr-2" />
           Salva Modifiche
         </Button>
@@ -86,14 +133,18 @@ const Settings = () => {
                 <Database className="h-4 w-4 mr-2" />
                 Backup e Ripristino
               </Button>
-              <Button
-                variant={activeTab === "notifications" ? "default" : "ghost"}
-                className="w-full justify-start px-2 py-1.5 h-9"
-                onClick={() => setActiveTab("notifications")}
-              >
-                <Bell className="h-4 w-4 mr-2" />
-                Notifiche
-              </Button>
+              {/* Mostra le notifiche solo se l'utente ha una licenza che include WhatsApp */}
+              {(localStorage.getItem("licenseType") === "whatsapp" ||
+                localStorage.getItem("licenseType") === "full") && (
+                <Button
+                  variant={activeTab === "notifications" ? "default" : "ghost"}
+                  className="w-full justify-start px-2 py-1.5 h-9"
+                  onClick={() => setActiveTab("notifications")}
+                >
+                  <Bell className="h-4 w-4 mr-2" />
+                  Notifiche
+                </Button>
+              )}
               <Button
                 variant={activeTab === "integrations" ? "default" : "ghost"}
                 className="w-full justify-start px-2 py-1.5 h-9"
@@ -182,7 +233,15 @@ const Settings = () => {
                       <Switch
                         id="dark-mode"
                         checked={darkMode}
-                        onCheckedChange={setDarkMode}
+                        onCheckedChange={(checked) => {
+                          setDarkMode(checked);
+                          // Applica immediatamente la modalità scura
+                          if (checked) {
+                            document.documentElement.classList.add('dark');
+                          } else {
+                            document.documentElement.classList.remove('dark');
+                          }
+                        }}
                       />
                     </div>
 
@@ -193,7 +252,14 @@ const Settings = () => {
                           Seleziona la lingua dell'interfaccia
                         </p>
                       </div>
-                      <Select defaultValue="it">
+                      <Select 
+                        id="language"
+                        defaultValue={localStorage.getItem('language') || "it"}
+                        onValueChange={(value) => {
+                          localStorage.setItem('language', value);
+                          // In un'implementazione reale, qui cambieremmo la lingua dell'interfaccia
+                        }}
+                      >
                         <SelectTrigger className="w-[180px]">
                           <SelectValue placeholder="Seleziona lingua" />
                         </SelectTrigger>
@@ -264,11 +330,37 @@ const Settings = () => {
                       <Input
                         id="backup-path"
                         placeholder="C:\\ProgramData\\PatientAppointmentSystem\\Backups"
-                        defaultValue="C:\\ProgramData\\PatientAppointmentSystem\\Backups"
+                        defaultValue={localStorage.getItem('backupPath') || "C:\\ProgramData\\PatientAppointmentSystem\\Backups"}
                         disabled={!autoBackup}
                         className="flex-1"
                       />
-                      <Button variant="outline" disabled={!autoBackup}>
+                      <Button 
+                        variant="outline" 
+                        disabled={!autoBackup}
+                        onClick={() => {
+                          // Crea un input di tipo file nascosto
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.webkitdirectory = true;
+                          input.directory = true;
+                          
+                          input.onchange = (e) => {
+                            const files = e.target.files;
+                            if (files && files.length > 0) {
+                              // Prendi la directory selezionata (il percorso del primo file fino all'ultima cartella)
+                              const path = files[0].path.split('\\').slice(0, -1).join('\\');
+                              const backupPathInput = document.getElementById('backup-path');
+                              if (backupPathInput) {
+                                backupPathInput.value = path;
+                                // Salva il percorso in localStorage
+                                localStorage.setItem('backupPath', path);
+                              }
+                            }
+                          };
+                          
+                          input.click();
+                        }}
+                      >
                         Sfoglia
                       </Button>
                     </div>
@@ -277,11 +369,58 @@ const Settings = () => {
                   <Separator />
 
                   <div className="flex justify-between">
-                    <Button variant="outline">
+                    <Button 
+                      variant="outline" 
+                      onClick={async () => {
+                        try {
+                          const { backupDatabase } = await import('@/utils/dbUtils');
+                          const backupPath = document.getElementById('backup-path')?.value || 'C:\\ProgramData\\PatientAppointmentSystem\\Backups';
+                          const success = await backupDatabase(backupPath);
+                          if (success) {
+                            alert('Backup eseguito con successo in: ' + backupPath);
+                          } else {
+                            alert('Errore durante l'esecuzione del backup');
+                          }
+                        } catch (error) {
+                          console.error('Errore durante il backup:', error);
+                          alert('Si è verificato un errore durante il backup: ' + error.message);
+                        }
+                      }}
+                    >
                       <Download className="h-4 w-4 mr-2" />
                       Esegui Backup Manuale
                     </Button>
-                    <Button variant="outline">
+                    <Button 
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          // Apri un selettore di file
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = '.bak,.sql,.json';
+                          
+                          input.onchange = async (e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              const { restoreDatabase } = await import('@/utils/dbUtils');
+                              const success = await restoreDatabase(file.path || file.name);
+                              if (success) {
+                                alert('Ripristino completato con successo da: ' + file.name);
+                                // Ricarica la pagina per mostrare i dati ripristinati
+                                window.location.reload();
+                              } else {
+                                alert('Errore durante il ripristino del database');
+                              }
+                            }
+                          };
+                          
+                          input.click();
+                        } catch (error) {
+                          console.error('Errore durante il ripristino:', error);
+                          alert('Si è verificato un errore durante il ripristino: ' + error.message);
+                        }
+                      }}
+                    >
                       <Upload className="h-4 w-4 mr-2" />
                       Ripristina da Backup
                     </Button>
@@ -291,8 +430,7 @@ const Settings = () => {
             </div>
           )}
 
-          {activeTab === "notifications" && (
-            <div className="space-y-6 mt-0">
+6 mt-0">
               <Card>
                 <CardHeader>
                   <CardTitle>Impostazioni Notifiche</CardTitle>

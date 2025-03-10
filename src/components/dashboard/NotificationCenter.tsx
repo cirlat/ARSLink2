@@ -177,10 +177,175 @@ const NotificationCenter = ({
           <Button
             size="sm"
             onClick={() => {
-              // Apri un modale o naviga a una pagina per creare una nuova notifica
-              alert(
-                "Questa funzionalità permetterebbe di creare una nuova notifica WhatsApp da inviare ai pazienti. Implementazione in corso.",
-              );
+              // Crea un modale per la nuova notifica
+              const modal = document.createElement("div");
+              modal.className =
+                "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+              modal.innerHTML = `
+                <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                  <h3 class="text-lg font-medium mb-4">Invia Nuova Notifica</h3>
+                  
+                  <div class="space-y-4">
+                    <div>
+                      <label class="block text-sm font-medium mb-1">Paziente</label>
+                      <select id="notification-patient" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="">Seleziona paziente...</option>
+                        <option value="1">Marco Rossi</option>
+                        <option value="2">Giulia Bianchi</option>
+                        <option value="3">Luca Verdi</option>
+                        <option value="4">Sofia Neri</option>
+                        <option value="5">Alessandro Gialli</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label class="block text-sm font-medium mb-1">Tipo Notifica</label>
+                      <select id="notification-type" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="confirmation">Conferma Appuntamento</option>
+                        <option value="reminder">Promemoria</option>
+                        <option value="custom">Messaggio Personalizzato</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label class="block text-sm font-medium mb-1">Messaggio</label>
+                      <textarea id="notification-message" class="w-full px-3 py-2 border border-gray-300 rounded-md h-24" 
+                        placeholder="Inserisci il messaggio da inviare..."></textarea>
+                    </div>
+                  </div>
+                  
+                  <div class="flex justify-end space-x-2 mt-6">
+                    <button id="cancel-notification" class="px-4 py-2 border border-gray-300 rounded-md">Annulla</button>
+                    <button id="send-notification" class="px-4 py-2 bg-blue-600 text-white rounded-md">Invia</button>
+                  </div>
+                </div>
+              `;
+
+              document.body.appendChild(modal);
+
+              // Gestisci la chiusura del modale
+              document
+                .getElementById("cancel-notification")
+                .addEventListener("click", () => {
+                  document.body.removeChild(modal);
+                });
+
+              // Gestisci l'invio della notifica
+              document
+                .getElementById("send-notification")
+                .addEventListener("click", async () => {
+                  const patientId = document.getElementById(
+                    "notification-patient",
+                  ).value;
+                  const notificationType =
+                    document.getElementById("notification-type").value;
+                  const message = document.getElementById(
+                    "notification-message",
+                  ).value;
+
+                  if (!patientId) {
+                    alert("Seleziona un paziente");
+                    return;
+                  }
+
+                  if (!message) {
+                    alert("Inserisci un messaggio");
+                    return;
+                  }
+
+                  try {
+                    // In un'implementazione reale, qui invieremmo la notifica tramite WhatsApp
+                    // Simuliamo l'invio
+                    document.getElementById("send-notification").textContent =
+                      "Invio in corso...";
+                    document.getElementById("send-notification").disabled =
+                      true;
+
+                    // Simula un ritardo di invio
+                    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+                    // Aggiungi la notifica all'elenco
+                    const newNotification = {
+                      id: Date.now().toString(),
+                      patientName: document.getElementById(
+                        "notification-patient",
+                      ).options[
+                        document.getElementById("notification-patient")
+                          .selectedIndex
+                      ].text,
+                      appointmentDate: new Date().toISOString().split("T")[0],
+                      appointmentTime: new Date()
+                        .toTimeString()
+                        .split(" ")[0]
+                        .substring(0, 5),
+                      status: "sent",
+                      type: notificationType,
+                      message: message,
+                      sentAt: new Date().toISOString(),
+                    };
+
+                    // Salva la notifica in localStorage
+                    const savedNotifications = JSON.parse(
+                      localStorage.getItem("whatsappNotifications") || "[]",
+                    );
+                    savedNotifications.push(newNotification);
+                    localStorage.setItem(
+                      "whatsappNotifications",
+                      JSON.stringify(savedNotifications),
+                    );
+
+                    // Chiudi il modale
+                    document.body.removeChild(modal);
+
+                    // Aggiorna la pagina per mostrare la nuova notifica
+                    window.location.reload();
+                  } catch (error) {
+                    console.error(
+                      "Errore durante l'invio della notifica:",
+                      error,
+                    );
+                    alert(
+                      "Si è verificato un errore durante l'invio della notifica",
+                    );
+                    document.getElementById("send-notification").textContent =
+                      "Invia";
+                    document.getElementById("send-notification").disabled =
+                      false;
+                  }
+                });
+
+              // Aggiorna il messaggio in base al tipo di notifica selezionato
+              document
+                .getElementById("notification-type")
+                .addEventListener("change", (e) => {
+                  const type = e.target.value;
+                  const messageField = document.getElementById(
+                    "notification-message",
+                  );
+                  const patientSelect = document.getElementById(
+                    "notification-patient",
+                  );
+                  const patientName =
+                    patientSelect.options[patientSelect.selectedIndex].text ||
+                    "paziente";
+
+                  if (type === "confirmation") {
+                    messageField.value = `Gentile ${patientName}, confermiamo il suo appuntamento per il ${new Date().toLocaleDateString("it-IT")} alle ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, "0")}. Risponda "OK" per confermare.`;
+                  } else if (type === "reminder") {
+                    messageField.value = `Gentile ${patientName}, le ricordiamo il suo appuntamento per domani ${new Date(Date.now() + 86400000).toLocaleDateString("it-IT")} alle ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, "0")}. A presto!`;
+                  } else {
+                    messageField.value = "";
+                  }
+                });
+
+              // Aggiorna il messaggio quando cambia il paziente selezionato
+              document
+                .getElementById("notification-patient")
+                .addEventListener("change", () => {
+                  const typeSelect =
+                    document.getElementById("notification-type");
+                  typeSelect.dispatchEvent(new Event("change"));
+                });
             }}
           >
             <Send className="h-4 w-4 mr-2" />
@@ -403,10 +568,66 @@ const NotificationCenter = ({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              alert(
-                                `Invio notifica WhatsApp al paziente ${notification.patientName} per l'appuntamento del ${notification.appointmentDate}`,
-                              );
+                            onClick={async () => {
+                              try {
+                                // Conferma l'invio
+                                if (
+                                  !confirm(
+                                    `Vuoi inviare nuovamente la notifica a ${notification.patientName}?`,
+                                  )
+                                ) {
+                                  return;
+                                }
+
+                                // In un'implementazione reale, qui invieremmo la notifica tramite WhatsApp
+                                // Simuliamo l'invio
+                                alert(
+                                  `Invio notifica in corso a ${notification.patientName}...`,
+                                );
+
+                                // Simula un ritardo di invio
+                                await new Promise((resolve) =>
+                                  setTimeout(resolve, 1500),
+                                );
+
+                                // Aggiorna lo stato della notifica
+                                const updatedNotification = {
+                                  ...notification,
+                                  status: "sent",
+                                  sentAt: new Date().toISOString(),
+                                };
+
+                                // Salva la notifica aggiornata in localStorage
+                                const savedNotifications = JSON.parse(
+                                  localStorage.getItem(
+                                    "whatsappNotifications",
+                                  ) || "[]",
+                                );
+                                const updatedNotifications =
+                                  savedNotifications.map((n) =>
+                                    n.id === notification.id
+                                      ? updatedNotification
+                                      : n,
+                                  );
+                                localStorage.setItem(
+                                  "whatsappNotifications",
+                                  JSON.stringify(updatedNotifications),
+                                );
+
+                                // Aggiorna la pagina per mostrare la notifica aggiornata
+                                alert(
+                                  `Notifica inviata con successo a ${notification.patientName}`,
+                                );
+                                window.location.reload();
+                              } catch (error) {
+                                console.error(
+                                  "Errore durante l'invio della notifica:",
+                                  error,
+                                );
+                                alert(
+                                  "Si è verificato un errore durante l'invio della notifica",
+                                );
+                              }
                             }}
                           >
                             <Send className="h-4 w-4" />
