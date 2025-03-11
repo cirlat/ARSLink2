@@ -374,6 +374,42 @@ L'integrazione con WhatsApp è gestita dal servizio WhatsAppService.
 - Promemoria: inviati il giorno prima dell'appuntamento
 - Notifiche manuali: l'utente può inviare notifiche personalizzate
 
+## Funzionalità Aggiuntive
+
+### Template per Notifiche WhatsApp
+
+Il sistema supporta la creazione e gestione di template personalizzati per le notifiche WhatsApp, accessibili dalla sezione Impostazioni > Notifiche per gli utenti con licenza WhatsApp o Full.
+
+**Caratteristiche principali:**
+- Creazione di template personalizzati con segnaposto per dati dinamici
+- Supporto per diversi tipi di template: Appuntamento, Promemoria, Personalizzato
+- Possibilità di modificare ed eliminare i template esistenti
+- Utilizzo automatico dei template per le notifiche di conferma, promemoria e cancellazione appuntamenti
+
+**Segnaposto supportati:**
+- `{paziente}`: Nome e cognome del paziente
+- `{data}`: Data dell'appuntamento
+- `{ora}`: Orario dell'appuntamento
+
+### Backup Reale del Database
+
+Il sistema ora supporta il backup reale del database PostgreSQL utilizzando il comando `pg_dump`.
+
+**Caratteristiche principali:**
+- Backup completo del database in formato binario
+- Generazione automatica del nome del file con timestamp
+- Possibilità di eseguire backup manuali o automatici
+- Ripristino da backup tramite `pg_restore`
+
+### Gestione Appuntamenti Migliorata
+
+La gestione degli appuntamenti è stata migliorata con le seguenti funzionalità:
+
+- Salvataggio effettivo degli appuntamenti in localStorage
+- Sincronizzazione con Google Calendar (per licenze Google o Full)
+- Invio automatico di notifiche WhatsApp per conferma, promemoria e cancellazione (per licenze WhatsApp o Full)
+- Eliminazione di appuntamenti con notifica al paziente
+
 ## Manutenzione e Modifiche
 
 ### Aggiunta di Nuove Funzionalità

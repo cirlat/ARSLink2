@@ -23,6 +23,85 @@ Questo documento descrive il piano di test per verificare il corretto funzioname
 9. Impostazioni
 10. Gestione Licenze
 
+## Test Case Aggiuntivi
+
+### 11. Template Notifiche WhatsApp
+
+#### 11.1 Creazione Nuovo Template
+
+- **Descrizione**: Verifica che la creazione di un nuovo template funzioni correttamente.
+- **Passi**:
+  1. Vai a "Impostazioni" > "Notifiche"
+  2. Scorri fino alla sezione "Template Notifiche WhatsApp"
+  3. Clicca su "Nuovo Template"
+  4. Compila tutti i campi del form
+  5. Clicca su "Crea Template"
+- **Risultato atteso**: Il nuovo template viene creato e appare nella lista dei template.
+
+#### 11.2 Modifica Template
+
+- **Descrizione**: Verifica che la modifica di un template funzioni correttamente.
+- **Passi**:
+  1. Vai a "Impostazioni" > "Notifiche"
+  2. Trova un template esistente e clicca sull'icona di modifica
+  3. Modifica alcuni campi
+  4. Clicca su "Salva Modifiche"
+- **Risultato atteso**: Le modifiche vengono salvate e il template aggiornato appare nella lista.
+
+#### 11.3 Eliminazione Template
+
+- **Descrizione**: Verifica che l'eliminazione di un template funzioni correttamente.
+- **Passi**:
+  1. Vai a "Impostazioni" > "Notifiche"
+  2. Trova un template esistente e clicca sull'icona di eliminazione
+  3. Conferma l'eliminazione
+- **Risultato atteso**: Il template viene eliminato e non appare più nella lista.
+
+### 12. Backup e Ripristino Reale
+
+#### 12.1 Backup Manuale Reale
+
+- **Descrizione**: Verifica che il backup manuale reale funzioni correttamente.
+- **Passi**:
+  1. Vai a "Impostazioni" > "Backup e Ripristino"
+  2. Inserisci un percorso valido nel campo "Percorso Backup"
+  3. Clicca su "Esegui Backup Manuale"
+- **Risultato atteso**: Il backup viene eseguito correttamente e viene creato un file nel percorso specificato.
+
+#### 12.2 Ripristino da Backup Reale
+
+- **Descrizione**: Verifica che il ripristino da backup reale funzioni correttamente.
+- **Passi**:
+  1. Vai a "Impostazioni" > "Backup e Ripristino"
+  2. Clicca su "Ripristina da Backup"
+  3. Seleziona un file di backup valido
+  4. Conferma il ripristino
+- **Risultato atteso**: I dati vengono ripristinati correttamente dal backup.
+
+### 13. Gestione Appuntamenti Migliorata
+
+#### 13.1 Creazione Appuntamento con Notifica
+
+- **Descrizione**: Verifica che la creazione di un appuntamento con notifica WhatsApp funzioni correttamente.
+- **Passi**:
+  1. Vai alla pagina "Calendario"
+  2. Clicca su un orario libero o sul pulsante "Nuovo Appuntamento"
+  3. Seleziona un paziente
+  4. Compila tutti i campi del form
+  5. Attiva l'opzione "Invia notifica WhatsApp"
+  6. Clicca su "Salva Appuntamento"
+- **Risultato atteso**: L'appuntamento viene salvato, appare nel calendario e viene inviata una notifica WhatsApp al paziente.
+
+#### 13.2 Eliminazione Appuntamento con Notifica
+
+- **Descrizione**: Verifica che l'eliminazione di un appuntamento con notifica WhatsApp funzioni correttamente.
+- **Passi**:
+  1. Vai alla pagina "Calendario"
+  2. Clicca su un appuntamento esistente
+  3. Clicca su "Elimina"
+  4. Conferma l'eliminazione
+- **Risultato atteso**: L'appuntamento viene eliminato, non appare più nel calendario e viene inviata una notifica WhatsApp di cancellazione al paziente.
+
 ## Test Case
 
 ### 1. Setup Iniziale e Configurazione

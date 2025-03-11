@@ -170,7 +170,24 @@ const NotificationCenter = ({
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Centro Notifiche WhatsApp</h1>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // Carica le notifiche da localStorage
+              const savedNotifications = JSON.parse(
+                localStorage.getItem("whatsappNotifications") || "[]",
+              );
+
+              // Aggiorna la pagina per mostrare le notifiche aggiornate
+              window.location.reload();
+
+              // Mostra un messaggio di conferma
+              alert(
+                `Notifiche aggiornate: ${savedNotifications.length} notifiche trovate`,
+              );
+            }}
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
             Aggiorna
           </Button>

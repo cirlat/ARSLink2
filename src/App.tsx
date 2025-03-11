@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import Home from "./components/home";
 import Dashboard from "./components/dashboard/Dashboard";
@@ -7,18 +7,26 @@ import PatientList from "./components/dashboard/PatientList";
 import NotificationCenter from "./components/dashboard/NotificationCenter";
 import PatientDetails from "./components/patients/PatientDetails";
 import PatientForm from "./components/patients/PatientForm";
-import TopNavigation from "./components/layout/TopNavigation";
 import Settings from "./components/settings/Settings";
 import ForgotPasswordForm from "./components/auth/ForgotPasswordForm";
 import ResetPasswordForm from "./components/auth/ResetPasswordForm";
 import SetupWizard from "./setup/SetupWizard";
-import LicenseGenerator from "./components/admin/LicenseGenerator";
+import Sidebar from "./components/dashboard/Sidebar";
 
 function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const isLoginPage =
     location.pathname === "/" && !localStorage.getItem("isAuthenticated");
+  const isSetupPage = location.pathname === "/setup";
+
+  // Stato per il nome utente e il ruolo
+  const [userName, setUserName] = useState<string>(
+    localStorage.getItem("userName") || "Dr. Mario Rossi",
+  );
+  const [userRole, setUserRole] = useState<string>(
+    localStorage.getItem("userRole") || "Medico",
+  );
 
   // Verifica se è il primo avvio dell'applicazione
   useEffect(() => {
@@ -31,27 +39,49 @@ function App() {
     ) {
       navigate("/setup");
     }
+
+    // Aggiorna il nome utente e il ruolo quando cambiano in localStorage
+    const storedUserName = localStorage.getItem("userName");
+    const storedUserRole = localStorage.getItem("userRole");
+    if (storedUserName) setUserName(storedUserName);
+    if (storedUserRole) setUserRole(storedUserRole);
   }, [location.pathname, navigate]);
+
+  // Gestione del logout
+  const handleLogout = () => {
+    localStorage.removeItem("isAuthenticated");
+    navigate("/");
+  };
 
   return (
     <Suspense fallback={<p>Loading...</p>}>
-      <>
-        {/* Rimosso TopNavigation come richiesto */}
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/calendar" element={<CalendarView />} />
-          <Route path="/patients" element={<PatientList />} />
-          <Route path="/patients/new" element={<PatientForm />} />
-          <Route path="/patients/:id" element={<PatientDetails />} />
-          <Route path="/patients/:id/edit" element={<PatientForm />} />
-          <Route path="/notifications" element={<NotificationCenter />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/forgot-password" element={<ForgotPasswordForm />} />
-          <Route path="/reset-password" element={<ResetPasswordForm />} />
-          <Route path="/setup" element={<SetupWizard />} />
-          {/* Rimosso il generatore di licenze dall'app principale */}
-        </Routes>
-      </>
+      <div className="flex h-screen w-full bg-background">
+        {/* Mostra la sidebar solo se l'utente è autenticato e non è nella pagina di setup */}
+        {!isLoginPage && !isSetupPage && (
+          <Sidebar
+            userName={userName}
+            userRole={userRole}
+            onLogout={handleLogout}
+            activePage={location.pathname.split("/")[1] || "dashboard"}
+          />
+        )}
+
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/calendar" element={<CalendarView />} />
+            <Route path="/patients" element={<PatientList />} />
+            <Route path="/patients/new" element={<PatientForm />} />
+            <Route path="/patients/:id" element={<PatientDetails />} />
+            <Route path="/patients/:id/edit" element={<PatientForm />} />
+            <Route path="/notifications" element={<NotificationCenter />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/forgot-password" element={<ForgotPasswordForm />} />
+            <Route path="/reset-password" element={<ResetPasswordForm />} />
+            <Route path="/setup" element={<SetupWizard />} />
+          </Routes>
+        </div>
+      </div>
     </Suspense>
   );
 }

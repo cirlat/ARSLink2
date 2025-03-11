@@ -99,15 +99,7 @@ const BackupStatus: React.FC<BackupStatusProps> = ({
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
           <CardTitle className="text-lg font-medium">Stato Backup</CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onManualBackup}
-            disabled={backupStatus === "in-progress"}
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Backup Manuale
-          </Button>
+          {/* Rimosso il pulsante Backup Manuale come richiesto */}
         </div>
       </CardHeader>
       <CardContent>
