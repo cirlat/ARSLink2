@@ -2,7 +2,7 @@
   "name": "starter",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -10,7 +10,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "types:supabase": "npx supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/supabase.ts",
-    "electron:dev": "concurrently -k 'npm run dev' 'npm run electron:start'",
+    "electron:dev": "concurrently -k \"npm run dev\" \"npm run electron:start\"",
     "electron:start": "electron electron/main.js",
     "electron:build": "npm run build && electron-builder"
   },
