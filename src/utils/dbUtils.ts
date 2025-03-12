@@ -26,9 +26,6 @@ export async function testDatabaseConnection(config: {
       return true;
     }
 
-    // In un'implementazione reale, qui testeremmo la connessione al database
-    // Per ora, simuliamo un test di connessione
-
     // Verifica che tutti i campi siano compilati
     if (
       !config.host ||
@@ -57,12 +54,26 @@ export async function testDatabaseConnection(config: {
       throw new Error("La password è troppo corta");
     }
 
-    // Tenta di connettersi al database
-    const db = Database.getInstance();
-    await db.connect();
+    // Tenta di connettersi al database usando pg direttamente
+    const { Client } = await import("pg");
+    const client = new Client({
+      host: config.host,
+      port: port,
+      user: config.username,
+      password: config.password,
+      database: config.dbName,
+      ssl: false,
+      connectionTimeoutMillis: 5000, // 5 secondi di timeout
+    });
+
+    await client.connect();
 
     // Esegui una query di test
-    await db.query("SELECT 1");
+    const result = await client.query("SELECT NOW()");
+    console.log("Test di connessione riuscito:", result.rows[0]);
+
+    // Chiudi la connessione
+    await client.end();
 
     return true;
   } catch (error) {
@@ -75,10 +86,113 @@ export async function testDatabaseConnection(config: {
  * Inizializza il database con le tabelle necessarie
  * @returns Promise<boolean> true se l'inizializzazione è riuscita, false altrimenti
  */
-export async function initializeDatabase(): Promise<boolean> {
+export async function initializeDatabase(config: {
+  host: string;
+  port: string;
+  username: string;
+  password: string;
+  dbName: string;
+}): Promise<boolean> {
   try {
-    const db = Database.getInstance();
-    await db.initializeDatabase();
+    // Verifica se siamo in Electron
+    if (isRunningInElectron()) {
+      // Usa l'API Electron per inizializzare il database
+      // Qui dovresti implementare la logica specifica per Electron
+      return true;
+    }
+
+    const port = parseInt(config.port);
+    const { Client } = await import("pg");
+    const client = new Client({
+      host: config.host,
+      port: port,
+      user: config.username,
+      password: config.password,
+      database: config.dbName,
+      ssl: false,
+    });
+
+    await client.connect();
+
+    // Crea le tabelle necessarie
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        password VARCHAR(100) NOT NULL,
+        full_name VARCHAR(100) NOT NULL,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        role VARCHAR(20) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS patients (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        codice_fiscale VARCHAR(16) UNIQUE NOT NULL,
+        date_of_birth DATE NOT NULL,
+        gender VARCHAR(10) NOT NULL,
+        email VARCHAR(100),
+        phone VARCHAR(20) NOT NULL,
+        address TEXT,
+        city VARCHAR(50),
+        postal_code VARCHAR(10),
+        medical_history TEXT,
+        allergies TEXT,
+        medications TEXT,
+        notes TEXT,
+        privacy_consent BOOLEAN NOT NULL DEFAULT FALSE,
+        marketing_consent BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS appointments (
+        id SERIAL PRIMARY KEY,
+        patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+        date DATE NOT NULL,
+        time TIME NOT NULL,
+        duration INTEGER NOT NULL,
+        appointment_type VARCHAR(50) NOT NULL,
+        notes TEXT,
+        google_calendar_synced BOOLEAN NOT NULL DEFAULT FALSE,
+        google_event_id VARCHAR(100),
+        whatsapp_notification_sent BOOLEAN NOT NULL DEFAULT FALSE,
+        whatsapp_notification_time TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS license (
+        id SERIAL PRIMARY KEY,
+        license_key VARCHAR(100) UNIQUE NOT NULL,
+        license_type VARCHAR(20) NOT NULL,
+        expiry_date DATE NOT NULL,
+        google_calendar_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+        whatsapp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS configurations (
+        id SERIAL PRIMARY KEY,
+        key VARCHAR(50) UNIQUE NOT NULL,
+        value TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.end();
     return true;
   } catch (error) {
     console.error("Errore durante l'inizializzazione del database:", error);

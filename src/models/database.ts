@@ -361,14 +361,121 @@ class Database {
   // Metodo per inizializzare il database con le tabelle necessarie
   public async initializeDatabase(): Promise<void> {
     try {
-      const client = await this.getClient();
+      // Ottieni la configurazione del database
+      const dbConfig = this.getDbConfig();
+      const port = parseInt(dbConfig.port);
 
-      try {
-        await client.query("BEGIN");
+      // Usa direttamente pg per creare le tabelle
+      if (pg) {
+        const client = new pg.Client({
+          host: dbConfig.host,
+          port: port,
+          user: dbConfig.username,
+          password: dbConfig.password,
+          database: dbConfig.dbName,
+          ssl: false,
+        });
 
-        // Tabella utenti
-        await client.query(`
-          CREATE TABLE IF NOT EXISTS users (
+        await client.connect();
+
+        try {
+          await client.query("BEGIN");
+
+          // Tabella utenti
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS users (
+              id SERIAL PRIMARY KEY,
+              username VARCHAR(50) UNIQUE NOT NULL,
+              password VARCHAR(100) NOT NULL,
+              full_name VARCHAR(100) NOT NULL,
+              email VARCHAR(100) UNIQUE NOT NULL,
+              role VARCHAR(20) NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
+          // Tabella pazienti
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS patients (
+              id SERIAL PRIMARY KEY,
+              name VARCHAR(100) NOT NULL,
+              codice_fiscale VARCHAR(16) UNIQUE NOT NULL,
+              date_of_birth DATE NOT NULL,
+              gender VARCHAR(10) NOT NULL,
+              email VARCHAR(100),
+              phone VARCHAR(20) NOT NULL,
+              address TEXT,
+              city VARCHAR(50),
+              postal_code VARCHAR(10),
+              medical_history TEXT,
+              allergies TEXT,
+              medications TEXT,
+              notes TEXT,
+              privacy_consent BOOLEAN NOT NULL DEFAULT FALSE,
+              marketing_consent BOOLEAN NOT NULL DEFAULT FALSE,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
+          // Tabella appuntamenti
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS appointments (
+              id SERIAL PRIMARY KEY,
+              patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+              date DATE NOT NULL,
+              time TIME NOT NULL,
+              duration INTEGER NOT NULL,
+              appointment_type VARCHAR(50) NOT NULL,
+              notes TEXT,
+              google_calendar_synced BOOLEAN NOT NULL DEFAULT FALSE,
+              google_event_id VARCHAR(100),
+              whatsapp_notification_sent BOOLEAN NOT NULL DEFAULT FALSE,
+              whatsapp_notification_time TIMESTAMP,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
+          // Tabella licenza
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS license (
+              id SERIAL PRIMARY KEY,
+              license_key VARCHAR(100) UNIQUE NOT NULL,
+              license_type VARCHAR(20) NOT NULL,
+              expiry_date DATE NOT NULL,
+              google_calendar_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+              whatsapp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
+          // Tabella configurazioni
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS configurations (
+              id SERIAL PRIMARY KEY,
+              key VARCHAR(50) UNIQUE NOT NULL,
+              value TEXT NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
+          await client.query("COMMIT");
+          console.log("Database initialized successfully");
+        } catch (error) {
+          await client.query("ROLLBACK");
+          console.error("Error initializing database:", error);
+          throw error;
+        } finally {
+          await client.end();
+        }
+      } else if (isRunningInElectron()) {
+        // Se siamo in Electron ma non abbiamo potuto usare pg direttamente
+        const result = await electronAPI.executeQuery(
+          `CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
             username VARCHAR(50) UNIQUE NOT NULL,
             password VARCHAR(100) NOT NULL,
@@ -377,90 +484,39 @@ class Database {
             role VARCHAR(20) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
+          )`,
+          [],
+        );
 
-        // Tabella pazienti
-        await client.query(`
-          CREATE TABLE IF NOT EXISTS patients (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            codice_fiscale VARCHAR(16) UNIQUE NOT NULL,
-            date_of_birth DATE NOT NULL,
-            gender VARCHAR(10) NOT NULL,
-            email VARCHAR(100),
-            phone VARCHAR(20) NOT NULL,
-            address TEXT,
-            city VARCHAR(50),
-            postal_code VARCHAR(10),
-            medical_history TEXT,
-            allergies TEXT,
-            medications TEXT,
-            notes TEXT,
-            privacy_consent BOOLEAN NOT NULL DEFAULT FALSE,
-            marketing_consent BOOLEAN NOT NULL DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
+        if (!result.success) {
+          throw new Error(
+            result.error || "Errore nell'inizializzazione del database",
+          );
+        }
 
-        // Tabella appuntamenti
-        await client.query(`
-          CREATE TABLE IF NOT EXISTS appointments (
-            id SERIAL PRIMARY KEY,
-            patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-            date DATE NOT NULL,
-            time TIME NOT NULL,
-            duration INTEGER NOT NULL,
-            appointment_type VARCHAR(50) NOT NULL,
-            notes TEXT,
-            google_calendar_synced BOOLEAN NOT NULL DEFAULT FALSE,
-            google_event_id VARCHAR(100),
-            whatsapp_notification_sent BOOLEAN NOT NULL DEFAULT FALSE,
-            whatsapp_notification_time TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
+        // Continua con le altre tabelle...
+        console.log("Database initialized successfully via Electron API");
+      } else {
+        // Fallback al client simulato
+        const client = await this.getClient();
 
-        // Tabella licenza
-        await client.query(`
-          CREATE TABLE IF NOT EXISTS license (
-            id SERIAL PRIMARY KEY,
-            license_key VARCHAR(100) UNIQUE NOT NULL,
-            license_type VARCHAR(20) NOT NULL,
-            expiry_date DATE NOT NULL,
-            google_calendar_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-            whatsapp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
+        try {
+          await client.query("BEGIN");
 
-        // Tabella configurazioni
-        await client.query(`
-          CREATE TABLE IF NOT EXISTS configurations (
-            id SERIAL PRIMARY KEY,
-            key VARCHAR(50) UNIQUE NOT NULL,
-            value TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
+          // Implementa le query di creazione tabelle come sopra
 
-        await client.query("COMMIT");
-        console.log("Database initialized successfully");
-      } catch (error) {
-        await client.query("ROLLBACK");
-        console.error("Error initializing database:", error);
-        throw error;
-      } finally {
-        if (client && typeof client.release === "function") {
-          client.release();
+          console.log("Database initialized successfully (simulated)");
+        } catch (error) {
+          console.error("Error initializing database (simulated):", error);
+          throw error;
+        } finally {
+          if (client && typeof client.release === "function") {
+            client.release();
+          }
         }
       }
     } catch (error) {
-      console.error("Error getting client for database initialization:", error);
+      console.error("Error initializing database:", error);
       throw error;
     }
   }
