@@ -67,18 +67,7 @@ export class PatientModel {
         ],
       );
 
-      // Salva anche in localStorage come backup
-      try {
-        const patients = JSON.parse(localStorage.getItem("patients") || "[]");
-        patients.push(result[0]);
-        localStorage.setItem("patients", JSON.stringify(patients));
-      } catch (e) {
-        console.error(
-          "Errore nel salvataggio del paziente in localStorage:",
-          e,
-        );
-      }
-
+      console.log(`Paziente ${result[0].id} creato nel database`);
       return result[0];
     } catch (error) {
       console.error("Error creating patient:", error);

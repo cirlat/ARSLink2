@@ -34,7 +34,23 @@ export class AuthService {
         };
       }
 
-      // Verifica se esiste un utente admin predefinito
+      // Tenta l'autenticazione dal database
+      const user = await this.userModel.authenticate(username, password);
+      if (user) {
+        // Autenticazione riuscita
+        const token = this.generateToken(user);
+
+        // Salva l'utente autenticato in localStorage
+        localStorage.setItem("currentUser", JSON.stringify(user));
+        localStorage.setItem("authToken", token);
+        localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem("userName", user.full_name);
+        localStorage.setItem("userRole", user.role);
+
+        return { user, token };
+      }
+
+      // Se non è stato trovato nel database, verifica se è l'utente admin predefinito
       if (username === "admin" && password === "admin123") {
         const adminUser: User = {
           id: 0,
@@ -50,53 +66,14 @@ export class AuthService {
         localStorage.setItem("currentUser", JSON.stringify(adminUser));
         localStorage.setItem("authToken", this.generateToken(adminUser));
         localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem("userName", adminUser.full_name);
+        localStorage.setItem("userRole", adminUser.role);
 
         return { user: adminUser, token: this.generateToken(adminUser) };
       }
 
-      // Tenta l'autenticazione normale
-      const user = await this.userModel.authenticate(username, password);
-      if (!user) {
-        // Verifica se esiste un utente admin nel localStorage
-        const storedAdmin = localStorage.getItem("adminUser");
-        if (storedAdmin) {
-          const adminData = JSON.parse(storedAdmin);
-          if (
-            username === adminData.username &&
-            password === adminData.password
-          ) {
-            const adminUser: User = {
-              id: 1,
-              username: adminData.username,
-              full_name: adminData.fullName,
-              email: adminData.email,
-              role: adminData.role || "Medico",
-              created_at: new Date(),
-              updated_at: new Date(),
-            };
-
-            // Salva l'utente autenticato in localStorage
-            localStorage.setItem("currentUser", JSON.stringify(adminUser));
-            localStorage.setItem("authToken", this.generateToken(adminUser));
-            localStorage.setItem("isAuthenticated", "true");
-
-            return { user: adminUser, token: this.generateToken(adminUser) };
-          }
-        }
-
-        return { user: null, token: null, error: "Credenziali non valide." };
-      }
-
-      // In un'implementazione reale, qui genereremmo un JWT token
-      // Per ora, usiamo un semplice token fittizio
-      const token = this.generateToken(user);
-
-      // Salva l'utente autenticato in localStorage
-      localStorage.setItem("currentUser", JSON.stringify(user));
-      localStorage.setItem("authToken", token);
-      localStorage.setItem("isAuthenticated", "true");
-
-      return { user, token };
+      // Nessun utente trovato
+      return { user: null, token: null, error: "Credenziali non valide." };
     } catch (error) {
       console.error("Error during login:", error);
       return {

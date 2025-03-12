@@ -55,47 +55,129 @@ const NotificationTemplates = () => {
     type: "custom",
   });
 
-  // Carica i template da localStorage all'avvio
+  // Carica i template dal database all'avvio
   useEffect(() => {
-    const savedTemplates = localStorage.getItem("whatsappTemplates");
-    if (savedTemplates) {
+    const loadTemplatesFromDatabase = async () => {
       try {
-        setTemplates(JSON.parse(savedTemplates));
+        // Carica i template dal database
+        const { default: Database } = await import("@/models/database");
+        const db = Database.getInstance();
+
+        const result = await db.query(
+          "SELECT value FROM configurations WHERE key = 'whatsapp_templates'",
+        );
+
+        if (result.length > 0) {
+          const templatesData = JSON.parse(result[0].value);
+          setTemplates(templatesData);
+        } else {
+          // Template predefiniti
+          const defaultTemplates = [
+            {
+              id: "1",
+              name: "Conferma Appuntamento",
+              content:
+                "Gentile {paziente}, confermiamo il suo appuntamento per il {data} alle {ora}. Risponda 'OK' per confermare.",
+              type: "appointment",
+              createdAt: new Date().toISOString(),
+            },
+            {
+              id: "2",
+              name: "Promemoria Appuntamento",
+              content:
+                "Gentile {paziente}, le ricordiamo il suo appuntamento per domani {data} alle {ora}. A presto!",
+              type: "reminder",
+              createdAt: new Date().toISOString(),
+            },
+          ];
+
+          setTemplates(defaultTemplates);
+
+          // Salva i template predefiniti nel database
+          try {
+            await db.query(
+              "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+              ["whatsapp_templates", JSON.stringify(defaultTemplates)],
+            );
+          } catch (dbError) {
+            console.error(
+              "Errore nel salvataggio dei template predefiniti nel database:",
+              dbError,
+            );
+          }
+        }
       } catch (error) {
-        console.error("Errore nel caricamento dei template:", error);
+        console.error(
+          "Errore nel caricamento dei template dal database:",
+          error,
+        );
+
+        // Fallback a localStorage
+        const savedTemplates = localStorage.getItem("whatsappTemplates");
+        if (savedTemplates) {
+          try {
+            setTemplates(JSON.parse(savedTemplates));
+          } catch (parseError) {
+            console.error("Errore nel parsing dei template:", parseError);
+          }
+        } else {
+          // Template predefiniti
+          const defaultTemplates = [
+            {
+              id: "1",
+              name: "Conferma Appuntamento",
+              content:
+                "Gentile {paziente}, confermiamo il suo appuntamento per il {data} alle {ora}. Risponda 'OK' per confermare.",
+              type: "appointment",
+              createdAt: new Date().toISOString(),
+            },
+            {
+              id: "2",
+              name: "Promemoria Appuntamento",
+              content:
+                "Gentile {paziente}, le ricordiamo il suo appuntamento per domani {data} alle {ora}. A presto!",
+              type: "reminder",
+              createdAt: new Date().toISOString(),
+            },
+          ];
+          setTemplates(defaultTemplates);
+          localStorage.setItem(
+            "whatsappTemplates",
+            JSON.stringify(defaultTemplates),
+          );
+        }
       }
-    } else {
-      // Template predefiniti
-      const defaultTemplates = [
-        {
-          id: "1",
-          name: "Conferma Appuntamento",
-          content:
-            "Gentile {paziente}, confermiamo il suo appuntamento per il {data} alle {ora}. Risponda 'OK' per confermare.",
-          type: "appointment",
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: "2",
-          name: "Promemoria Appuntamento",
-          content:
-            "Gentile {paziente}, le ricordiamo il suo appuntamento per domani {data} alle {ora}. A presto!",
-          type: "reminder",
-          createdAt: new Date().toISOString(),
-        },
-      ];
-      setTemplates(defaultTemplates);
-      localStorage.setItem(
-        "whatsappTemplates",
-        JSON.stringify(defaultTemplates),
-      );
-    }
+    };
+
+    loadTemplatesFromDatabase();
   }, []);
 
-  // Salva i template in localStorage quando cambiano
+  // Salva i template nel database quando cambiano
   useEffect(() => {
     if (templates.length > 0) {
-      localStorage.setItem("whatsappTemplates", JSON.stringify(templates));
+      const saveTemplatesToDatabase = async () => {
+        try {
+          const { default: Database } = await import("@/models/database");
+          const db = Database.getInstance();
+
+          await db.query(
+            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            ["whatsapp_templates", JSON.stringify(templates)],
+          );
+
+          console.log("Template salvati nel database");
+        } catch (error) {
+          console.error(
+            "Errore nel salvataggio dei template nel database:",
+            error,
+          );
+
+          // Fallback a localStorage
+          localStorage.setItem("whatsappTemplates", JSON.stringify(templates));
+        }
+      };
+
+      saveTemplatesToDatabase();
     }
   }, [templates]);
 

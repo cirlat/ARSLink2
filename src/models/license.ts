@@ -30,18 +30,63 @@ export class LicenseModel {
 
   private async loadLicense(): Promise<void> {
     try {
+      // Tenta di caricare la licenza dal database
       const licenses = await this.db.query(
         "SELECT * FROM license ORDER BY created_at DESC LIMIT 1",
       );
       if (licenses.length > 0) {
         this.currentLicense = licenses[0];
+        console.log("Licenza caricata dal database:", this.currentLicense);
+        return;
+      }
+
+      // Se non c'è licenza nel database, verifica se c'è una licenza in localStorage
+      const storedLicenseKey = localStorage.getItem("licenseKey");
+      const storedLicenseType = localStorage.getItem("licenseType");
+      const storedLicenseExpiry = localStorage.getItem("licenseExpiry");
+
+      if (storedLicenseKey && storedLicenseType && storedLicenseExpiry) {
+        // Crea un oggetto licenza dai dati in localStorage
+        const license: License = {
+          license_key: storedLicenseKey,
+          license_type: storedLicenseType as
+            | "basic"
+            | "google"
+            | "whatsapp"
+            | "full",
+          expiry_date: new Date(storedLicenseExpiry),
+          google_calendar_enabled:
+            storedLicenseType === "google" || storedLicenseType === "full",
+          whatsapp_enabled:
+            storedLicenseType === "whatsapp" || storedLicenseType === "full",
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+
+        // Salva la licenza nel database
+        try {
+          await this.installLicense(license);
+          console.log("Licenza da localStorage installata nel database");
+        } catch (installError) {
+          console.error(
+            "Errore nell'installazione della licenza nel database:",
+            installError,
+          );
+          // Se non riusciamo a salvarla nel database, la teniamo in memoria
+          this.currentLicense = license;
+        }
       }
     } catch (error) {
       console.error("Error loading license:", error);
-      // Se non riusciamo a caricare la licenza dal database, proviamo a caricarla dal localStorage
+
+      // Fallback completo a localStorage
       const storedLicense = localStorage.getItem("license");
       if (storedLicense) {
         this.currentLicense = JSON.parse(storedLicense);
+        console.log(
+          "Licenza caricata da localStorage (fallback):",
+          this.currentLicense,
+        );
       }
     }
   }
@@ -54,21 +99,40 @@ export class LicenseModel {
   }
 
   async isLicenseValid(): Promise<boolean> {
-    // Verifica prima nel localStorage
-    const storedLicenseExpiry = localStorage.getItem("licenseExpiry");
-    if (storedLicenseExpiry) {
-      const expiryDate = new Date(storedLicenseExpiry);
-      const today = new Date();
-      return expiryDate >= today;
+    try {
+      // Verifica prima nel database
+      const license = await this.getCurrentLicense();
+      if (license) {
+        const today = new Date();
+        const expiryDate = new Date(license.expiry_date);
+        return expiryDate >= today;
+      }
+
+      // Se non c'è nel database, verifica nel localStorage
+      const storedLicenseExpiry = localStorage.getItem("licenseExpiry");
+      if (storedLicenseExpiry) {
+        const expiryDate = new Date(storedLicenseExpiry);
+        const today = new Date();
+        return expiryDate >= today;
+      }
+
+      return false;
+    } catch (error) {
+      console.error(
+        "Errore nella verifica della validità della licenza:",
+        error,
+      );
+
+      // Fallback a localStorage
+      const storedLicenseExpiry = localStorage.getItem("licenseExpiry");
+      if (storedLicenseExpiry) {
+        const expiryDate = new Date(storedLicenseExpiry);
+        const today = new Date();
+        return expiryDate >= today;
+      }
+
+      return false;
     }
-
-    // Se non c'è nel localStorage, verifica nel database
-    const license = await this.getCurrentLicense();
-    if (!license) return false;
-
-    const today = new Date();
-    const expiryDate = new Date(license.expiry_date);
-    return expiryDate >= today;
   }
 
   async getDaysUntilExpiry(): Promise<number> {

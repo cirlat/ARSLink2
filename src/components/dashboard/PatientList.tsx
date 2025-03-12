@@ -77,66 +77,115 @@ const PatientList: React.FC<PatientListProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  // Carica i pazienti da localStorage
+  // Carica i pazienti dal database
   const [patients, setPatients] = useState<Patient[]>([]);
 
   useEffect(() => {
-    try {
-      const storedPatients = JSON.parse(
-        localStorage.getItem("patients") || "[]",
-      );
-      if (storedPatients.length > 0) {
-        // Converti i dati dal formato di storage al formato richiesto dal componente
-        const formattedPatients = storedPatients.map((p: any) => ({
-          id: p.id || String(Date.now()),
-          name: `${p.firstName} ${p.lastName}`,
-          codiceFiscale: p.fiscalCode || "",
-          phone: p.phone || "",
-          email: p.email || "",
-          lastAppointment: "N/A", // In un'implementazione reale, questo verrebbe calcolato dagli appuntamenti
-          nextAppointment: null, // In un'implementazione reale, questo verrebbe calcolato dagli appuntamenti
-        }));
-        setPatients(formattedPatients);
-      } else if (propPatients) {
-        setPatients(propPatients);
-      } else {
-        // Dati di esempio se non ci sono pazienti
-        setPatients([
-          {
-            id: "1",
-            name: "Marco Rossi",
-            codiceFiscale: "RSSMRC80A01H501U",
-            phone: "+39 333 1234567",
-            email: "marco.rossi@example.com",
-            lastAppointment: "10/05/2023",
-            nextAppointment: "15/06/2023",
-          },
-          {
-            id: "2",
-            name: "Giulia Bianchi",
-            codiceFiscale: "BNCGLI85B42H501V",
-            phone: "+39 333 7654321",
-            email: "giulia.bianchi@example.com",
-            lastAppointment: "22/04/2023",
-            nextAppointment: null,
-          },
-        ]);
+    const loadPatientsFromDatabase = async () => {
+      try {
+        // Carica i pazienti dal database
+        const { PatientModel } = await import("@/models/patient");
+        const patientModel = new PatientModel();
+
+        // Ottieni tutti i pazienti
+        const result = await patientModel.findAll();
+
+        if (result.patients.length > 0) {
+          // Converti i dati dal formato del database al formato richiesto dal componente
+          const formattedPatients = result.patients.map((p: any) => ({
+            id: p.id.toString(),
+            name: p.name,
+            codiceFiscale: p.codice_fiscale,
+            phone: p.phone,
+            email: p.email || "",
+            lastAppointment: "N/A", // In un'implementazione reale, questo verrebbe calcolato dagli appuntamenti
+            nextAppointment: null, // In un'implementazione reale, questo verrebbe calcolato dagli appuntamenti
+          }));
+          setPatients(formattedPatients);
+        } else if (propPatients) {
+          setPatients(propPatients);
+        } else {
+          // Dati di esempio se non ci sono pazienti
+          setPatients([
+            {
+              id: "1",
+              name: "Marco Rossi",
+              codiceFiscale: "RSSMRC80A01H501U",
+              phone: "+39 333 1234567",
+              email: "marco.rossi@example.com",
+              lastAppointment: "10/05/2023",
+              nextAppointment: "15/06/2023",
+            },
+            {
+              id: "2",
+              name: "Giulia Bianchi",
+              codiceFiscale: "BNCGLI85B42H501V",
+              phone: "+39 333 7654321",
+              email: "giulia.bianchi@example.com",
+              lastAppointment: "22/04/2023",
+              nextAppointment: null,
+            },
+          ]);
+        }
+      } catch (error) {
+        console.error(
+          "Errore nel caricamento dei pazienti dal database:",
+          error,
+        );
+
+        // Fallback a localStorage
+        try {
+          const storedPatients = JSON.parse(
+            localStorage.getItem("patients") || "[]",
+          );
+          if (storedPatients.length > 0) {
+            // Converti i dati dal formato di storage al formato richiesto dal componente
+            const formattedPatients = storedPatients.map((p: any) => ({
+              id: p.id || String(Date.now()),
+              name: p.name || `${p.firstName} ${p.lastName}`,
+              codiceFiscale: p.codice_fiscale || p.fiscalCode || "",
+              phone: p.phone || "",
+              email: p.email || "",
+              lastAppointment: "N/A",
+              nextAppointment: null,
+            }));
+            setPatients(formattedPatients);
+          } else {
+            // Usa dati di fallback
+            setPatients([
+              {
+                id: "1",
+                name: "Marco Rossi",
+                codiceFiscale: "RSSMRC80A01H501U",
+                phone: "+39 333 1234567",
+                email: "marco.rossi@example.com",
+                lastAppointment: "10/05/2023",
+                nextAppointment: "15/06/2023",
+              },
+            ]);
+          }
+        } catch (localStorageError) {
+          console.error(
+            "Errore nel caricamento dei pazienti da localStorage:",
+            localStorageError,
+          );
+          // Usa dati di fallback
+          setPatients([
+            {
+              id: "1",
+              name: "Marco Rossi",
+              codiceFiscale: "RSSMRC80A01H501U",
+              phone: "+39 333 1234567",
+              email: "marco.rossi@example.com",
+              lastAppointment: "10/05/2023",
+              nextAppointment: "15/06/2023",
+            },
+          ]);
+        }
       }
-    } catch (error) {
-      console.error("Errore nel caricamento dei pazienti:", error);
-      // Usa dati di fallback
-      setPatients([
-        {
-          id: "1",
-          name: "Marco Rossi",
-          codiceFiscale: "RSSMRC80A01H501U",
-          phone: "+39 333 1234567",
-          email: "marco.rossi@example.com",
-          lastAppointment: "10/05/2023",
-          nextAppointment: "15/06/2023",
-        },
-      ]);
-    }
+    };
+
+    loadPatientsFromDatabase();
   }, [propPatients]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -209,45 +258,48 @@ const PatientList: React.FC<PatientListProps> = ({
         throw new Error("Paziente non trovato");
       }
 
-      // In un'implementazione reale, qui elimineremmo il paziente dal database
-      // Utilizziamo il modello PatientModel
+      // Elimina il paziente dal database
       try {
         const { PatientModel } = await import("@/models/patient");
         const patientModel = new PatientModel();
-        await patientModel.delete(parseInt(id));
+        const success = await patientModel.delete(parseInt(id));
+
+        if (!success) {
+          throw new Error("Errore nell'eliminazione del paziente dal database");
+        }
+
         console.log(`Paziente ${id} eliminato dal database`);
+
+        // Elimina anche gli appuntamenti associati a questo paziente
+        try {
+          const { AppointmentModel } = await import("@/models/appointment");
+          const appointmentModel = new AppointmentModel();
+          const deletedAppointments = await appointmentModel.deleteByPatientId(
+            parseInt(id),
+          );
+          console.log(
+            `${deletedAppointments} appuntamenti eliminati per il paziente ${id}`,
+          );
+        } catch (appointmentError) {
+          console.error(
+            "Errore nell'eliminazione degli appuntamenti associati:",
+            appointmentError,
+          );
+        }
+
+        // Aggiorna lo stato o ricarica i dati
+        setDeleteConfirmOpen(false);
+        setPatientToDelete(null);
+
+        // Mostra un messaggio di conferma
+        alert("Paziente eliminato con successo");
+
+        // Aggiorna la lista dei pazienti rimuovendo il paziente eliminato
+        setPatients(patients.filter((patient) => patient.id !== id));
       } catch (dbError) {
         console.error("Errore nell'eliminazione dal database:", dbError);
-        // Continuiamo con l'eliminazione da localStorage come fallback
+        throw dbError;
       }
-
-      // Elimina il paziente da localStorage
-      const storedPatients = JSON.parse(
-        localStorage.getItem("patients") || "[]",
-      );
-      const updatedPatients = storedPatients.filter(
-        (patient: any) => patient.id !== id,
-      );
-      localStorage.setItem("patients", JSON.stringify(updatedPatients));
-
-      // Elimina anche gli appuntamenti associati a questo paziente
-      const storedAppointments = JSON.parse(
-        localStorage.getItem("appointments") || "[]",
-      );
-      const updatedAppointments = storedAppointments.filter(
-        (appointment: any) => appointment.patient_id !== id,
-      );
-      localStorage.setItem("appointments", JSON.stringify(updatedAppointments));
-
-      // Aggiorna lo stato o ricarica i dati
-      setDeleteConfirmOpen(false);
-      setPatientToDelete(null);
-
-      // Mostra un messaggio di conferma
-      alert("Paziente eliminato con successo");
-
-      // Aggiorna la lista dei pazienti
-      setPatients(updatedPatients);
     } catch (error) {
       console.error("Errore durante l'eliminazione del paziente:", error);
       alert(
