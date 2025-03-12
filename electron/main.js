@@ -6,8 +6,7 @@ const { exec } = require("child_process");
 
 const { Client } = pg;
 
-// Use Node.js dirname directly in CommonJS
-const __dirname = __dirname;
+// __dirname is already defined in CommonJS
 
 // Gestione del database PostgreSQL reale
 let dbClient = null;
