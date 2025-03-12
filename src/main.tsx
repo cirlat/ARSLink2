@@ -5,6 +5,7 @@ import "./index.css";
 import "./styles/spinner.css";
 import { BrowserRouter } from "react-router-dom";
 
+// Import the dev tools and initialize them
 import { TempoDevtools } from "tempo-devtools";
 TempoDevtools.init();
 

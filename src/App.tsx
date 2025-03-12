@@ -1,5 +1,12 @@
 import { Suspense, useEffect, useState } from "react";
-import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  useLocation,
+  useNavigate,
+  useRoutes,
+} from "react-router-dom";
+import routes from "./tempo-routes";
 import Home from "./components/home";
 import Dashboard from "./components/dashboard/Dashboard";
 import CalendarView from "./components/dashboard/CalendarView";
@@ -67,6 +74,9 @@ function App() {
         )}
 
         <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Tempo routes */}
+          {import.meta.env.VITE_TEMPO && useRoutes(routes)}
+
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/calendar" element={<CalendarView />} />
@@ -79,6 +89,9 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPasswordForm />} />
             <Route path="/reset-password" element={<ResetPasswordForm />} />
             <Route path="/setup" element={<SetupWizard />} />
+
+            {/* Add this before the catchall route */}
+            {import.meta.env.VITE_TEMPO && <Route path="/tempobook/*" />}
           </Routes>
         </div>
       </div>

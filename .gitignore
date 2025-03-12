@@ -29,3 +29,6 @@ dist-ssr
 **/tempobook/storyboards/
 
 core
+
+# Electron build output
+release

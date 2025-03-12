@@ -1,5 +1,13 @@
 // Utilizziamo una simulazione del database per evitare problemi con pg nel browser
 // ma implementiamo anche la possibilità di connettersi a un DB reale quando possibile
+import { electronAPI, isRunningInElectron } from "@/lib/electronBridge";
+
+// Definizione dell'interfaccia PgPool per evitare errori di tipo
+interface PgPool {
+  query: (text: string, params?: any[]) => Promise<{ rows: any[] }>;
+  connect: () => Promise<any>;
+  end: () => Promise<void>;
+}
 
 // Importiamo il modulo pg in modo condizionale
 let pg: any = null;
@@ -35,16 +43,16 @@ class Database {
   private pool: Pool;
   private pgPool: PgPool | null = null;
   private isConnected: boolean = false;
-  private useRealDb: boolean = true;
+  private useRealDb: boolean = false;
 
   private constructor() {
     // Leggi le configurazioni da localStorage o da un file di configurazione
     const dbConfig = this.getDbConfig();
 
     // Verifichiamo se possiamo utilizzare un DB reale
-    this.useRealDb = false;
+    this.useRealDb = isRunningInElectron();
 
-    if (pg) {
+    if (pg && this.useRealDb) {
       try {
         // Tenta di creare una connessione reale a PostgreSQL
         this.pgPool = new pg.Pool({
@@ -57,7 +65,6 @@ class Database {
           // Timeout di connessione di 5 secondi
           connectionTimeoutMillis: 5000,
         });
-        this.useRealDb = true;
         console.log("Configurata connessione reale a PostgreSQL");
       } catch (error) {
         console.error("Errore nella configurazione di PostgreSQL:", error);
@@ -81,6 +88,31 @@ class Database {
             this.useRealDb = false;
             console.log("Passaggio a database simulato");
           }
+        } else if (isRunningInElectron()) {
+          // Se siamo in Electron ma non abbiamo potuto usare pg direttamente
+          try {
+            const result = await electronAPI.connectDatabase(dbConfig);
+            if (result.success) {
+              console.log(
+                "Connessione a PostgreSQL stabilita tramite Electron API",
+              );
+              this.useRealDb = true;
+            } else {
+              console.error(
+                "Errore di connessione a PostgreSQL tramite Electron API:",
+                result.error,
+              );
+              this.useRealDb = false;
+              console.log("Passaggio a database simulato");
+            }
+          } catch (error) {
+            console.error(
+              "Errore di connessione a PostgreSQL tramite Electron API:",
+              error,
+            );
+            this.useRealDb = false;
+            console.log("Passaggio a database simulato");
+          }
         } else {
           console.log("Simulazione connessione al database");
         }
@@ -95,22 +127,46 @@ class Database {
         return Promise.resolve();
       },
       query: async (text: string, params: any[] = []) => {
-        if (this.useRealDb && this.pgPool) {
-          try {
-            const result = await this.pgPool.query(text, params);
-            return result;
-          } catch (error) {
-            console.error(
-              "Errore nell'esecuzione della query PostgreSQL:",
-              error,
-            );
-            console.error("Query:", text, "Params:", params);
-            // Fallback alla simulazione in caso di errore
-            return this.simulateQuery(text, params);
+        if (this.useRealDb) {
+          if (this.pgPool) {
+            try {
+              const result = await this.pgPool.query(text, params);
+              return result;
+            } catch (error) {
+              console.error(
+                "Errore nell'esecuzione della query PostgreSQL:",
+                error,
+              );
+              console.error("Query:", text, "Params:", params);
+              // Fallback alla simulazione in caso di errore
+              return this.simulateQuery(text, params);
+            }
+          } else if (isRunningInElectron()) {
+            try {
+              const result = await electronAPI.executeQuery(text, params);
+              if (result.success) {
+                return { rows: result.rows || [] };
+              } else {
+                console.error(
+                  "Errore nell'esecuzione della query tramite Electron API:",
+                  result.error,
+                );
+                // Fallback alla simulazione in caso di errore
+                return this.simulateQuery(text, params);
+              }
+            } catch (error) {
+              console.error(
+                "Errore nell'esecuzione della query tramite Electron API:",
+                error,
+              );
+              // Fallback alla simulazione in caso di errore
+              return this.simulateQuery(text, params);
+            }
           }
-        } else {
-          return this.simulateQuery(text, params);
         }
+
+        // Usa la simulazione se non possiamo usare un DB reale
+        return this.simulateQuery(text, params);
       },
       getClient: async () => {
         if (this.useRealDb && this.pgPool) {
@@ -291,7 +347,7 @@ class Database {
       await this.connect();
     }
 
-    return await this.pool.connect();
+    return await this.pool.getClient();
   }
 
   public async close(): Promise<void> {

@@ -3,6 +3,7 @@
  */
 
 import Database from "@/models/database";
+import { electronAPI, isRunningInElectron } from "@/lib/electronBridge";
 
 /**
  * Verifica la connessione al database
@@ -16,6 +17,15 @@ export async function testDatabaseConnection(config: {
   dbName: string;
 }): Promise<boolean> {
   try {
+    // Verifica se siamo in Electron
+    if (isRunningInElectron()) {
+      const result = await electronAPI.connectDatabase(config);
+      if (!result.success) {
+        throw new Error(result.error || "Errore di connessione al database");
+      }
+      return true;
+    }
+
     // In un'implementazione reale, qui testeremmo la connessione al database
     // Per ora, simuliamo un test di connessione
 
@@ -83,6 +93,22 @@ export async function initializeDatabase(): Promise<boolean> {
  */
 export async function backupDatabase(path: string): Promise<boolean> {
   try {
+    // Verifica se siamo in Electron
+    if (isRunningInElectron()) {
+      const result = await electronAPI.backupDatabase(path);
+      if (!result.success) {
+        throw new Error(result.error || "Errore durante il backup");
+      }
+
+      // Salva l'informazione del backup in localStorage
+      const now = new Date();
+      localStorage.setItem("lastBackup", now.toISOString());
+      localStorage.setItem("lastBackupPath", path);
+      localStorage.setItem("lastBackupStatus", "success");
+
+      return true;
+    }
+
     // Ottieni la configurazione del database
     const dbConfigStr = localStorage.getItem("dbConfig");
     if (!dbConfigStr) {
@@ -99,12 +125,7 @@ export async function backupDatabase(path: string): Promise<boolean> {
 
     console.log(`Esecuzione backup del database in ${fullBackupPath}`);
 
-    // In un'applicazione desktop reale, qui eseguiremmo pg_dump
-    // Esempio di comando: pg_dump -h ${host} -p ${port} -U ${username} -F c -b -v -f "${fullBackupPath}" ${dbName}
-
-    // Poiché siamo in un ambiente browser, simuliamo l'esecuzione di pg_dump
-    // ma salviamo comunque i dati reali dal localStorage
-
+    // Siamo in un browser, simuliamo l'esecuzione di pg_dump
     // Raccogliamo tutti i dati dal localStorage
     const patients = localStorage.getItem("patients") || "[]";
     const appointments = localStorage.getItem("appointments") || "[]";
@@ -131,8 +152,7 @@ export async function backupDatabase(path: string): Promise<boolean> {
     // Convertiamo in JSON e salviamo come file
     const backupJson = JSON.stringify(backupData, null, 2);
 
-    // In un'applicazione desktop reale, qui salveremmo il file
-    // Ma poiché siamo in un browser, salviamo in localStorage
+    // Salviamo in localStorage
     localStorage.setItem("lastBackupData", backupJson);
 
     // Creiamo un link per scaricare il backup
@@ -172,6 +192,22 @@ export async function backupDatabase(path: string): Promise<boolean> {
  */
 export async function restoreDatabase(path: string): Promise<boolean> {
   try {
+    // Verifica se siamo in Electron
+    if (isRunningInElectron()) {
+      const result = await electronAPI.restoreDatabase(path);
+      if (!result.success) {
+        throw new Error(result.error || "Errore durante il ripristino");
+      }
+
+      // Salva l'informazione del ripristino in localStorage
+      const now = new Date();
+      localStorage.setItem("lastRestore", now.toISOString());
+      localStorage.setItem("lastRestorePath", path);
+      localStorage.setItem("lastRestoreStatus", "success");
+
+      return true;
+    }
+
     // In un'applicazione desktop reale, qui eseguiremmo pg_restore
     // Ma poiché siamo in un browser, dobbiamo gestire il file caricato
 
