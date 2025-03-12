@@ -1,21 +1,17 @@
-import { app, BrowserWindow, ipcMain } from "electron";
-import path from "path";
-import fs from "fs";
-import pkg from "pg";
-const { Client } = pkg;
+const { app, BrowserWindow, ipcMain } = require("electron");
+const path = require("path");
+const pg = require("pg");
+const { Client } = pg;
+const fs = require("fs");
+const { exec } = require("child_process");
+const util = require("util");
 
-import { exec } from "child_process";
-import { fileURLToPath } from "url";
+const execPromise = util.promisify(exec);
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let mainWindow;
 
-// Gestione del database PostgreSQL reale
-let dbClient = null;
-
-// Crea la finestra principale
 function createWindow() {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
@@ -25,144 +21,140 @@ function createWindow() {
     },
   });
 
-  // In produzione, carica l'app compilata
-  if (app.isPackaged) {
-    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
-  } else {
-    // In sviluppo, carica dal server di sviluppo
-    mainWindow.loadURL("http://localhost:5173");
-    // Apri DevTools in sviluppo
+  // In development, load from Vite dev server
+  // In production, load from built files
+  const startUrl =
+    process.env.NODE_ENV === "development"
+      ? "http://localhost:5173"
+      : `file://${path.join(__dirname, "../dist/index.html")}`;
+
+  mainWindow.loadURL(startUrl);
+
+  // Open DevTools in development
+  if (process.env.NODE_ENV === "development") {
     mainWindow.webContents.openDevTools();
   }
+
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
 }
 
-app.whenReady().then(() => {
-  createWindow();
+app.whenReady().then(createWindow);
 
-  app.on("activate", function () {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
 });
 
-app.on("window-all-closed", function () {
-  if (process.platform !== "darwin") app.quit();
+app.on("activate", () => {
+  if (mainWindow === null) {
+    createWindow();
+  }
 });
 
-// Gestione delle comunicazioni IPC
+// Database connection handler
 ipcMain.handle("connect-database", async (event, config) => {
   try {
-    // Chiudi la connessione esistente se presente
-    if (dbClient) {
-      await dbClient.end();
-    }
-
-    // Crea una nuova connessione
-    dbClient = new Client({
+    const client = new Client({
       host: config.host,
-      port: config.port,
+      port: parseInt(config.port),
       user: config.username,
       password: config.password,
       database: config.dbName,
+      ssl: false,
+      connectionTimeoutMillis: 5000,
     });
 
-    await dbClient.connect();
-    return { success: true, message: "Connessione al database stabilita" };
+    await client.connect();
+    await client.query("SELECT NOW()");
+    await client.end();
+
+    return { success: true, message: "Database connection successful" };
   } catch (error) {
-    console.error("Errore di connessione al database:", error);
+    console.error("Database connection error:", error);
     return { success: false, error: error.message };
   }
 });
 
+// Query execution handler
 ipcMain.handle("execute-query", async (event, { query, params }) => {
   try {
-    if (!dbClient) {
-      throw new Error("Database non connesso");
-    }
-    const result = await dbClient.query(query, params);
+    // Get DB config from app storage
+    const dbConfig = getDbConfig();
+
+    const client = new Client({
+      host: dbConfig.host,
+      port: parseInt(dbConfig.port),
+      user: dbConfig.username,
+      password: dbConfig.password,
+      database: dbConfig.dbName,
+      ssl: false,
+    });
+
+    await client.connect();
+    const result = await client.query(query, params || []);
+    await client.end();
+
     return { success: true, rows: result.rows };
   } catch (error) {
-    console.error("Errore nell'esecuzione della query:", error);
+    console.error("Query execution error:", error);
     return { success: false, error: error.message };
   }
 });
 
-// Gestione backup e ripristino
-ipcMain.handle("backup-database", async (event, backupPath) => {
+// Backup database handler
+ipcMain.handle("backup-database", async (event, path) => {
   try {
-    // Ottieni la configurazione del database
-    if (!dbClient) {
-      throw new Error("Database non connesso");
-    }
-
-    const config = dbClient.connectionParameters;
+    const dbConfig = getDbConfig();
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `${config.database}_backup_${timestamp}.sql`;
-    const fullPath = path.join(backupPath, filename);
+    const backupFileName = `${dbConfig.dbName}_backup_${timestamp}.sql`;
+    const fullBackupPath = `${path}/${backupFileName}`;
 
-    // Assicurati che la directory esista
-    if (!fs.existsSync(backupPath)) {
-      fs.mkdirSync(backupPath, { recursive: true });
+    // Ensure directory exists
+    if (!fs.existsSync(path)) {
+      fs.mkdirSync(path, { recursive: true });
     }
 
-    // Comando pg_dump
-    const command = `pg_dump -h ${config.host} -p ${config.port} -U ${config.user} -F c -b -v -f "${fullPath}" ${config.database}`;
+    const command = `pg_dump -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -F c -b -v -f "${fullBackupPath}" ${dbConfig.dbName}`;
+    const env = { ...process.env, PGPASSWORD: dbConfig.password };
 
-    return new Promise((resolve, reject) => {
-      // Imposta la variabile d'ambiente PGPASSWORD per evitare la richiesta di password
-      const env = { ...process.env, PGPASSWORD: config.password };
+    await execPromise(command, { env });
 
-      exec(command, { env }, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Errore nell'esecuzione di pg_dump: ${error.message}`);
-          console.error(`stderr: ${stderr}`);
-          resolve({ success: false, error: error.message });
-          return;
-        }
-
-        console.log(`Backup completato: ${fullPath}`);
-        console.log(`stdout: ${stdout}`);
-        resolve({ success: true, path: fullPath });
-      });
-    });
+    return { success: true, path: fullBackupPath };
   } catch (error) {
-    console.error("Errore durante il backup del database:", error);
+    console.error("Backup error:", error);
     return { success: false, error: error.message };
   }
 });
 
-ipcMain.handle("restore-database", async (event, restorePath) => {
+// Restore database handler
+ipcMain.handle("restore-database", async (event, path) => {
   try {
-    // Ottieni la configurazione del database
-    if (!dbClient) {
-      throw new Error("Database non connesso");
-    }
+    const dbConfig = getDbConfig();
 
-    const config = dbClient.connectionParameters;
+    const command = `pg_restore -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -d ${dbConfig.dbName} -c "${path}"`;
+    const env = { ...process.env, PGPASSWORD: dbConfig.password };
 
-    // Comando pg_restore
-    const command = `pg_restore -h ${config.host} -p ${config.port} -U ${config.user} -d ${config.database} -c -v "${restorePath}"`;
+    await execPromise(command, { env });
 
-    return new Promise((resolve, reject) => {
-      // Imposta la variabile d'ambiente PGPASSWORD per evitare la richiesta di password
-      const env = { ...process.env, PGPASSWORD: config.password };
-
-      exec(command, { env }, (error, stdout, stderr) => {
-        if (error) {
-          console.error(
-            `Errore nell'esecuzione di pg_restore: ${error.message}`,
-          );
-          console.error(`stderr: ${stderr}`);
-          resolve({ success: false, error: error.message });
-          return;
-        }
-
-        console.log(`Ripristino completato da: ${restorePath}`);
-        console.log(`stdout: ${stdout}`);
-        resolve({ success: true });
-      });
-    });
+    return { success: true };
   } catch (error) {
-    console.error("Errore durante il ripristino del database:", error);
+    console.error("Restore error:", error);
     return { success: false, error: error.message };
   }
 });
+
+// Helper function to get DB config
+function getDbConfig() {
+  // In a real app, this would read from a secure storage
+  // For now, we'll use hardcoded values
+  return {
+    host: "localhost",
+    port: "5432",
+    username: "postgres",
+    password: "postgres",
+    dbName: "patient_appointment_system",
+  };
+}

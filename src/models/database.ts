@@ -1,6 +1,6 @@
 // Utilizziamo una simulazione del database per evitare problemi con pg nel browser
 // ma implementiamo anche la possibilità di connettersi a un DB reale quando possibile
-import { electronAPI, isRunningInElectron } from "@/lib/electronBridge";
+import { electronAPI, isRunningInElectron } from "../lib/electronBridge";
 
 // Definizione dell'interfaccia PgPool per evitare errori di tipo
 interface PgPool {

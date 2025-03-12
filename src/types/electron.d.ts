@@ -24,6 +24,8 @@ interface DatabaseConfig {
   dbName: string;
 }
 
-interface Window {
-  electronAPI?: ElectronAPI;
+declare global {
+  interface Window {
+    electronAPI: ElectronAPI;
+  }
 }

@@ -1,14 +1,16 @@
 // Importa le interfacce dal file di definizione dei tipi
-import type { ElectronAPI, DatabaseConfig } from "@/types/electron";
+import type { ElectronAPI, DatabaseConfig } from "../types/electron";
 
 // Verifica se l'API Electron è disponibile
 const isElectron = (): boolean => {
-  return typeof window !== "undefined" && window.electronAPI !== undefined;
+  return (
+    typeof window !== "undefined" && typeof window.electronAPI !== "undefined"
+  );
 };
 
 // Ottieni l'API Electron se disponibile, altrimenti fornisci implementazioni mock
 export const electronAPI: ElectronAPI = isElectron()
-  ? (window as any).electronAPI
+  ? window.electronAPI
   : {
       // Implementazioni mock per l'ambiente browser
       connectDatabase: async (config: DatabaseConfig) => {

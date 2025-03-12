@@ -2,8 +2,8 @@
  * Utility per la gestione del database
  */
 
-import Database from "@/models/database";
-import { electronAPI, isRunningInElectron } from "@/lib/electronBridge";
+import Database from "../models/database";
+import { electronAPI, isRunningInElectron } from "../lib/electronBridge";
 
 /**
  * Verifica la connessione al database
