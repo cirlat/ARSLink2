@@ -1,7 +1,9 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
 import fs from "fs";
-import { Client } from "pg";
+import pkg from "pg";
+const { Client } = pkg;
+
 import { exec } from "child_process";
 import { fileURLToPath } from "url";
 

@@ -100,22 +100,66 @@ export async function backupDatabase(path: string): Promise<boolean> {
         throw new Error(result.error || "Errore durante il backup");
       }
 
-      // Salva l'informazione del backup in localStorage
+      // Salva l'informazione del backup nel database
+      const db = Database.getInstance();
       const now = new Date();
-      localStorage.setItem("lastBackup", now.toISOString());
-      localStorage.setItem("lastBackupPath", path);
-      localStorage.setItem("lastBackupStatus", "success");
+
+      try {
+        await db.query(
+          "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+          ["last_backup", now.toISOString()],
+        );
+
+        await db.query(
+          "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+          ["last_backup_path", path],
+        );
+
+        await db.query(
+          "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+          ["last_backup_status", "success"],
+        );
+      } catch (dbError) {
+        console.error(
+          "Errore nel salvataggio delle informazioni di backup nel database:",
+          dbError,
+        );
+        // Fallback a localStorage
+        localStorage.setItem("lastBackup", now.toISOString());
+        localStorage.setItem("lastBackupPath", path);
+        localStorage.setItem("lastBackupStatus", "success");
+      }
 
       return true;
     }
 
     // Ottieni la configurazione del database
-    const dbConfigStr = localStorage.getItem("dbConfig");
-    if (!dbConfigStr) {
-      throw new Error("Configurazione del database non trovata");
+    let dbConfig;
+    const db = Database.getInstance();
+
+    try {
+      const configResult = await db.query(
+        "SELECT value FROM configurations WHERE key = 'db_config'",
+      );
+      if (configResult.length > 0) {
+        dbConfig = JSON.parse(configResult[0].value);
+      } else {
+        // Fallback a localStorage
+        const dbConfigStr = localStorage.getItem("dbConfig");
+        if (!dbConfigStr) {
+          throw new Error("Configurazione del database non trovata");
+        }
+        dbConfig = JSON.parse(dbConfigStr);
+      }
+    } catch (error) {
+      // Fallback a localStorage
+      const dbConfigStr = localStorage.getItem("dbConfig");
+      if (!dbConfigStr) {
+        throw new Error("Configurazione del database non trovata");
+      }
+      dbConfig = JSON.parse(dbConfigStr);
     }
 
-    const dbConfig = JSON.parse(dbConfigStr);
     const { host, port, username, password, dbName } = dbConfig;
 
     // Crea il nome del file di backup con timestamp
@@ -125,61 +169,84 @@ export async function backupDatabase(path: string): Promise<boolean> {
 
     console.log(`Esecuzione backup del database in ${fullBackupPath}`);
 
-    // Siamo in un browser, simuliamo l'esecuzione di pg_dump
-    // Raccogliamo tutti i dati dal localStorage
-    const patients = localStorage.getItem("patients") || "[]";
-    const appointments = localStorage.getItem("appointments") || "[]";
-    const users = localStorage.getItem("users") || "[]";
-    const license = localStorage.getItem("license") || "{}";
-    const configurations = localStorage.getItem("configurations") || "{}";
+    // Esegui il backup reale del database
+    // Questo codice funzionerà solo in Electron, ma lo includiamo per completezza
+    try {
+      // Comando pg_dump
+      const { exec } = await import("child_process");
+      const util = await import("util");
+      const execPromise = util.promisify(exec);
 
-    // Creiamo un oggetto con tutti i dati
-    const backupData = {
-      metadata: {
-        timestamp: new Date().toISOString(),
-        dbName,
-        version: "1.0",
-      },
-      tables: {
-        patients: JSON.parse(patients),
-        appointments: JSON.parse(appointments),
-        users: JSON.parse(users),
-        license: JSON.parse(license),
-        configurations: JSON.parse(configurations),
-      },
-    };
+      const command = `pg_dump -h ${host} -p ${port} -U ${username} -F c -b -v -f "${fullBackupPath}" ${dbName}`;
 
-    // Convertiamo in JSON e salviamo come file
-    const backupJson = JSON.stringify(backupData, null, 2);
+      // Imposta la variabile d'ambiente PGPASSWORD per evitare la richiesta di password
+      const env = { ...process.env, PGPASSWORD: password };
 
-    // Salviamo in localStorage
-    localStorage.setItem("lastBackupData", backupJson);
+      await execPromise(command, { env });
 
-    // Creiamo un link per scaricare il backup
-    const blob = new Blob([backupJson], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = backupFileName.replace(".sql", ".json");
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      console.log(`Backup completato: ${fullBackupPath}`);
 
-    // Salva l'informazione del backup in localStorage
-    const now = new Date();
-    localStorage.setItem("lastBackup", now.toISOString());
-    localStorage.setItem("lastBackupPath", path);
-    localStorage.setItem("lastBackupStatus", "success");
+      // Salva l'informazione del backup nel database
+      const now = new Date();
 
-    return true;
+      try {
+        await db.query(
+          "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+          ["last_backup", now.toISOString()],
+        );
+
+        await db.query(
+          "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+          ["last_backup_path", fullBackupPath],
+        );
+
+        await db.query(
+          "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+          ["last_backup_status", "success"],
+        );
+      } catch (dbError) {
+        console.error(
+          "Errore nel salvataggio delle informazioni di backup nel database:",
+          dbError,
+        );
+        // Fallback a localStorage
+        localStorage.setItem("lastBackup", now.toISOString());
+        localStorage.setItem("lastBackupPath", fullBackupPath);
+        localStorage.setItem("lastBackupStatus", "success");
+      }
+
+      return true;
+    } catch (execError) {
+      console.error("Errore nell'esecuzione di pg_dump:", execError);
+      throw execError;
+    }
   } catch (error) {
     console.error("Errore durante il backup del database:", error);
 
-    // Salva l'informazione del backup fallito in localStorage
-    const now = new Date();
-    localStorage.setItem("lastBackup", now.toISOString());
-    localStorage.setItem("lastBackupStatus", "failed");
+    // Salva l'informazione del backup fallito nel database
+    try {
+      const db = Database.getInstance();
+      const now = new Date();
+
+      await db.query(
+        "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+        ["last_backup", now.toISOString()],
+      );
+
+      await db.query(
+        "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+        ["last_backup_status", "failed"],
+      );
+    } catch (dbError) {
+      console.error(
+        "Errore nel salvataggio delle informazioni di backup fallito nel database:",
+        dbError,
+      );
+      // Fallback a localStorage
+      const now = new Date();
+      localStorage.setItem("lastBackup", now.toISOString());
+      localStorage.setItem("lastBackupStatus", "failed");
+    }
 
     return false;
   }

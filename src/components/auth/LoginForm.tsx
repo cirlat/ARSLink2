@@ -38,7 +38,7 @@ class LoginFormClass extends React.Component<LoginFormProps> {
     localError: "",
   };
 
-  handleSubmit = (e: React.FormEvent) => {
+  handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const { username, password, role } = this.state;
 
@@ -47,8 +47,27 @@ class LoginFormClass extends React.Component<LoginFormProps> {
       return;
     }
 
-    if (this.props.onSubmit) {
-      this.props.onSubmit({ username, password, role });
+    try {
+      // Verifica le credenziali nel database
+      const { AuthService } = await import("@/services/auth.service");
+      const authService = AuthService.getInstance();
+
+      const result = await authService.login(username, password);
+
+      if (result.user) {
+        // Login riuscito, passa i dati al componente padre
+        if (this.props.onSubmit) {
+          this.props.onSubmit({ username, password, role });
+        }
+      } else {
+        // Login fallito, mostra l'errore
+        this.setState({ localError: result.error || "Credenziali non valide" });
+      }
+    } catch (error) {
+      console.error("Errore durante l'autenticazione:", error);
+      this.setState({
+        localError: "Si è verificato un errore durante l'autenticazione",
+      });
     }
   };
 

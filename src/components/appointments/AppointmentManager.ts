@@ -62,12 +62,16 @@ export async function createAppointment(
       // Continuiamo con il salvataggio in localStorage come fallback
     }
 
-    // Salva l'appuntamento in localStorage
-    const appointments = JSON.parse(
-      localStorage.getItem("appointments") || "[]",
-    );
-    appointments.push(appointment);
-    localStorage.setItem("appointments", JSON.stringify(appointments));
+    // Salva l'appuntamento nel database
+    try {
+      const { AppointmentModel } = await import("@/models/appointment");
+      const appointmentModel = new AppointmentModel();
+      await appointmentModel.create(appointment);
+      console.log(`Appuntamento ${appointment.id} creato nel database`);
+    } catch (dbError) {
+      console.error("Errore nel salvataggio nel database:", dbError);
+      throw dbError;
+    }
 
     // Verifica se è necessario sincronizzare con Google Calendar
     const licenseModel = LicenseModel.getInstance();
@@ -188,16 +192,34 @@ export async function updateAppointment(
   sendNotification: boolean = false,
 ): Promise<Appointment> {
   try {
-    // Verifica che l'appuntamento esista
-    const appointments = JSON.parse(
-      localStorage.getItem("appointments") || "[]",
-    );
-    const existingAppointment = appointments.find(
-      (a) => a.id === appointment.id,
-    );
+    // Verifica che l'appuntamento esista nel database
+    try {
+      const { AppointmentModel } = await import("@/models/appointment");
+      const appointmentModel = new AppointmentModel();
+      const existingAppointment = await appointmentModel.findById(
+        parseInt(appointment.id),
+      );
 
-    if (!existingAppointment) {
-      throw new Error(`Appuntamento ${appointment.id} non trovato`);
+      if (!existingAppointment) {
+        throw new Error(`Appuntamento ${appointment.id} non trovato`);
+      }
+    } catch (dbError) {
+      console.error(
+        "Errore nella verifica dell'appuntamento nel database:",
+        dbError,
+      );
+
+      // Fallback a localStorage
+      const appointments = JSON.parse(
+        localStorage.getItem("appointments") || "[]",
+      );
+      const existingAppointment = appointments.find(
+        (a) => a.id === appointment.id,
+      );
+
+      if (!existingAppointment) {
+        throw new Error(`Appuntamento ${appointment.id} non trovato`);
+      }
     }
 
     // Aggiorna la data di modifica
@@ -215,11 +237,16 @@ export async function updateAppointment(
       // Continuiamo con l'aggiornamento in localStorage come fallback
     }
 
-    // Aggiorna l'appuntamento in localStorage
-    const updatedAppointments = appointments.map((a) =>
-      a.id === appointment.id ? appointment : a,
-    );
-    localStorage.setItem("appointments", JSON.stringify(updatedAppointments));
+    // Aggiorna l'appuntamento nel database
+    try {
+      const { AppointmentModel } = await import("@/models/appointment");
+      const appointmentModel = new AppointmentModel();
+      await appointmentModel.update(parseInt(appointment.id), appointment);
+      console.log(`Appuntamento ${appointment.id} aggiornato nel database`);
+    } catch (dbError) {
+      console.error("Errore nell'aggiornamento nel database:", dbError);
+      throw dbError;
+    }
 
     // Verifica se è necessario sincronizzare con Google Calendar
     const licenseModel = LicenseModel.getInstance();
@@ -347,16 +374,33 @@ export async function deleteAppointment(
   sendNotification: boolean = false,
 ): Promise<boolean> {
   try {
-    // Verifica che l'appuntamento esista
-    const appointments = JSON.parse(
-      localStorage.getItem("appointments") || "[]",
-    );
-    const appointmentToDelete = appointments.find(
-      (a) => a.id === appointmentId,
-    );
+    // Verifica che l'appuntamento esista nel database
+    let appointmentToDelete;
+    try {
+      const { AppointmentModel } = await import("@/models/appointment");
+      const appointmentModel = new AppointmentModel();
+      appointmentToDelete = await appointmentModel.findById(
+        parseInt(appointmentId),
+      );
 
-    if (!appointmentToDelete) {
-      throw new Error(`Appuntamento ${appointmentId} non trovato`);
+      if (!appointmentToDelete) {
+        throw new Error(`Appuntamento ${appointmentId} non trovato`);
+      }
+    } catch (dbError) {
+      console.error(
+        "Errore nella verifica dell'appuntamento nel database:",
+        dbError,
+      );
+
+      // Fallback a localStorage
+      const appointments = JSON.parse(
+        localStorage.getItem("appointments") || "[]",
+      );
+      appointmentToDelete = appointments.find((a) => a.id === appointmentId);
+
+      if (!appointmentToDelete) {
+        throw new Error(`Appuntamento ${appointmentId} non trovato`);
+      }
     }
 
     // In un'implementazione reale, qui elimineremmo l'appuntamento dal database
@@ -441,11 +485,23 @@ export async function deleteAppointment(
       }
     }
 
-    // Elimina l'appuntamento da localStorage
-    const updatedAppointments = appointments.filter(
-      (a) => a.id !== appointmentId,
-    );
-    localStorage.setItem("appointments", JSON.stringify(updatedAppointments));
+    // Elimina l'appuntamento dal database
+    try {
+      const { AppointmentModel } = await import("@/models/appointment");
+      const appointmentModel = new AppointmentModel();
+      const success = await appointmentModel.delete(parseInt(appointmentId));
+
+      if (!success) {
+        throw new Error(
+          `Errore nell'eliminazione dell'appuntamento ${appointmentId}`,
+        );
+      }
+
+      console.log(`Appuntamento ${appointmentId} eliminato dal database`);
+    } catch (dbError) {
+      console.error("Errore nell'eliminazione dal database:", dbError);
+      throw dbError;
+    }
 
     return true;
   } catch (error) {

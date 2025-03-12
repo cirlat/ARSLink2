@@ -367,7 +367,7 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
     form,
   ]);
 
-  const handleSubmit = (data: PatientFormValues) => {
+  const handleSubmit = async (data: PatientFormValues) => {
     // Genera il Codice Fiscale se non fornito
     if (!data.fiscalCode) {
       data.fiscalCode = generateFiscalCode(
@@ -384,16 +384,42 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
     } else {
       console.log("Form inviato:", data);
 
-      // Salva il paziente in localStorage
-      const patients = JSON.parse(localStorage.getItem("patients") || "[]");
-      const newPatient = {
-        ...data,
-        id: Date.now().toString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      patients.push(newPatient);
-      localStorage.setItem("patients", JSON.stringify(patients));
+      try {
+        // Salva il paziente nel database
+        const { PatientModel } = await import("@/models/patient");
+        const patientModel = new PatientModel();
+
+        // Converti i dati dal form al formato del modello
+        const patientData = {
+          name: `${data.firstName} ${data.lastName}`,
+          codice_fiscale: data.fiscalCode || "",
+          date_of_birth: data.dateOfBirth,
+          gender: data.gender,
+          email: data.email || "",
+          phone: data.phone,
+          address: data.address || "",
+          city: data.city || "",
+          postal_code: data.postalCode || "",
+          medical_history: data.medicalHistory || "",
+          allergies: data.allergies || "",
+          medications: data.medications || "",
+          notes: data.notes || "",
+          privacy_consent: data.privacyConsent,
+          marketing_consent: data.marketingConsent || false,
+        };
+
+        const savedPatient = await patientModel.create(patientData);
+        console.log("Paziente salvato nel database:", savedPatient);
+      } catch (error) {
+        console.error(
+          "Errore nel salvataggio del paziente nel database:",
+          error,
+        );
+        alert(
+          "Si è verificato un errore nel salvataggio del paziente. Riprova.",
+        );
+        return;
+      }
     }
 
     // Torna alla lista pazienti dopo il salvataggio

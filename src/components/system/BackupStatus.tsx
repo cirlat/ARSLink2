@@ -34,6 +34,58 @@ const BackupStatus: React.FC<BackupStatusProps> = ({
   const [timeUntilNextBackup, setTimeUntilNextBackup] = useState<string>("");
 
   useEffect(() => {
+    // Carica i dati di backup dal database
+    const loadBackupStatus = async () => {
+      try {
+        const { default: Database } = await import("@/models/database");
+        const db = Database.getInstance();
+
+        // Carica l'ultimo backup
+        const lastBackupResult = await db.query(
+          "SELECT value FROM configurations WHERE key = 'last_backup'",
+        );
+        if (lastBackupResult.length > 0) {
+          const lastBackupTime = lastBackupResult[0].value;
+          // Aggiorna lo stato con il timestamp dell'ultimo backup
+          // Qui potresti aggiornare lo stato del componente
+        }
+
+        // Carica lo stato dell'ultimo backup
+        const backupStatusResult = await db.query(
+          "SELECT value FROM configurations WHERE key = 'last_backup_status'",
+        );
+        if (backupStatusResult.length > 0) {
+          const backupStatus = backupStatusResult[0].value;
+          // Aggiorna lo stato con lo stato dell'ultimo backup
+          // Qui potresti aggiornare lo stato del componente
+        }
+
+        // Carica il percorso dell'ultimo backup
+        const backupPathResult = await db.query(
+          "SELECT value FROM configurations WHERE key = 'last_backup_path'",
+        );
+        if (backupPathResult.length > 0) {
+          const backupPath = backupPathResult[0].value;
+          // Aggiorna lo stato con il percorso dell'ultimo backup
+          // Qui potresti aggiornare lo stato del componente
+        }
+      } catch (error) {
+        console.error(
+          "Errore nel caricamento dello stato del backup dal database:",
+          error,
+        );
+        // Fallback a localStorage
+        const storedLastBackup = localStorage.getItem("lastBackup");
+        const storedBackupStatus = localStorage.getItem("lastBackupStatus");
+        const storedBackupPath = localStorage.getItem("lastBackupPath");
+
+        // Aggiorna lo stato con i dati da localStorage se disponibili
+        // Qui potresti aggiornare lo stato del componente
+      }
+    };
+
+    loadBackupStatus();
+
     // Calculate time until next backup
     const calculateTimeRemaining = () => {
       const now = new Date();
