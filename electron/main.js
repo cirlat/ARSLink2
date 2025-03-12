@@ -1,10 +1,13 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
-const { Client } = require("pg");
+const pg = require("pg");
 const { exec } = require("child_process");
 
-const __dirname = path.resolve();
+const { Client } = pg;
+
+// Use Node.js dirname directly in CommonJS
+const __dirname = __dirname;
 
 // Gestione del database PostgreSQL reale
 let dbClient = null;
