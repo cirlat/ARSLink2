@@ -466,10 +466,30 @@ const SetupWizard = () => {
                           // Importiamo il modulo Database
                           const Database = (await import("@/models/database"))
                             .default;
+
+                          // Salviamo la configurazione del database
+                          localStorage.setItem(
+                            "dbConfig",
+                            JSON.stringify(dbConfig),
+                          );
+
                           const db = Database.getInstance();
 
                           // Inizializza il database con le tabelle necessarie
                           await db.initializeDatabase();
+
+                          // Creiamo un utente admin nel database
+                          const { UserModel } = await import("@/models/user");
+                          const userModel = new UserModel();
+
+                          // Creiamo l'utente admin con i dati forniti
+                          await userModel.create({
+                            username: adminUser.username || "admin",
+                            password: adminUser.password || "admin123",
+                            full_name: adminUser.fullName || "Amministratore",
+                            email: adminUser.email || "admin@arslink.it",
+                            role: "Medico",
+                          });
 
                           // Salviamo l'informazione che il database è stato creato
                           localStorage.setItem("dbCreated", "true");
@@ -484,58 +504,19 @@ const SetupWizard = () => {
                             ]),
                           );
 
-                          // Creiamo un utente admin di default
-                          localStorage.setItem("defaultUserCreated", "true");
-
-                          // Salviamo anche la password dell'admin per il login
-                          localStorage.setItem(
-                            "adminUser",
-                            JSON.stringify({
-                              username: adminUser.username || "admin",
-                              password: adminUser.password || "admin123",
-                              fullName: adminUser.fullName || "Amministratore",
-                              email: adminUser.email || "admin@arslink.it",
-                              role: "Medico",
-                            }),
+                          console.log(
+                            "Database inizializzato con successo e utente admin creato",
                           );
-
-                          console.log("Database inizializzato con successo");
                         } catch (dbError) {
                           console.error(
                             "Errore nell'inizializzazione del database:",
                             dbError,
                           );
-                          // Continuiamo comunque, usando la simulazione come fallback
-                          localStorage.setItem("dbCreated", "true");
-                          localStorage.setItem(
-                            "dbTables",
-                            JSON.stringify([
-                              "users",
-                              "patients",
-                              "appointments",
-                              "license",
-                              "configurations",
-                            ]),
+                          alert(
+                            "Errore nell'inizializzazione del database: " +
+                              dbError.message,
                           );
-
-                          // Creiamo un utente admin di default
-                          localStorage.setItem("defaultUserCreated", "true");
-
-                          // Salviamo anche la password dell'admin per il login
-                          localStorage.setItem(
-                            "adminUser",
-                            JSON.stringify({
-                              username: adminUser.username || "admin",
-                              password: adminUser.password || "admin123",
-                              fullName: adminUser.fullName || "Amministratore",
-                              email: adminUser.email || "admin@arslink.it",
-                              role: "Medico",
-                            }),
-                          );
-
-                          console.log(
-                            "Database simulato inizializzato con successo",
-                          );
+                          throw dbError;
                         }
 
                         alert(
@@ -1024,31 +1005,19 @@ const SetupWizard = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="backup-path">Percorso Backup</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="backup-path"
-                    value={backupConfig.backupPath}
-                    onChange={(e) =>
-                      handleBackupConfigChange("backupPath", e.target.value)
-                    }
-                    disabled={!backupConfig.autoBackup}
-                    className="flex-1"
-                  />
-                  <Button
-                    variant="outline"
-                    disabled={!backupConfig.autoBackup}
-                    onClick={() => {
-                      // Simuliamo la selezione di una cartella
-                      const mockPath =
-                        "C:\\ProgramData\\PatientAppointmentSystem\\Backups";
-                      handleBackupConfigChange("backupPath", mockPath);
-                      alert("Cartella selezionata: " + mockPath);
-                      // Nota: in un'applicazione desktop reale, qui si aprirebbe un selettore di cartelle
-                    }}
-                  >
-                    Sfoglia
-                  </Button>
-                </div>
+                <Input
+                  id="backup-path"
+                  value={backupConfig.backupPath}
+                  onChange={(e) =>
+                    handleBackupConfigChange("backupPath", e.target.value)
+                  }
+                  disabled={!backupConfig.autoBackup}
+                  placeholder="Inserisci il percorso completo per i backup"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Inserisci il percorso completo dove salvare i backup (es.
+                  C:\ProgramData\PatientAppointmentSystem\Backups)
+                </p>
               </div>
             </CardContent>
           </Card>

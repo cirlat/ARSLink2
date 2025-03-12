@@ -35,7 +35,7 @@ class Database {
   private pool: Pool;
   private pgPool: PgPool | null = null;
   private isConnected: boolean = false;
-  private useRealDb: boolean = false;
+  private useRealDb: boolean = true;
 
   private constructor() {
     // Leggi le configurazioni da localStorage o da un file di configurazione

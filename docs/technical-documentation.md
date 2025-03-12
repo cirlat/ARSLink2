@@ -225,6 +225,7 @@ Gestisce l'integrazione con WhatsApp per l'invio di notifiche automatiche.
 | BackupStatus | src/components/system/BackupStatus.tsx | Stato dei backup |
 | LicenseAlert | src/components/system/LicenseAlert.tsx | Avviso scadenza licenza |
 | SetupWizard | src/setup/SetupWizard.tsx | Wizard di configurazione iniziale |
+| NotificationTemplates | src/components/settings/NotificationTemplates.tsx | Gestione template per notifiche WhatsApp |
 
 ### Dettaglio dei Componenti Principali
 
@@ -290,6 +291,15 @@ Centro di gestione delle notifiche WhatsApp.
 - Visualizzazione notifiche inviate, in attesa e fallite
 - Filtri per stato e tipo di notifica
 - Invio manuale di notifiche
+
+#### NotificationTemplates (src/components/settings/NotificationTemplates.tsx)
+
+Gestione dei template per le notifiche WhatsApp.
+
+**Funzionalità**:
+- Creazione, modifica ed eliminazione di template
+- Supporto per diversi tipi di template (appuntamento, promemoria, personalizzato)
+- Utilizzo di segnaposto per dati dinamici
 
 ## Routing
 

@@ -97,10 +97,7 @@ const BackupStatus: React.FC<BackupStatusProps> = ({
   return (
     <Card className="w-full bg-white shadow-sm">
       <CardHeader className="pb-2">
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-lg font-medium">Stato Backup</CardTitle>
-          {/* Rimosso il pulsante Backup Manuale come richiesto */}
-        </div>
+        <CardTitle className="text-lg font-medium">Stato Backup</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">

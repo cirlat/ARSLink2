@@ -36,6 +36,7 @@ import {
 import BackupStatus from "../system/BackupStatus";
 import LicenseAlert from "../system/LicenseAlert";
 import LicenseSettings from "./LicenseSettings";
+import NotificationTemplates from "./NotificationTemplates";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -336,51 +337,16 @@ const Settings = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="backup-path">Percorso Backup</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="backup-path"
-                        placeholder="C:\\ProgramData\\PatientAppointmentSystem\\Backups"
-                        defaultValue={
-                          localStorage.getItem("backupPath") ||
-                          "C:\\ProgramData\\PatientAppointmentSystem\\Backups"
-                        }
-                        disabled={!autoBackup}
-                        className="flex-1"
-                      />
-                      <Button
-                        variant="outline"
-                        disabled={!autoBackup}
-                        onClick={() => {
-                          // Crea un input di tipo file nascosto
-                          const input = document.createElement("input");
-                          input.type = "file";
-                          input.webkitdirectory = true;
-                          input.directory = true;
-
-                          input.onchange = (e) => {
-                            const files = e.target.files;
-                            if (files && files.length > 0) {
-                              // Prendi la directory selezionata (il percorso del primo file fino all'ultima cartella)
-                              const path = files[0].path
-                                .split("\\")
-                                .slice(0, -1)
-                                .join("\\");
-                              const backupPathInput =
-                                document.getElementById("backup-path");
-                              if (backupPathInput) {
-                                backupPathInput.value = path;
-                                // Salva il percorso in localStorage
-                                localStorage.setItem("backupPath", path);
-                              }
-                            }
-                          };
-
-                          input.click();
-                        }}
-                      >
-                        Sfoglia
-                      </Button>
-                    </div>
+                    <Input
+                      id="backup-path"
+                      placeholder="C:\\ProgramData\\PatientAppointmentSystem\\Backups"
+                      defaultValue={
+                        localStorage.getItem("backupPath") ||
+                        "C:\\ProgramData\\PatientAppointmentSystem\\Backups"
+                      }
+                      disabled={!autoBackup}
+                      className="flex-1"
+                    />
                   </div>
 
                   <Separator />
@@ -548,6 +514,9 @@ const Settings = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Template Notifiche WhatsApp */}
+              <NotificationTemplates />
             </div>
           )}
 

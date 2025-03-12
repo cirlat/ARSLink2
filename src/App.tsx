@@ -56,8 +56,8 @@ function App() {
   return (
     <Suspense fallback={<p>Loading...</p>}>
       <div className="flex h-screen w-full bg-background">
-        {/* Mostra la sidebar solo se l'utente è autenticato e non è nella pagina di setup */}
-        {!isLoginPage && !isSetupPage && (
+        {/* Mostra la sidebar solo se l'utente è autenticato e non è nella pagina di setup o login */}
+        {localStorage.getItem("isAuthenticated") === "true" && !isSetupPage && (
           <Sidebar
             userName={userName}
             userRole={userRole}

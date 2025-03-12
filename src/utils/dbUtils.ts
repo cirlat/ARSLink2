@@ -83,10 +83,68 @@ export async function initializeDatabase(): Promise<boolean> {
  */
 export async function backupDatabase(path: string): Promise<boolean> {
   try {
-    // In un'implementazione reale, qui eseguiremmo un dump del database
-    // Per ora, simuliamo un backup
+    // Ottieni la configurazione del database
+    const dbConfigStr = localStorage.getItem("dbConfig");
+    if (!dbConfigStr) {
+      throw new Error("Configurazione del database non trovata");
+    }
 
-    console.log(`Simulazione backup del database in ${path}`);
+    const dbConfig = JSON.parse(dbConfigStr);
+    const { host, port, username, password, dbName } = dbConfig;
+
+    // Crea il nome del file di backup con timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const backupFileName = `${dbName}_backup_${timestamp}.sql`;
+    const fullBackupPath = `${path}/${backupFileName}`;
+
+    console.log(`Esecuzione backup del database in ${fullBackupPath}`);
+
+    // In un'applicazione desktop reale, qui eseguiremmo pg_dump
+    // Esempio di comando: pg_dump -h ${host} -p ${port} -U ${username} -F c -b -v -f "${fullBackupPath}" ${dbName}
+
+    // Poiché siamo in un ambiente browser, simuliamo l'esecuzione di pg_dump
+    // ma salviamo comunque i dati reali dal localStorage
+
+    // Raccogliamo tutti i dati dal localStorage
+    const patients = localStorage.getItem("patients") || "[]";
+    const appointments = localStorage.getItem("appointments") || "[]";
+    const users = localStorage.getItem("users") || "[]";
+    const license = localStorage.getItem("license") || "{}";
+    const configurations = localStorage.getItem("configurations") || "{}";
+
+    // Creiamo un oggetto con tutti i dati
+    const backupData = {
+      metadata: {
+        timestamp: new Date().toISOString(),
+        dbName,
+        version: "1.0",
+      },
+      tables: {
+        patients: JSON.parse(patients),
+        appointments: JSON.parse(appointments),
+        users: JSON.parse(users),
+        license: JSON.parse(license),
+        configurations: JSON.parse(configurations),
+      },
+    };
+
+    // Convertiamo in JSON e salviamo come file
+    const backupJson = JSON.stringify(backupData, null, 2);
+
+    // In un'applicazione desktop reale, qui salveremmo il file
+    // Ma poiché siamo in un browser, salviamo in localStorage
+    localStorage.setItem("lastBackupData", backupJson);
+
+    // Creiamo un link per scaricare il backup
+    const blob = new Blob([backupJson], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = backupFileName.replace(".sql", ".json");
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 
     // Salva l'informazione del backup in localStorage
     const now = new Date();
@@ -114,18 +172,126 @@ export async function backupDatabase(path: string): Promise<boolean> {
  */
 export async function restoreDatabase(path: string): Promise<boolean> {
   try {
-    // In un'implementazione reale, qui ripristineremmo il database dal backup
-    // Per ora, simuliamo un ripristino
+    // In un'applicazione desktop reale, qui eseguiremmo pg_restore
+    // Ma poiché siamo in un browser, dobbiamo gestire il file caricato
 
-    console.log(`Simulazione ripristino del database da ${path}`);
+    console.log(`Ripristino del database da ${path}`);
 
-    // Salva l'informazione del ripristino in localStorage
-    const now = new Date();
-    localStorage.setItem("lastRestore", now.toISOString());
-    localStorage.setItem("lastRestorePath", path);
-    localStorage.setItem("lastRestoreStatus", "success");
+    // Leggi il file di backup
+    // Nota: in un'applicazione web, il path sarà in realtà un File object
+    if (path instanceof File) {
+      const file = path;
+      const reader = new FileReader();
 
-    return true;
+      // Leggi il file come testo
+      const backupData = await new Promise<string>((resolve, reject) => {
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = (e) => reject(e);
+        reader.readAsText(file);
+      });
+
+      // Parsa il JSON
+      const backup = JSON.parse(backupData);
+
+      // Verifica che il backup sia valido
+      if (!backup.metadata || !backup.tables) {
+        throw new Error("Il file di backup non è valido");
+      }
+
+      // Ripristina i dati nelle tabelle
+      if (backup.tables.patients) {
+        localStorage.setItem(
+          "patients",
+          JSON.stringify(backup.tables.patients),
+        );
+      }
+
+      if (backup.tables.appointments) {
+        localStorage.setItem(
+          "appointments",
+          JSON.stringify(backup.tables.appointments),
+        );
+      }
+
+      if (backup.tables.users) {
+        localStorage.setItem("users", JSON.stringify(backup.tables.users));
+      }
+
+      if (backup.tables.license) {
+        localStorage.setItem("license", JSON.stringify(backup.tables.license));
+      }
+
+      if (backup.tables.configurations) {
+        localStorage.setItem(
+          "configurations",
+          JSON.stringify(backup.tables.configurations),
+        );
+      }
+
+      // In un'applicazione reale, qui eseguiremmo una query SQL per ripristinare i dati
+      // Ma poiché siamo in un browser, abbiamo già ripristinato i dati in localStorage
+
+      // Salva l'informazione del ripristino in localStorage
+      const now = new Date();
+      localStorage.setItem("lastRestore", now.toISOString());
+      localStorage.setItem("lastRestorePath", file.name);
+      localStorage.setItem("lastRestoreStatus", "success");
+
+      return true;
+    } else {
+      // Se non è un File object, potrebbe essere un percorso o un backup precedentemente salvato
+      // Proviamo a caricare dal localStorage
+      const backupData = localStorage.getItem("lastBackupData");
+
+      if (!backupData) {
+        throw new Error("Nessun backup trovato in localStorage");
+      }
+
+      const backup = JSON.parse(backupData);
+
+      // Verifica che il backup sia valido
+      if (!backup.metadata || !backup.tables) {
+        throw new Error("Il backup in localStorage non è valido");
+      }
+
+      // Ripristina i dati nelle tabelle
+      if (backup.tables.patients) {
+        localStorage.setItem(
+          "patients",
+          JSON.stringify(backup.tables.patients),
+        );
+      }
+
+      if (backup.tables.appointments) {
+        localStorage.setItem(
+          "appointments",
+          JSON.stringify(backup.tables.appointments),
+        );
+      }
+
+      if (backup.tables.users) {
+        localStorage.setItem("users", JSON.stringify(backup.tables.users));
+      }
+
+      if (backup.tables.license) {
+        localStorage.setItem("license", JSON.stringify(backup.tables.license));
+      }
+
+      if (backup.tables.configurations) {
+        localStorage.setItem(
+          "configurations",
+          JSON.stringify(backup.tables.configurations),
+        );
+      }
+
+      // Salva l'informazione del ripristino in localStorage
+      const now = new Date();
+      localStorage.setItem("lastRestore", now.toISOString());
+      localStorage.setItem("lastRestorePath", path);
+      localStorage.setItem("lastRestoreStatus", "success");
+
+      return true;
+    }
   } catch (error) {
     console.error("Errore durante il ripristino del database:", error);
 

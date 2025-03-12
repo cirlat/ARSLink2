@@ -173,19 +173,58 @@ const NotificationCenter = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              // Carica le notifiche da localStorage
-              const savedNotifications = JSON.parse(
-                localStorage.getItem("whatsappNotifications") || "[]",
-              );
+            onClick={async () => {
+              try {
+                // Carica le notifiche da localStorage
+                const savedNotifications = JSON.parse(
+                  localStorage.getItem("whatsappNotifications") || "[]",
+                );
 
-              // Aggiorna la pagina per mostrare le notifiche aggiornate
-              window.location.reload();
+                // In un'implementazione reale, qui caricheremmo le notifiche dal database
+                try {
+                  // Carica le notifiche dal database
+                  const { WhatsAppService } = await import(
+                    "@/services/whatsapp.service"
+                  );
+                  const whatsAppService = WhatsAppService.getInstance();
 
-              // Mostra un messaggio di conferma
-              alert(
-                `Notifiche aggiornate: ${savedNotifications.length} notifiche trovate`,
-              );
+                  // Verifica se il servizio è abilitato e autenticato
+                  const isEnabled = await whatsAppService.isServiceEnabled();
+                  const isAuthenticated =
+                    await whatsAppService.isServiceAuthenticated();
+
+                  if (isEnabled && isAuthenticated) {
+                    // Processa le notifiche in attesa
+                    const result =
+                      await whatsAppService.processPendingNotifications();
+                    console.log(
+                      `Notifiche processate: ${result.success} successo, ${result.failed} fallite`,
+                    );
+                  }
+                } catch (serviceError) {
+                  console.error(
+                    "Errore nel caricamento delle notifiche dal servizio:",
+                    serviceError,
+                  );
+                }
+
+                // Aggiorna la pagina per mostrare le notifiche aggiornate
+                window.location.reload();
+
+                // Mostra un messaggio di conferma
+                alert(
+                  `Notifiche aggiornate: ${savedNotifications.length} notifiche trovate`,
+                );
+              } catch (error) {
+                console.error(
+                  "Errore durante l'aggiornamento delle notifiche:",
+                  error,
+                );
+                alert(
+                  "Si è verificato un errore durante l'aggiornamento delle notifiche: " +
+                    error.message,
+                );
+              }
             }}
           >
             <RefreshCw className="h-4 w-4 mr-2" />

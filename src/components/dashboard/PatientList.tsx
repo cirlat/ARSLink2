@@ -159,9 +159,20 @@ const PatientList: React.FC<PatientListProps> = ({
       onViewPatient(id);
     } else {
       console.log(`Visualizzazione dettagli paziente ${id}`);
-      // Salva l'ID del paziente selezionato in localStorage
-      localStorage.setItem("selectedPatientId", id);
-      navigate(`/patients/${id}`);
+      // Trova il paziente selezionato
+      const selectedPatient = patients.find((patient) => patient.id === id);
+      if (selectedPatient) {
+        // Salva i dettagli del paziente selezionato in localStorage
+        localStorage.setItem(
+          "selectedPatient",
+          JSON.stringify(selectedPatient),
+        );
+        localStorage.setItem("selectedPatientId", id);
+        // Naviga alla pagina dei dettagli del paziente
+        navigate(`/patients/${id}`);
+      } else {
+        alert("Paziente non trovato");
+      }
     }
   };
 
@@ -171,16 +182,45 @@ const PatientList: React.FC<PatientListProps> = ({
       onEditPatient(id);
     } else {
       console.log(`Modifica paziente ${id}`);
-      // Salva l'ID del paziente selezionato in localStorage
-      localStorage.setItem("selectedPatientId", id);
-      localStorage.setItem("editMode", "true");
-      navigate(`/patients/${id}/edit`);
+      // Trova il paziente selezionato
+      const selectedPatient = patients.find((patient) => patient.id === id);
+      if (selectedPatient) {
+        // Salva i dettagli del paziente selezionato in localStorage
+        localStorage.setItem(
+          "selectedPatient",
+          JSON.stringify(selectedPatient),
+        );
+        localStorage.setItem("selectedPatientId", id);
+        localStorage.setItem("editMode", "true");
+        // Naviga alla pagina di modifica del paziente
+        navigate(`/patients/${id}/edit`);
+      } else {
+        alert("Paziente non trovato");
+      }
     }
   };
 
   // Gestione dell'eliminazione di un paziente
   const handleDeleteConfirm = async (id: string) => {
     try {
+      // Trova il paziente da eliminare
+      const patientToRemove = patients.find((patient) => patient.id === id);
+      if (!patientToRemove) {
+        throw new Error("Paziente non trovato");
+      }
+
+      // In un'implementazione reale, qui elimineremmo il paziente dal database
+      // Utilizziamo il modello PatientModel
+      try {
+        const { PatientModel } = await import("@/models/patient");
+        const patientModel = new PatientModel();
+        await patientModel.delete(parseInt(id));
+        console.log(`Paziente ${id} eliminato dal database`);
+      } catch (dbError) {
+        console.error("Errore nell'eliminazione dal database:", dbError);
+        // Continuiamo con l'eliminazione da localStorage come fallback
+      }
+
       // Elimina il paziente da localStorage
       const storedPatients = JSON.parse(
         localStorage.getItem("patients") || "[]",
@@ -190,6 +230,15 @@ const PatientList: React.FC<PatientListProps> = ({
       );
       localStorage.setItem("patients", JSON.stringify(updatedPatients));
 
+      // Elimina anche gli appuntamenti associati a questo paziente
+      const storedAppointments = JSON.parse(
+        localStorage.getItem("appointments") || "[]",
+      );
+      const updatedAppointments = storedAppointments.filter(
+        (appointment: any) => appointment.patient_id !== id,
+      );
+      localStorage.setItem("appointments", JSON.stringify(updatedAppointments));
+
       // Aggiorna lo stato o ricarica i dati
       setDeleteConfirmOpen(false);
       setPatientToDelete(null);
@@ -197,10 +246,8 @@ const PatientList: React.FC<PatientListProps> = ({
       // Mostra un messaggio di conferma
       alert("Paziente eliminato con successo");
 
-      // Ricarica la pagina per mostrare i dati aggiornati
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      // Aggiorna la lista dei pazienti
+      setPatients(updatedPatients);
     } catch (error) {
       console.error("Errore durante l'eliminazione del paziente:", error);
       alert(
