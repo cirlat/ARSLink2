@@ -18,6 +18,9 @@ export default defineConfig({
       : process.env.VITE_BASE_PATH || "/",
   optimizeDeps: {
     entries: ["src/main.tsx", "src/tempobook/**/*"],
+    esbuildOptions: {
+      target: "es2020",
+    },
   },
   plugins: [
     react({
@@ -34,5 +37,26 @@ export default defineConfig({
   server: {
     // @ts-ignore
     allowedHosts: process.env.TEMPO === "true" ? true : undefined,
+  },
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
+    target: "es2020",
+  },
+  // Ensure proper handling of CommonJS modules
+  esbuild: {
+    target: "es2020",
+    format: "esm",
+    tsconfigRaw: {
+      compilerOptions: {
+        target: "es2020",
+        module: "esnext",
+        moduleResolution: "node",
+        esModuleInterop: true,
+        resolveJsonModule: true,
+        allowSyntheticDefaultImports: true,
+      },
+    },
   },
 });
