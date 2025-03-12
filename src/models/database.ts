@@ -399,7 +399,9 @@ class Database {
         console.error("Error initializing database:", error);
         throw error;
       } finally {
-        client.release();
+        if (client && typeof client.release === "function") {
+          client.release();
+        }
       }
     } catch (error) {
       console.error("Error getting client for database initialization:", error);
