@@ -1,8 +1,12 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
-const path = require("path");
-const fs = require("fs");
-const { Client } = require("pg");
-const { exec } = require("child_process");
+import { app, BrowserWindow, ipcMain } from "electron";
+import path from "path";
+import fs from "fs";
+import { Client } from "pg";
+import { exec } from "child_process";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Gestione del database PostgreSQL reale
 let dbClient = null;
