@@ -422,17 +422,13 @@ const SetupWizard = () => {
                         return;
                       }
 
-                      // In un'implementazione reale, qui si testerebbe la connessione al database
-                      // Per ora, simuliamo un test più realistico con un ritardo
+                      // Disabilita il pulsante durante il test di connessione
                       const testButton = document.activeElement;
                       if (testButton instanceof HTMLButtonElement) {
                         testButton.disabled = true;
                         testButton.innerHTML =
                           '<span class="spinner"></span> Connessione in corso...';
                       }
-
-                      // Simuliamo un ritardo per rendere più realistico il test
-                      await new Promise((resolve) => setTimeout(resolve, 1500));
 
                       // Verifica se la porta è un numero valido
                       const port = parseInt(dbConfig.port);
@@ -461,48 +457,153 @@ const SetupWizard = () => {
                           throw new Error("La password è troppo corta");
                         }
 
-                        // Tentiamo di creare realmente il database
-                        try {
-                          // Importiamo il modulo Database
-                          const Database = (await import("@/models/database"))
-                            .default;
+                        // Crea una connessione reale al database PostgreSQL
+                        const { Client } = await import("pg");
+                        const client = new Client({
+                          host: dbConfig.host,
+                          port: port,
+                          user: dbConfig.username,
+                          password: dbConfig.password,
+                          database: dbConfig.dbName,
+                          ssl: false,
+                          connectionTimeoutMillis: 5000, // 5 secondi di timeout
+                        });
 
-                          // Salviamo la configurazione del database
+                        // Tenta di connettersi al database
+                        await client.connect();
+
+                        // Esegui una query di test
+                        const result = await client.query("SELECT NOW()");
+                        console.log(
+                          "Connessione al database riuscita:",
+                          result.rows[0],
+                        );
+
+                        // Chiudi la connessione
+                        await client.end();
+
+                        // Inizializza il database con le tabelle necessarie
+                        try {
+                          const { Client } = await import("pg");
+                          const initClient = new Client({
+                            host: dbConfig.host,
+                            port: port,
+                            user: dbConfig.username,
+                            password: dbConfig.password,
+                            database: dbConfig.dbName,
+                            ssl: false,
+                          });
+
+                          await initClient.connect();
+
+                          // Crea le tabelle necessarie
+                          await initClient.query(`
+                            CREATE TABLE IF NOT EXISTS users (
+                              id SERIAL PRIMARY KEY,
+                              username VARCHAR(50) UNIQUE NOT NULL,
+                              password VARCHAR(100) NOT NULL,
+                              full_name VARCHAR(100) NOT NULL,
+                              email VARCHAR(100) UNIQUE NOT NULL,
+                              role VARCHAR(20) NOT NULL,
+                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            )
+                          `);
+
+                          await initClient.query(`
+                            CREATE TABLE IF NOT EXISTS patients (
+                              id SERIAL PRIMARY KEY,
+                              name VARCHAR(100) NOT NULL,
+                              codice_fiscale VARCHAR(16) UNIQUE NOT NULL,
+                              date_of_birth DATE NOT NULL,
+                              gender VARCHAR(10) NOT NULL,
+                              email VARCHAR(100),
+                              phone VARCHAR(20) NOT NULL,
+                              address TEXT,
+                              city VARCHAR(50),
+                              postal_code VARCHAR(10),
+                              medical_history TEXT,
+                              allergies TEXT,
+                              medications TEXT,
+                              notes TEXT,
+                              privacy_consent BOOLEAN NOT NULL DEFAULT FALSE,
+                              marketing_consent BOOLEAN NOT NULL DEFAULT FALSE,
+                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            )
+                          `);
+
+                          await initClient.query(`
+                            CREATE TABLE IF NOT EXISTS appointments (
+                              id SERIAL PRIMARY KEY,
+                              patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+                              date DATE NOT NULL,
+                              time TIME NOT NULL,
+                              duration INTEGER NOT NULL,
+                              appointment_type VARCHAR(50) NOT NULL,
+                              notes TEXT,
+                              google_calendar_synced BOOLEAN NOT NULL DEFAULT FALSE,
+                              google_event_id VARCHAR(100),
+                              whatsapp_notification_sent BOOLEAN NOT NULL DEFAULT FALSE,
+                              whatsapp_notification_time TIMESTAMP,
+                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            )
+                          `);
+
+                          await initClient.query(`
+                            CREATE TABLE IF NOT EXISTS license (
+                              id SERIAL PRIMARY KEY,
+                              license_key VARCHAR(100) UNIQUE NOT NULL,
+                              license_type VARCHAR(20) NOT NULL,
+                              expiry_date DATE NOT NULL,
+                              google_calendar_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                              whatsapp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            )
+                          `);
+
+                          await initClient.query(`
+                            CREATE TABLE IF NOT EXISTS configurations (
+                              id SERIAL PRIMARY KEY,
+                              key VARCHAR(50) UNIQUE NOT NULL,
+                              value TEXT NOT NULL,
+                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            )
+                          `);
+
+                          // Crea l'utente admin
+                          const bcrypt = await import("bcryptjs");
+                          const hashedPassword = await bcrypt.hash(
+                            adminUser.password || "admin123",
+                            10,
+                          );
+
+                          await initClient.query(
+                            `
+                            INSERT INTO users (username, password, full_name, email, role)
+                            VALUES ($1, $2, $3, $4, $5)
+                            ON CONFLICT (username) DO NOTHING
+                          `,
+                            [
+                              adminUser.username || "admin",
+                              hashedPassword,
+                              adminUser.fullName || "Amministratore",
+                              adminUser.email || "admin@arslink.it",
+                              "Medico",
+                            ],
+                          );
+
+                          // Salva la configurazione del database
                           localStorage.setItem(
                             "dbConfig",
                             JSON.stringify(dbConfig),
                           );
-
-                          const db = Database.getInstance();
-
-                          // Inizializza il database con le tabelle necessarie
-                          await db.initializeDatabase();
-
-                          // Creiamo un utente admin nel database
-                          const { UserModel } = await import("@/models/user");
-                          const userModel = new UserModel();
-
-                          // Creiamo l'utente admin con i dati forniti
-                          await userModel.create({
-                            username: adminUser.username || "admin",
-                            password: adminUser.password || "admin123",
-                            full_name: adminUser.fullName || "Amministratore",
-                            email: adminUser.email || "admin@arslink.it",
-                            role: "Medico",
-                          });
-
-                          // Salviamo l'informazione che il database è stato creato
                           localStorage.setItem("dbCreated", "true");
-                          localStorage.setItem(
-                            "dbTables",
-                            JSON.stringify([
-                              "users",
-                              "patients",
-                              "appointments",
-                              "license",
-                              "configurations",
-                            ]),
-                          );
+
+                          await initClient.end();
 
                           console.log(
                             "Database inizializzato con successo e utente admin creato",
