@@ -265,7 +265,7 @@ const SetupWizard = () => {
         host: dbConfig.host,
         port: dbConfig.port,
         username: dbConfig.username,
-        password: dbConfig.password,
+        password: dbConfig.password || "", // Assicurati che la password sia sempre una stringa
         dbName: dbConfig.dbName,
       });
 
@@ -475,7 +475,24 @@ const SetupWizard = () => {
         document.body.appendChild(dbInitMessage);
 
         // Verifica la connessione al database
-        const connectionResult = await testDatabaseConnection(dbConfig);
+        console.log("Tentativo di connessione al database con:", {
+          host: dbConfig.host,
+          port: dbConfig.port,
+          username: dbConfig.username,
+          dbName: dbConfig.dbName,
+          password:
+            typeof dbConfig.password === "string" ? "***" : "non è una stringa",
+        });
+
+        // Assicurati che la password sia una stringa
+        const dbConfigWithStringPassword = {
+          ...dbConfig,
+          password: dbConfig.password || "",
+        };
+
+        const connectionResult = await testDatabaseConnection(
+          dbConfigWithStringPassword,
+        );
         if (!connectionResult) {
           document.body.removeChild(dbInitMessage);
           throw new Error("Impossibile connettersi al database");
@@ -488,7 +505,7 @@ const SetupWizard = () => {
         }
 
         // Inizializza il database con le tabelle necessarie
-        const initResult = await initializeDatabase(dbConfig);
+        const initResult = await initializeDatabase(dbConfigWithStringPassword);
 
         // Rimuovi il messaggio di caricamento
         document.body.removeChild(dbInitMessage);
@@ -524,7 +541,12 @@ const SetupWizard = () => {
       }
 
       // Salva le configurazioni del database
-      localStorage.setItem("dbConfig", JSON.stringify(dbConfig));
+      // Assicurati che la password sia una stringa prima di salvare
+      const dbConfigToSave = {
+        ...dbConfig,
+        password: dbConfig.password || "",
+      };
+      localStorage.setItem("dbConfig", JSON.stringify(dbConfigToSave));
 
       // 2. Crea l'utente amministratore
       try {
