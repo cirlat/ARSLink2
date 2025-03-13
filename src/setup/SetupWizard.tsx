@@ -435,9 +435,24 @@ const SetupWizard = () => {
 
         console.log("Database inizializzato con successo");
       } catch (dbError) {
+        // Rimuovi il messaggio di caricamento se esiste ancora
+        try {
+          const dbInitMessage = document.querySelector(
+            ".bg-black.bg-opacity-50.flex.items-center.justify-center.z-50",
+          );
+          if (dbInitMessage && dbInitMessage.parentNode) {
+            dbInitMessage.parentNode.removeChild(dbInitMessage);
+          }
+        } catch (e) {
+          console.error(
+            "Errore nella rimozione del messaggio di caricamento:",
+            e,
+          );
+        }
+
         console.error("Errore nell'inizializzazione del database:", dbError);
         alert(
-          `Errore nell'inizializzazione del database: ${dbError.message}. Verifica le impostazioni di connessione.`,
+          `Errore nell'inizializzazione del database: ${dbError.message || "Errore sconosciuto"}. Verifica le impostazioni di connessione.`,
         );
         setCurrentStep(1);
         setProgress((1 / totalSteps) * 100);
@@ -468,7 +483,7 @@ const SetupWizard = () => {
           userError,
         );
         alert(
-          `Errore nella creazione dell'utente amministratore: ${userError.message}`,
+          `Errore nella creazione dell'utente amministratore: ${userError.message || "Errore sconosciuto"}`,
         );
         setCurrentStep(2);
         setProgress((2 / totalSteps) * 100);
@@ -1132,6 +1147,7 @@ const SetupWizard = () => {
                     handleGeneralSettingsChange("clinicName", e.target.value)
                   }
                   placeholder="Studio Medico Dr. Rossi"
+                  disabled={false}
                 />
               </div>
 
@@ -1144,6 +1160,7 @@ const SetupWizard = () => {
                     handleGeneralSettingsChange("address", e.target.value)
                   }
                   placeholder="Via Roma 123, 00100 Roma"
+                  disabled={false}
                 />
               </div>
 
@@ -1158,6 +1175,7 @@ const SetupWizard = () => {
                       handleGeneralSettingsChange("email", e.target.value)
                     }
                     placeholder="info@studiomedico.it"
+                    disabled={false}
                   />
                 </div>
                 <div className="space-y-2">
@@ -1169,6 +1187,7 @@ const SetupWizard = () => {
                       handleGeneralSettingsChange("phone", e.target.value)
                     }
                     placeholder="+39 06 12345678"
+                    disabled={false}
                   />
                 </div>
               </div>
@@ -1186,6 +1205,7 @@ const SetupWizard = () => {
                   onCheckedChange={(checked) =>
                     handleGeneralSettingsChange("darkMode", checked)
                   }
+                  disabled={false}
                 />
               </div>
 
@@ -1201,6 +1221,7 @@ const SetupWizard = () => {
                   onValueChange={(value) =>
                     handleGeneralSettingsChange("language", value)
                   }
+                  disabled={false}
                 >
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Seleziona lingua" />
