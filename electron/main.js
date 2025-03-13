@@ -4,6 +4,11 @@ const fs = require("fs");
 const { exec } = require("child_process");
 const util = require("util");
 
+// Set environment variable for development mode
+process.env.NODE_ENV = process.env.ELECTRON_START_URL
+  ? "development"
+  : "production";
+
 // Dynamically import pg to avoid module issues
 let pg;
 let Client;
@@ -31,15 +36,12 @@ function createWindow() {
 
   // In development, load from Vite dev server
   // In production, load from built files
-  const startUrl =
-    process.env.NODE_ENV === "development"
-      ? "http://localhost:5173"
-      : `file://${path.join(__dirname, "../dist/index.html")}`;
+  const startUrl = process.env.ELECTRON_START_URL || "http://localhost:5173";
 
   mainWindow.loadURL(startUrl);
 
   // Open DevTools in development
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.ELECTRON_START_URL) {
     mainWindow.webContents.openDevTools();
   }
 
