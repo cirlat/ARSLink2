@@ -1053,4 +1053,11 @@ const SetupWizard = () => {
                       className="mt-2"
                       onClick={() =>
                         window.open(
-                          "https://console.cloud.google.
+                          "https://console.cloud.google.com/apis/credentials",
+                          "_blank",
+                        )
+                      }
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Vai alla Console Google Cloud
+                    </Button>
