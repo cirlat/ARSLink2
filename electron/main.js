@@ -15,6 +15,7 @@ let Client;
 try {
   pg = require("pg");
   Client = pg.Client;
+  console.log("Successfully loaded pg module");
 } catch (error) {
   console.error("Failed to load pg module:", error);
 }
@@ -71,9 +72,16 @@ ipcMain.handle("connect-database", async (event, config) => {
       throw new Error("PostgreSQL client not available");
     }
 
-    // Prima verifica se il database esiste
+    console.log("Attempting database connection with:", {
+      host: config.host,
+      port: config.port,
+      user: config.username,
+      database: config.dbName,
+    });
+
+    // First check if the database exists
     try {
-      // Connessione al database postgres (database di sistema)
+      // Connect to postgres system database
       const pgClient = new Client({
         host: config.host,
         port: parseInt(config.port),
@@ -85,26 +93,32 @@ ipcMain.handle("connect-database", async (event, config) => {
       });
 
       await pgClient.connect();
+      console.log("Connected to postgres database successfully");
 
-      // Verifica se il database esiste
+      // Check if the database exists
       const checkResult = await pgClient.query(
         "SELECT 1 FROM pg_database WHERE datname = $1",
         [config.dbName],
       );
 
-      // Se il database non esiste, crealo
+      // If the database doesn't exist, create it
       if (checkResult.rows.length === 0) {
-        await pgClient.query(`CREATE DATABASE ${config.dbName}`);
-        console.log(`Database ${config.dbName} creato con successo`);
+        console.log(
+          `Database ${config.dbName} does not exist, creating it now...`,
+        );
+        await pgClient.query(`CREATE DATABASE "${config.dbName}"`); // Added quotes around database name
+        console.log(`Database ${config.dbName} created successfully`);
+      } else {
+        console.log(`Database ${config.dbName} already exists`);
       }
 
       await pgClient.end();
     } catch (pgError) {
       console.error("Error checking/creating database:", pgError);
-      // Continuiamo comunque con il tentativo di connessione al database specificato
+      // Continue with the attempt to connect to the specified database
     }
 
-    // Ora tenta la connessione al database specificato
+    // Now attempt to connect to the specified database
     const client = new Client({
       host: config.host,
       port: parseInt(config.port),
@@ -116,7 +130,8 @@ ipcMain.handle("connect-database", async (event, config) => {
     });
 
     await client.connect();
-    await client.query("SELECT NOW()");
+    const testResult = await client.query("SELECT NOW()");
+    console.log("Database connection test successful:", testResult.rows[0]);
     await client.end();
 
     return { success: true, message: "Database connection successful" };
@@ -135,6 +150,12 @@ ipcMain.handle("execute-query", async (event, { query, params }) => {
 
     // Get DB config from app storage
     const dbConfig = getDbConfig();
+    if (!dbConfig) {
+      throw new Error("Database configuration not found");
+    }
+
+    console.log(`Executing query: ${query.substring(0, 100)}...`);
+    console.log(`With parameters: ${JSON.stringify(params || [])}`);
 
     const client = new Client({
       host: dbConfig.host,
@@ -148,20 +169,20 @@ ipcMain.handle("execute-query", async (event, { query, params }) => {
     await client.connect();
 
     try {
-      // Esegui la query
+      // Execute the query
       const result = await client.query(query, params || []);
 
-      // Log per debug
-      console.log(`Query eseguita con successo: ${query.substring(0, 50)}...`);
-      console.log(`Parametri: ${JSON.stringify(params || [])}`);
-      console.log(`Risultato: ${result.rowCount} righe`);
+      // Debug log
+      console.log(`Query executed successfully: ${query.substring(0, 50)}...`);
+      console.log(`Parameters: ${JSON.stringify(params || [])}`);
+      console.log(`Result: ${result.rowCount} rows`);
 
       return { success: true, rows: result.rows, rowCount: result.rowCount };
     } catch (queryError) {
       console.error("Query execution error:", queryError);
       return { success: false, error: queryError.message };
     } finally {
-      // Assicurati che il client venga sempre chiuso
+      // Always ensure the client is closed
       await client.end();
     }
   } catch (error) {
@@ -174,6 +195,10 @@ ipcMain.handle("execute-query", async (event, { query, params }) => {
 ipcMain.handle("backup-database", async (event, path) => {
   try {
     const dbConfig = getDbConfig();
+    if (!dbConfig) {
+      throw new Error("Database configuration not found");
+    }
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const backupFileName = `${dbConfig.dbName}_backup_${timestamp}.sql`;
     const fullBackupPath = `${path}/${backupFileName}`;
@@ -183,9 +208,10 @@ ipcMain.handle("backup-database", async (event, path) => {
       fs.mkdirSync(path, { recursive: true });
     }
 
-    const command = `pg_dump -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -F c -b -v -f "${fullBackupPath}" ${dbConfig.dbName}`;
+    const command = `pg_dump -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -F c -b -v -f "${fullBackupPath}" "${dbConfig.dbName}"`;
     const env = { ...process.env, PGPASSWORD: dbConfig.password };
 
+    console.log(`Executing backup command: ${command}`);
     await execPromise(command, { env });
 
     return { success: true, path: fullBackupPath };
@@ -199,10 +225,14 @@ ipcMain.handle("backup-database", async (event, path) => {
 ipcMain.handle("restore-database", async (event, path) => {
   try {
     const dbConfig = getDbConfig();
+    if (!dbConfig) {
+      throw new Error("Database configuration not found");
+    }
 
-    const command = `pg_restore -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -d ${dbConfig.dbName} -c "${path}"`;
+    const command = `pg_restore -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -d "${dbConfig.dbName}" -c "${path}"`;
     const env = { ...process.env, PGPASSWORD: dbConfig.password };
 
+    console.log(`Executing restore command: ${command}`);
     await execPromise(command, { env });
 
     return { success: true };
@@ -215,26 +245,35 @@ ipcMain.handle("restore-database", async (event, path) => {
 // Helper function to get DB config
 function getDbConfig() {
   try {
-    // Tenta di leggere la configurazione dal localStorage
-    const storedConfig = mainWindow?.webContents.executeJavaScript(
-      'localStorage.getItem("dbConfig")',
-    );
+    // Try to read configuration from localStorage
+    if (mainWindow) {
+      const storedConfig = mainWindow.webContents.executeJavaScript(
+        'localStorage.getItem("dbConfig")',
+        true,
+      );
 
-    if (storedConfig) {
-      const config = JSON.parse(storedConfig);
-      console.log("Configurazione DB caricata da localStorage:", config);
-      return config;
+      if (storedConfig) {
+        const config = JSON.parse(storedConfig);
+        console.log("DB configuration loaded from localStorage:", {
+          host: config.host,
+          port: config.port,
+          user: config.username,
+          database: config.dbName,
+        });
+        return config;
+      }
     }
   } catch (error) {
-    console.error("Errore nel caricamento della configurazione DB:", error);
+    console.error("Error loading DB configuration:", error);
   }
 
-  // Valori di default se non è possibile caricare dal localStorage
+  // Default values if unable to load from localStorage
+  console.log("Using default database configuration");
   return {
     host: "localhost",
     port: "5432",
     username: "postgres",
-    password: "postgres",
+    password: "", // Empty default password for security
     dbName: "patient_appointment_system",
   };
 }

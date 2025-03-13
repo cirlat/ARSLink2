@@ -1,13 +1,13 @@
 /**
- * Utility per la gestione del database
+ * Utility for database management
  */
 
 import Database from "../models/database";
 import { electronAPI, isRunningInElectron } from "../lib/electronBridge";
 
 /**
- * Verifica la connessione al database
- * @returns Promise<boolean> true se la connessione è riuscita, false altrimenti
+ * Test database connection
+ * @returns Promise<boolean> true if connection successful, false otherwise
  */
 export async function testDatabaseConnection(config: {
   host: string;
@@ -17,60 +17,61 @@ export async function testDatabaseConnection(config: {
   dbName: string;
 }): Promise<boolean> {
   try {
-    // Verifica se siamo in Electron
+    console.log("Testing database connection with:", {
+      host: config.host,
+      port: config.port,
+      username: config.username,
+      dbName: config.dbName,
+    });
+
+    // Check if we're in Electron
     if (isRunningInElectron()) {
+      console.log("Using Electron API for database connection");
       const result = await electronAPI.connectDatabase(config);
       if (!result.success) {
-        throw new Error(result.error || "Errore di connessione al database");
+        console.error("Electron API connection error:", result.error);
+        throw new Error(result.error || "Database connection error");
       }
+      console.log("Electron API connection successful");
       return true;
     }
 
-    // Verifica che tutti i campi siano compilati
-    if (
-      !config.host ||
-      !config.port ||
-      !config.username ||
-      !config.password ||
-      !config.dbName
-    ) {
-      throw new Error("Tutti i campi sono obbligatori");
+    // Verify all fields are filled
+    if (!config.host || !config.port || !config.username || !config.dbName) {
+      throw new Error("All fields are required");
     }
 
-    // Verifica che la porta sia un numero valido
+    // Verify port is a valid number
     const port = parseInt(config.port);
     if (isNaN(port) || port <= 0 || port > 65535) {
-      throw new Error("La porta deve essere un numero valido tra 1 e 65535");
+      throw new Error("Port must be a valid number between 1 and 65535");
     }
 
-    // Verifica che l'host sia in un formato valido
+    // Verify host is in a valid format
     const hostRegex = /^[a-zA-Z0-9.-]+$/;
     if (!hostRegex.test(config.host)) {
-      throw new Error("Formato host non valido");
+      throw new Error("Invalid host format");
     }
 
-    // Verifica che la password sia abbastanza lunga
-    if (config.password.length < 3) {
-      throw new Error("La password è troppo corta");
-    }
-
-    // In ambiente browser, utilizziamo l'API Electron simulata
+    // In browser environment, use simulated Electron API
+    console.log("Using simulated Electron API (browser environment)");
     const result = await electronAPI.connectDatabase(config);
     if (!result.success) {
-      throw new Error(result.error || "Errore di connessione al database");
+      console.error("Simulated connection error:", result.error);
+      throw new Error(result.error || "Database connection error");
     }
-    console.log("Test di connessione riuscito (simulazione):", result);
+    console.log("Connection test successful (simulation):", result);
 
     return true;
   } catch (error) {
-    console.error("Errore durante il test di connessione al database:", error);
+    console.error("Database connection test error:", error);
     throw error;
   }
 }
 
 /**
- * Crea il database se non esiste
- * @returns Promise<boolean> true se la creazione è riuscita, false altrimenti
+ * Create database if it doesn't exist
+ * @returns Promise<boolean> true if creation successful, false otherwise
  */
 export async function createDatabase(config: {
   host: string;
@@ -80,110 +81,115 @@ export async function createDatabase(config: {
   dbName: string;
 }): Promise<boolean> {
   try {
-    // Verifica se siamo in Electron
+    console.log(
+      `Attempting to create database ${config.dbName} if it doesn't exist`,
+    );
+
+    // Check if we're in Electron
     if (isRunningInElectron()) {
       try {
-        // Prima connettiti al database postgres (database di sistema)
+        // First connect to postgres system database
+        console.log("Connecting to postgres system database");
         const connectResult = await electronAPI.connectDatabase({
           host: config.host,
           port: config.port,
           username: config.username,
           password: config.password,
-          dbName: "postgres", // Usa il database di sistema
+          dbName: "postgres", // Use system database
         });
 
         if (!connectResult.success) {
           console.error(
-            "Errore nella connessione al database postgres:",
+            "Error connecting to postgres system database:",
             connectResult.error,
           );
           return false;
         }
 
-        // Verifica se il database esiste già
+        // Check if database already exists
+        console.log(`Checking if database ${config.dbName} exists`);
         const checkResult = await electronAPI.executeQuery(
           "SELECT 1 FROM pg_database WHERE datname = $1",
           [config.dbName],
         );
 
-        // Se il database non esiste, crealo
+        // If database doesn't exist, create it
         if (!checkResult.success || checkResult.rows?.length === 0) {
+          console.log(`Database ${config.dbName} doesn't exist, creating it`);
           const createResult = await electronAPI.executeQuery(
-            `CREATE DATABASE ${config.dbName}`,
+            `CREATE DATABASE "${config.dbName}"`,
             [],
           );
 
           if (createResult.success) {
-            console.log(`Database ${config.dbName} creato con successo`);
+            console.log(`Database ${config.dbName} created successfully`);
             return true;
           } else {
-            console.error(
-              "Errore nella creazione del database:",
-              createResult.error,
-            );
+            console.error("Error creating database:", createResult.error);
             return false;
           }
         } else {
-          console.log(`Il database ${config.dbName} esiste già`);
+          console.log(`Database ${config.dbName} already exists`);
           return true;
         }
       } catch (electronError) {
-        console.error(
-          "Errore durante l'operazione con Electron API:",
-          electronError,
-        );
+        console.error("Error during Electron API operation:", electronError);
         return false;
       }
     }
 
-    // Simulazione di successo in ambiente non-Electron per test
+    // Simulation for non-Electron environment for testing
     if (!isRunningInElectron()) {
-      console.log(`Simulazione: Database ${config.dbName} creato con successo`);
+      console.log(`Simulation: Database ${config.dbName} created successfully`);
       return true;
     }
 
+    // Direct implementation with pg (should not be reached in browser)
     const port = parseInt(config.port);
     const { Client } = await import("pg");
 
-    // Connessione al server PostgreSQL senza specificare un database
+    // Connect to PostgreSQL server without specifying a database
+    console.log("Connecting to PostgreSQL server");
     const client = new Client({
       host: config.host,
       port: port,
       user: config.username,
       password: config.password,
-      database: "postgres", // Connessione al database di sistema postgres
+      database: "postgres", // Connect to system postgres database
       ssl: false,
     });
 
     await client.connect();
 
-    // Verifica se il database esiste già
+    // Check if database already exists
+    console.log(`Checking if database ${config.dbName} exists`);
     const checkResult = await client.query(
       "SELECT 1 FROM pg_database WHERE datname = $1",
       [config.dbName],
     );
 
-    // Se il database non esiste, crealo
+    // If database doesn't exist, create it
     if (checkResult.rows.length === 0) {
-      await client.query(`CREATE DATABASE ${config.dbName}`);
-      console.log(`Database ${config.dbName} creato con successo`);
+      console.log(`Creating database ${config.dbName}`);
+      await client.query(`CREATE DATABASE "${config.dbName}"`); // Added quotes around database name
+      console.log(`Database ${config.dbName} created successfully`);
     } else {
-      console.log(`Il database ${config.dbName} esiste già`);
+      console.log(`Database ${config.dbName} already exists`);
     }
 
     await client.end();
     return true;
   } catch (error) {
-    console.error("Errore durante la creazione del database:", error);
+    console.error("Error creating database:", error);
     return false;
   }
 }
 
 /**
- * Crea una singola tabella nel database
- * @param config Configurazione del database
- * @param tableName Nome della tabella da creare
- * @returns Promise<boolean> true se la creazione è riuscita, false altrimenti
+ * Create a single table in the database
+ * @param config Database configuration
+ * @param tableName Name of table to create
+ * @returns Promise<boolean> true if creation successful, false otherwise
  */
 export async function createTable(
   config: {
@@ -195,10 +201,14 @@ export async function createTable(
   },
   tableName: string,
 ): Promise<boolean> {
+  console.log(
+    `Attempting to create table ${tableName} in database ${config.dbName}`,
+  );
   try {
-    // Verifica se siamo in Electron
+    // Check if we're in Electron
     if (isRunningInElectron()) {
-      // Connessione al database specifico
+      // Connect to specific database
+      console.log(`Connecting to database ${config.dbName}`);
       const connectResult = await electronAPI.connectDatabase({
         host: config.host,
         port: config.port,
@@ -209,7 +219,7 @@ export async function createTable(
 
       if (!connectResult.success) {
         console.error(
-          "Errore nella connessione al database specifico:",
+          "Error connecting to specific database:",
           connectResult.error,
         );
         return false;
@@ -217,10 +227,10 @@ export async function createTable(
 
       let query = "";
 
-      // Definisci la query in base al nome della tabella
+      // Define query based on table name
       switch (tableName) {
         case "users":
-          query = `CREATE TABLE IF NOT EXISTS users (
+          query = `CREATE TABLE IF NOT EXISTS "users" (
             id SERIAL PRIMARY KEY,
             username VARCHAR(50) UNIQUE NOT NULL,
             password VARCHAR(100) NOT NULL,
@@ -233,7 +243,7 @@ export async function createTable(
           break;
 
         case "patients":
-          query = `CREATE TABLE IF NOT EXISTS patients (
+          query = `CREATE TABLE IF NOT EXISTS "patients" (
             id SERIAL PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
             codice_fiscale VARCHAR(16) UNIQUE NOT NULL,
@@ -256,7 +266,7 @@ export async function createTable(
           break;
 
         case "appointments":
-          query = `CREATE TABLE IF NOT EXISTS appointments (
+          query = `CREATE TABLE IF NOT EXISTS "appointments" (
             id SERIAL PRIMARY KEY,
             patient_id INTEGER NOT NULL,
             date DATE NOT NULL,
@@ -274,7 +284,7 @@ export async function createTable(
           break;
 
         case "license":
-          query = `CREATE TABLE IF NOT EXISTS license (
+          query = `CREATE TABLE IF NOT EXISTS "license" (
             id SERIAL PRIMARY KEY,
             license_key VARCHAR(100) UNIQUE NOT NULL,
             license_type VARCHAR(20) NOT NULL,
@@ -287,7 +297,7 @@ export async function createTable(
           break;
 
         case "configurations":
-          query = `CREATE TABLE IF NOT EXISTS configurations (
+          query = `CREATE TABLE IF NOT EXISTS "configurations" (
             id SERIAL PRIMARY KEY,
             key VARCHAR(50) UNIQUE NOT NULL,
             value TEXT NOT NULL,
@@ -297,31 +307,32 @@ export async function createTable(
           break;
 
         default:
-          console.error(`Tabella ${tableName} non riconosciuta`);
+          console.error(`Table ${tableName} not recognized`);
           return false;
       }
 
-      // Esegui la query
+      console.log(`Executing query to create table ${tableName}`);
+      console.log(query);
+
+      // Execute query
       const result = await electronAPI.executeQuery(query, []);
 
       if (!result.success) {
-        console.error(
-          `Errore nella creazione della tabella ${tableName}:`,
-          result.error,
-        );
+        console.error(`Error creating table ${tableName}:`, result.error);
         return false;
       }
 
+      console.log(`Table ${tableName} created successfully`);
       return true;
     }
 
-    // Simulazione di successo in ambiente non-Electron per test
+    // Simulation for non-Electron environment for testing
     if (!isRunningInElectron()) {
-      console.log(`Simulazione: Tabella ${tableName} creata con successo`);
+      console.log(`Simulation: Table ${tableName} created successfully`);
       return true;
     }
 
-    // Implementazione diretta con pg
+    // Direct implementation with pg
     const port = parseInt(config.port);
     const { Client } = await import("pg");
     const client = new Client({
@@ -337,10 +348,10 @@ export async function createTable(
 
     let query = "";
 
-    // Definisci la query in base al nome della tabella
+    // Define query based on table name
     switch (tableName) {
       case "users":
-        query = `CREATE TABLE IF NOT EXISTS users (
+        query = `CREATE TABLE IF NOT EXISTS "users" (
           id SERIAL PRIMARY KEY,
           username VARCHAR(50) UNIQUE NOT NULL,
           password VARCHAR(100) NOT NULL,
@@ -353,7 +364,7 @@ export async function createTable(
         break;
 
       case "patients":
-        query = `CREATE TABLE IF NOT EXISTS patients (
+        query = `CREATE TABLE IF NOT EXISTS "patients" (
           id SERIAL PRIMARY KEY,
           name VARCHAR(100) NOT NULL,
           codice_fiscale VARCHAR(16) UNIQUE NOT NULL,
@@ -376,7 +387,7 @@ export async function createTable(
         break;
 
       case "appointments":
-        query = `CREATE TABLE IF NOT EXISTS appointments (
+        query = `CREATE TABLE IF NOT EXISTS "appointments" (
           id SERIAL PRIMARY KEY,
           patient_id INTEGER NOT NULL,
           date DATE NOT NULL,
@@ -394,7 +405,7 @@ export async function createTable(
         break;
 
       case "license":
-        query = `CREATE TABLE IF NOT EXISTS license (
+        query = `CREATE TABLE IF NOT EXISTS "license" (
           id SERIAL PRIMARY KEY,
           license_key VARCHAR(100) UNIQUE NOT NULL,
           license_type VARCHAR(20) NOT NULL,
@@ -407,7 +418,7 @@ export async function createTable(
         break;
 
       case "configurations":
-        query = `CREATE TABLE IF NOT EXISTS configurations (
+        query = `CREATE TABLE IF NOT EXISTS "configurations" (
           id SERIAL PRIMARY KEY,
           key VARCHAR(50) UNIQUE NOT NULL,
           value TEXT NOT NULL,
@@ -417,25 +428,24 @@ export async function createTable(
         break;
 
       default:
-        console.error(`Tabella ${tableName} non riconosciuta`);
+        console.error(`Table ${tableName} not recognized`);
         return false;
     }
 
+    console.log(`Executing query to create table ${tableName}`);
     await client.query(query);
+    console.log(`Table ${tableName} created successfully`);
     await client.end();
     return true;
   } catch (error) {
-    console.error(
-      `Errore durante la creazione della tabella ${tableName}:`,
-      error,
-    );
+    console.error(`Error creating table ${tableName}:`, error);
     return false;
   }
 }
 
 /**
- * Inizializza il database con le tabelle necessarie
- * @returns Promise<boolean> true se l'inizializzazione è riuscita, false altrimenti
+ * Initialize database with necessary tables
+ * @returns Promise<boolean> true if initialization successful, false otherwise
  */
 export async function initializeDatabase(config: {
   host: string;
@@ -445,13 +455,15 @@ export async function initializeDatabase(config: {
   dbName: string;
 }): Promise<boolean> {
   try {
-    // Prima crea il database se non esiste
+    console.log("Starting database initialization");
+
+    // First create database if it doesn't exist
     const dbCreated = await createDatabase(config);
     if (!dbCreated) {
-      throw new Error("Impossibile creare il database");
+      throw new Error("Unable to create database");
     }
 
-    // Crea tutte le tabelle
+    // Create all tables
     const tables = [
       "users",
       "patients",
@@ -462,35 +474,44 @@ export async function initializeDatabase(config: {
     let allTablesCreated = true;
 
     for (const table of tables) {
+      console.log(`Creating table: ${table}`);
       const tableCreated = await createTable(config, table);
       if (!tableCreated) {
-        console.error(`Errore nella creazione della tabella ${table}`);
+        console.error(`Error creating table ${table}`);
         allTablesCreated = false;
       }
     }
 
+    if (allTablesCreated) {
+      console.log("All tables created successfully");
+    } else {
+      console.warn("Some tables failed to create");
+    }
+
     return allTablesCreated;
   } catch (error) {
-    console.error("Errore durante l'inizializzazione del database:", error);
+    console.error("Error initializing database:", error);
     return false;
   }
 }
 
 /**
- * Esegue un backup del database
- * @param path Percorso dove salvare il backup
- * @returns Promise<boolean> true se il backup è riuscito, false altrimenti
+ * Backup database
+ * @param path Path to save backup
+ * @returns Promise<boolean> true if backup successful, false otherwise
  */
 export async function backupDatabase(path: string): Promise<boolean> {
   try {
-    // Verifica se siamo in Electron
+    console.log(`Starting database backup to ${path}`);
+
+    // Check if we're in Electron
     if (isRunningInElectron()) {
       const result = await electronAPI.backupDatabase(path);
       if (!result.success) {
-        throw new Error(result.error || "Errore durante il backup");
+        throw new Error(result.error || "Error during backup");
       }
 
-      // Salva l'informazione del backup nel database
+      // Save backup information to database
       const db = Database.getInstance();
       const now = new Date();
 
@@ -509,21 +530,21 @@ export async function backupDatabase(path: string): Promise<boolean> {
           "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
           ["last_backup_status", "success"],
         );
+
+        console.log("Backup information saved to database");
       } catch (dbError) {
-        console.error(
-          "Errore nel salvataggio delle informazioni di backup nel database:",
-          dbError,
-        );
-        // Fallback a localStorage
+        console.error("Error saving backup information to database:", dbError);
+        // Fallback to localStorage
         localStorage.setItem("lastBackup", now.toISOString());
         localStorage.setItem("lastBackupPath", path);
         localStorage.setItem("lastBackupStatus", "success");
+        console.log("Backup information saved to localStorage (fallback)");
       }
 
       return true;
     }
 
-    // Ottieni la configurazione del database
+    // Get database configuration
     let dbConfig;
     const db = Database.getInstance();
 
@@ -534,49 +555,49 @@ export async function backupDatabase(path: string): Promise<boolean> {
       if (configResult.length > 0) {
         dbConfig = JSON.parse(configResult[0].value);
       } else {
-        // Fallback a localStorage
+        // Fallback to localStorage
         const dbConfigStr = localStorage.getItem("dbConfig");
         if (!dbConfigStr) {
-          throw new Error("Configurazione del database non trovata");
+          throw new Error("Database configuration not found");
         }
         dbConfig = JSON.parse(dbConfigStr);
       }
     } catch (error) {
-      // Fallback a localStorage
+      // Fallback to localStorage
       const dbConfigStr = localStorage.getItem("dbConfig");
       if (!dbConfigStr) {
-        throw new Error("Configurazione del database non trovata");
+        throw new Error("Database configuration not found");
       }
       dbConfig = JSON.parse(dbConfigStr);
     }
 
     const { host, port, username, password, dbName } = dbConfig;
 
-    // Crea il nome del file di backup con timestamp
+    // Create backup filename with timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const backupFileName = `${dbName}_backup_${timestamp}.sql`;
     const fullBackupPath = `${path}/${backupFileName}`;
 
-    console.log(`Esecuzione backup del database in ${fullBackupPath}`);
+    console.log(`Executing database backup to ${fullBackupPath}`);
 
-    // Esegui il backup reale del database
-    // Questo codice funzionerà solo in Electron, ma lo includiamo per completezza
+    // Execute real database backup
+    // This code will only work in Electron, but we include it for completeness
     try {
-      // Comando pg_dump
+      // pg_dump command
       const { exec } = await import("child_process");
       const util = await import("util");
       const execPromise = util.promisify(exec);
 
-      const command = `pg_dump -h ${host} -p ${port} -U ${username} -F c -b -v -f "${fullBackupPath}" ${dbName}`;
+      const command = `pg_dump -h ${host} -p ${port} -U ${username} -F c -b -v -f "${fullBackupPath}" "${dbName}"`;
 
-      // Imposta la variabile d'ambiente PGPASSWORD per evitare la richiesta di password
+      // Set PGPASSWORD environment variable to avoid password prompt
       const env = { ...process.env, PGPASSWORD: password };
 
       await execPromise(command, { env });
 
-      console.log(`Backup completato: ${fullBackupPath}`);
+      console.log(`Backup completed: ${fullBackupPath}`);
 
-      // Salva l'informazione del backup nel database
+      // Save backup information to database
       const now = new Date();
 
       try {
@@ -595,11 +616,8 @@ export async function backupDatabase(path: string): Promise<boolean> {
           ["last_backup_status", "success"],
         );
       } catch (dbError) {
-        console.error(
-          "Errore nel salvataggio delle informazioni di backup nel database:",
-          dbError,
-        );
-        // Fallback a localStorage
+        console.error("Error saving backup information to database:", dbError);
+        // Fallback to localStorage
         localStorage.setItem("lastBackup", now.toISOString());
         localStorage.setItem("lastBackupPath", fullBackupPath);
         localStorage.setItem("lastBackupStatus", "success");
@@ -607,13 +625,13 @@ export async function backupDatabase(path: string): Promise<boolean> {
 
       return true;
     } catch (execError) {
-      console.error("Errore nell'esecuzione di pg_dump:", execError);
+      console.error("Error executing pg_dump:", execError);
       throw execError;
     }
   } catch (error) {
-    console.error("Errore durante il backup del database:", error);
+    console.error("Error during database backup:", error);
 
-    // Salva l'informazione del backup fallito nel database
+    // Save failed backup information to database
     try {
       const db = Database.getInstance();
       const now = new Date();
@@ -629,10 +647,10 @@ export async function backupDatabase(path: string): Promise<boolean> {
       );
     } catch (dbError) {
       console.error(
-        "Errore nel salvataggio delle informazioni di backup fallito nel database:",
+        "Error saving failed backup information to database:",
         dbError,
       );
-      // Fallback a localStorage
+      // Fallback to localStorage
       const now = new Date();
       localStorage.setItem("lastBackup", now.toISOString());
       localStorage.setItem("lastBackupStatus", "failed");
@@ -643,20 +661,22 @@ export async function backupDatabase(path: string): Promise<boolean> {
 }
 
 /**
- * Ripristina un backup del database
- * @param path Percorso del file di backup
- * @returns Promise<boolean> true se il ripristino è riuscito, false altrimenti
+ * Restore database from backup
+ * @param path Path to backup file
+ * @returns Promise<boolean> true if restore successful, false otherwise
  */
 export async function restoreDatabase(path: string): Promise<boolean> {
   try {
-    // Verifica se siamo in Electron
+    console.log(`Starting database restore from ${path}`);
+
+    // Check if we're in Electron
     if (isRunningInElectron()) {
       const result = await electronAPI.restoreDatabase(path);
       if (!result.success) {
-        throw new Error(result.error || "Errore durante il ripristino");
+        throw new Error(result.error || "Error during restore");
       }
 
-      // Salva l'informazione del ripristino in localStorage
+      // Save restore information to localStorage
       const now = new Date();
       localStorage.setItem("lastRestore", now.toISOString());
       localStorage.setItem("lastRestorePath", path);
@@ -665,33 +685,33 @@ export async function restoreDatabase(path: string): Promise<boolean> {
       return true;
     }
 
-    // In un'applicazione desktop reale, qui eseguiremmo pg_restore
-    // Ma poiché siamo in un browser, dobbiamo gestire il file caricato
+    // In a real desktop application, we would execute pg_restore here
+    // But since we're in a browser, we need to handle the uploaded file
 
-    console.log(`Ripristino del database da ${path}`);
+    console.log(`Restoring database from ${path}`);
 
-    // Leggi il file di backup
-    // Nota: in un'applicazione web, il path sarà in realtà un File object
+    // Read backup file
+    // Note: in a web application, path will actually be a File object
     if (path instanceof File) {
       const file = path;
       const reader = new FileReader();
 
-      // Leggi il file come testo
+      // Read file as text
       const backupData = await new Promise<string>((resolve, reject) => {
         reader.onload = (e) => resolve(e.target?.result as string);
         reader.onerror = (e) => reject(e);
         reader.readAsText(file);
       });
 
-      // Parsa il JSON
+      // Parse JSON
       const backup = JSON.parse(backupData);
 
-      // Verifica che il backup sia valido
+      // Verify backup is valid
       if (!backup.metadata || !backup.tables) {
-        throw new Error("Il file di backup non è valido");
+        throw new Error("Invalid backup file");
       }
 
-      // Ripristina i dati nelle tabelle
+      // Restore data to tables
       if (backup.tables.patients) {
         localStorage.setItem(
           "patients",
@@ -721,10 +741,10 @@ export async function restoreDatabase(path: string): Promise<boolean> {
         );
       }
 
-      // In un'applicazione reale, qui eseguiremmo una query SQL per ripristinare i dati
-      // Ma poiché siamo in un browser, abbiamo già ripristinato i dati in localStorage
+      // In a real application, we would execute an SQL query to restore the data
+      // But since we're in a browser, we've already restored the data to localStorage
 
-      // Salva l'informazione del ripristino in localStorage
+      // Save restore information to localStorage
       const now = new Date();
       localStorage.setItem("lastRestore", now.toISOString());
       localStorage.setItem("lastRestorePath", file.name);
@@ -732,22 +752,22 @@ export async function restoreDatabase(path: string): Promise<boolean> {
 
       return true;
     } else {
-      // Se non è un File object, potrebbe essere un percorso o un backup precedentemente salvato
-      // Proviamo a caricare dal localStorage
+      // If not a File object, it could be a path or previously saved backup
+      // Try to load from localStorage
       const backupData = localStorage.getItem("lastBackupData");
 
       if (!backupData) {
-        throw new Error("Nessun backup trovato in localStorage");
+        throw new Error("No backup found in localStorage");
       }
 
       const backup = JSON.parse(backupData);
 
-      // Verifica che il backup sia valido
+      // Verify backup is valid
       if (!backup.metadata || !backup.tables) {
-        throw new Error("Il backup in localStorage non è valido");
+        throw new Error("Invalid backup in localStorage");
       }
 
-      // Ripristina i dati nelle tabelle
+      // Restore data to tables
       if (backup.tables.patients) {
         localStorage.setItem(
           "patients",
@@ -777,7 +797,7 @@ export async function restoreDatabase(path: string): Promise<boolean> {
         );
       }
 
-      // Salva l'informazione del ripristino in localStorage
+      // Save restore information to localStorage
       const now = new Date();
       localStorage.setItem("lastRestore", now.toISOString());
       localStorage.setItem("lastRestorePath", path);
@@ -786,9 +806,9 @@ export async function restoreDatabase(path: string): Promise<boolean> {
       return true;
     }
   } catch (error) {
-    console.error("Errore durante il ripristino del database:", error);
+    console.error("Error during database restore:", error);
 
-    // Salva l'informazione del ripristino fallito in localStorage
+    // Save failed restore information to localStorage
     const now = new Date();
     localStorage.setItem("lastRestore", now.toISOString());
     localStorage.setItem("lastRestoreStatus", "failed");

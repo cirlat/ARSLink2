@@ -17,7 +17,19 @@ export const electronAPI: ElectronAPI = isElectron()
         console.log("Mock: connectDatabase", config);
         // Simula un ritardo per rendere più realistico
         await new Promise((resolve) => setTimeout(resolve, 500));
-        return { success: true, message: "Connessione simulata al database" };
+
+        // Verifica le credenziali di test
+        if (config.username === "postgres" && config.password === "postgres") {
+          return { success: true, message: "Connessione simulata al database" };
+        } else {
+          return {
+            success: false,
+            error:
+              "autenticazione con password fallita per l'utente \"" +
+              config.username +
+              '"',
+          };
+        }
       },
       executeQuery: async (query: string, params: any[]) => {
         console.log("Mock: executeQuery", query, params);

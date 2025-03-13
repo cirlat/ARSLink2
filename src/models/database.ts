@@ -1,25 +1,25 @@
-// Utilizziamo una simulazione del database per evitare problemi con pg nel browser
-// ma implementiamo anche la possibilità di connettersi a un DB reale quando possibile
+// Database simulation for browser environment with real PostgreSQL support in Electron
+// Provides a unified interface for both environments
 import { electronAPI, isRunningInElectron } from "../lib/electronBridge";
 
-// Definizione dell'interfaccia PgPool per evitare errori di tipo
+// PgPool interface definition to avoid type errors
 interface PgPool {
   query: (text: string, params?: any[]) => Promise<{ rows: any[] }>;
   connect: () => Promise<any>;
   end: () => Promise<void>;
 }
 
-// Non importiamo pg direttamente nel browser
+// Don't directly import pg in browser
 let pg: any = null;
 
-// In ambiente Electron, pg sarà disponibile tramite preload
+// In Electron environment, pg will be available through preload
 if (isRunningInElectron()) {
-  console.log("Ambiente Electron rilevato, utilizzo pg tramite preload");
+  console.log("Electron environment detected, using pg through preload");
 } else {
-  console.log("Ambiente browser rilevato, utilizzo simulazione DB");
+  console.log("Browser environment detected, using DB simulation");
 }
 
-// Interfacce per compatibilità
+// Interfaces for compatibility
 interface PoolClient {
   query: (text: string, params?: any[]) => Promise<{ rows: any[] }>;
   release: () => void;
@@ -32,7 +32,7 @@ interface Pool {
   getClient: () => Promise<PoolClient>;
 }
 
-// Singleton pattern per la connessione al database
+// Singleton pattern for database connection
 class Database {
   private static instance: Database;
   private pool: Pool;
@@ -41,15 +41,21 @@ class Database {
   private useRealDb: boolean = false;
 
   private constructor() {
-    // Leggi le configurazioni da localStorage o da un file di configurazione
+    // Read configuration from localStorage or configuration file
     const dbConfig = this.getDbConfig();
+    console.log("Database configuration loaded:", {
+      host: dbConfig.host,
+      port: dbConfig.port,
+      user: dbConfig.username,
+      database: dbConfig.dbName,
+    });
 
-    // Verifichiamo se possiamo utilizzare un DB reale
+    // Check if we can use a real DB
     this.useRealDb = isRunningInElectron();
 
     if (pg && this.useRealDb) {
       try {
-        // Tenta di creare una connessione reale a PostgreSQL
+        // Attempt to create a real PostgreSQL connection
         this.pgPool = new pg.Pool({
           host: dbConfig.host,
           port: parseInt(dbConfig.port),
@@ -57,110 +63,117 @@ class Database {
           password: dbConfig.password,
           database: dbConfig.dbName,
           ssl: false,
-          // Timeout di connessione di 5 secondi
+          // 5 second connection timeout
           connectionTimeoutMillis: 5000,
         });
-        console.log("Configurata connessione reale a PostgreSQL");
+        console.log("Real PostgreSQL connection configured");
       } catch (error) {
-        console.error("Errore nella configurazione di PostgreSQL:", error);
-        console.log("Utilizzo database simulato");
+        console.error("Error configuring PostgreSQL:", error);
+        console.log("Falling back to simulated database");
         this.useRealDb = false;
       }
     } else {
-      console.log("Utilizzo database simulato (ambiente browser)");
+      console.log("Using simulated database (browser environment)");
     }
 
-    // Implementazione del pool che decide se usare PostgreSQL reale o simulazione
+    // Pool implementation that decides whether to use real PostgreSQL or simulation
     this.pool = {
       connect: async () => {
         if (this.useRealDb && this.pgPool) {
           try {
-            // Test della connessione
-            await this.pgPool.query("SELECT NOW()");
-            console.log("Connessione a PostgreSQL stabilita");
+            // Test connection
+            const result = await this.pgPool.query("SELECT NOW()");
+            console.log("PostgreSQL connection established:", result.rows[0]);
           } catch (error) {
-            console.error("Errore di connessione a PostgreSQL:", error);
+            console.error("PostgreSQL connection error:", error);
             this.useRealDb = false;
-            console.log("Passaggio a database simulato");
+            console.log("Falling back to simulated database");
           }
         } else if (isRunningInElectron()) {
-          // Se siamo in Electron ma non abbiamo potuto usare pg direttamente
+          // If in Electron but couldn't use pg directly
           try {
             const result = await electronAPI.connectDatabase(dbConfig);
             if (result.success) {
               console.log(
-                "Connessione a PostgreSQL stabilita tramite Electron API",
+                "PostgreSQL connection established through Electron API",
               );
               this.useRealDb = true;
             } else {
               console.error(
-                "Errore di connessione a PostgreSQL tramite Electron API:",
+                "PostgreSQL connection error through Electron API:",
                 result.error,
               );
               this.useRealDb = false;
-              console.log("Passaggio a database simulato");
+              console.log("Falling back to simulated database");
             }
           } catch (error) {
             console.error(
-              "Errore di connessione a PostgreSQL tramite Electron API:",
+              "PostgreSQL connection error through Electron API:",
               error,
             );
             this.useRealDb = false;
-            console.log("Passaggio a database simulato");
+            console.log("Falling back to simulated database");
           }
         } else {
-          console.log("Simulazione connessione al database");
+          console.log("Simulating database connection");
         }
         return Promise.resolve();
       },
       end: async () => {
         if (this.useRealDb && this.pgPool) {
           await this.pgPool.end();
+          console.log("PostgreSQL connection closed");
         } else {
-          console.log("Simulazione chiusura connessione al database");
+          console.log("Simulating database connection closure");
         }
         return Promise.resolve();
       },
       query: async (text: string, params: any[] = []) => {
+        console.log(`Executing query: ${text.substring(0, 100)}...`);
+        console.log(`With parameters: ${JSON.stringify(params)}`);
+
         if (this.useRealDb) {
           if (this.pgPool) {
             try {
               const result = await this.pgPool.query(text, params);
+              console.log(
+                `Query successful, returned ${result.rows.length} rows`,
+              );
               return result;
             } catch (error) {
-              console.error(
-                "Errore nell'esecuzione della query PostgreSQL:",
-                error,
-              );
+              console.error("PostgreSQL query execution error:", error);
               console.error("Query:", text, "Params:", params);
-              // Fallback alla simulazione in caso di errore
+              // Fallback to simulation on error
               return this.simulateQuery(text, params);
             }
           } else if (isRunningInElectron()) {
             try {
               const result = await electronAPI.executeQuery(text, params);
               if (result.success) {
+                console.log(
+                  `Query successful through Electron API, returned ${result.rows?.length || 0} rows`,
+                );
                 return { rows: result.rows || [] };
               } else {
                 console.error(
-                  "Errore nell'esecuzione della query tramite Electron API:",
+                  "Query execution error through Electron API:",
                   result.error,
                 );
-                // Fallback alla simulazione in caso di errore
+                // Fallback to simulation on error
                 return this.simulateQuery(text, params);
               }
             } catch (error) {
               console.error(
-                "Errore nell'esecuzione della query tramite Electron API:",
+                "Query execution error through Electron API:",
                 error,
               );
-              // Fallback alla simulazione in caso di errore
+              // Fallback to simulation on error
               return this.simulateQuery(text, params);
             }
           }
         }
 
-        // Usa la simulazione se non possiamo usare un DB reale
+        // Use simulation if we can't use a real DB
         return this.simulateQuery(text, params);
       },
       getClient: async () => {
@@ -175,8 +188,8 @@ class Database {
               release: () => client.release(),
             };
           } catch (error) {
-            console.error("Errore nell'ottenere un client PostgreSQL:", error);
-            // Fallback alla simulazione
+            console.error("Error getting PostgreSQL client:", error);
+            // Fallback to simulation
             return this.getSimulatedClient();
           }
         } else {
@@ -186,7 +199,7 @@ class Database {
     };
   }
 
-  // Metodi per la simulazione del database
+  // Methods for database simulation
   private storage: Record<string, any[]> = {
     users: [],
     patients: [],
@@ -199,9 +212,9 @@ class Database {
     text: string,
     params: any[] = [],
   ): Promise<{ rows: any[] }> {
-    console.log("Simulazione query:", text, params);
+    console.log("Simulating query:", text, params);
 
-    // Carica dati da localStorage se disponibili
+    // Load data from localStorage if available
     this.loadStorageFromLocalStorage();
 
     // Simple query parsing to simulate database operations
@@ -213,7 +226,7 @@ class Database {
       const newItem = { id: Date.now(), ...this.createMockItem(params) };
       this.storage[table] = [...(this.storage[table] || []), newItem];
 
-      // Salva in localStorage
+      // Save to localStorage
       this.saveStorageToLocalStorage();
 
       return Promise.resolve({ rows: [newItem] });
@@ -273,7 +286,7 @@ class Database {
         this.storage = JSON.parse(storedData);
       }
     } catch (error) {
-      console.error("Errore nel caricamento del database simulato:", error);
+      console.error("Error loading simulated database:", error);
     }
   }
 
@@ -281,7 +294,7 @@ class Database {
     try {
       localStorage.setItem("simulatedDatabase", JSON.stringify(this.storage));
     } catch (error) {
-      console.error("Errore nel salvataggio del database simulato:", error);
+      console.error("Error saving simulated database:", error);
     }
   }
 
@@ -293,19 +306,23 @@ class Database {
   }
 
   private getDbConfig() {
-    // In un'implementazione reale, questo leggerebbe da un file di configurazione
-    // o da localStorage se configurato tramite wizard
+    // In a real implementation, this would read from a configuration file
+    // or from localStorage if configured through wizard
     const storedConfig = localStorage.getItem("dbConfig");
     if (storedConfig) {
-      return JSON.parse(storedConfig);
+      try {
+        return JSON.parse(storedConfig);
+      } catch (error) {
+        console.error("Error parsing stored database configuration:", error);
+      }
     }
 
-    // Valori di default
+    // Default values
     return {
       host: "localhost",
       port: "5432",
       username: "postgres",
-      password: "postgres",
+      password: "", // Empty default password for security
       dbName: "patient_appointment_system",
     };
   }
@@ -353,14 +370,14 @@ class Database {
     }
   }
 
-  // Metodo per inizializzare il database con le tabelle necessarie
+  // Method to initialize database with necessary tables
   public async initializeDatabase(): Promise<void> {
     try {
-      // Ottieni la configurazione del database
+      // Get database configuration
       const dbConfig = this.getDbConfig();
       const port = parseInt(dbConfig.port);
 
-      // Usa direttamente pg per creare le tabelle
+      // Use pg directly to create tables
       if (pg) {
         const client = new pg.Client({
           host: dbConfig.host,
@@ -376,9 +393,9 @@ class Database {
         try {
           await client.query("BEGIN");
 
-          // Tabella utenti
+          // Users table
           await client.query(`
-            CREATE TABLE IF NOT EXISTS users (
+            CREATE TABLE IF NOT EXISTS "users" (
               id SERIAL PRIMARY KEY,
               username VARCHAR(50) UNIQUE NOT NULL,
               password VARCHAR(100) NOT NULL,
@@ -390,9 +407,9 @@ class Database {
             )
           `);
 
-          // Tabella pazienti
+          // Patients table
           await client.query(`
-            CREATE TABLE IF NOT EXISTS patients (
+            CREATE TABLE IF NOT EXISTS "patients" (
               id SERIAL PRIMARY KEY,
               name VARCHAR(100) NOT NULL,
               codice_fiscale VARCHAR(16) UNIQUE NOT NULL,
@@ -414,11 +431,11 @@ class Database {
             )
           `);
 
-          // Tabella appuntamenti
+          // Appointments table
           await client.query(`
-            CREATE TABLE IF NOT EXISTS appointments (
+            CREATE TABLE IF NOT EXISTS "appointments" (
               id SERIAL PRIMARY KEY,
-              patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+              patient_id INTEGER NOT NULL REFERENCES "patients"(id) ON DELETE CASCADE,
               date DATE NOT NULL,
               time TIME NOT NULL,
               duration INTEGER NOT NULL,
@@ -433,9 +450,9 @@ class Database {
             )
           `);
 
-          // Tabella licenza
+          // License table
           await client.query(`
-            CREATE TABLE IF NOT EXISTS license (
+            CREATE TABLE IF NOT EXISTS "license" (
               id SERIAL PRIMARY KEY,
               license_key VARCHAR(100) UNIQUE NOT NULL,
               license_type VARCHAR(20) NOT NULL,
@@ -447,9 +464,9 @@ class Database {
             )
           `);
 
-          // Tabella configurazioni
+          // Configurations table
           await client.query(`
-            CREATE TABLE IF NOT EXISTS configurations (
+            CREATE TABLE IF NOT EXISTS "configurations" (
               id SERIAL PRIMARY KEY,
               key VARCHAR(50) UNIQUE NOT NULL,
               value TEXT NOT NULL,
@@ -468,9 +485,9 @@ class Database {
           await client.end();
         }
       } else if (isRunningInElectron()) {
-        // Se siamo in Electron ma non abbiamo potuto usare pg direttamente
+        // If in Electron but couldn't use pg directly
         const result = await electronAPI.executeQuery(
-          `CREATE TABLE IF NOT EXISTS users (
+          `CREATE TABLE IF NOT EXISTS "users" (
             id SERIAL PRIMARY KEY,
             username VARCHAR(50) UNIQUE NOT NULL,
             password VARCHAR(100) NOT NULL,
@@ -484,21 +501,19 @@ class Database {
         );
 
         if (!result.success) {
-          throw new Error(
-            result.error || "Errore nell'inizializzazione del database",
-          );
+          throw new Error(result.error || "Error initializing database");
         }
 
-        // Continua con le altre tabelle...
+        // Continue with other tables...
         console.log("Database initialized successfully via Electron API");
       } else {
-        // Fallback al client simulato
+        // Fallback to simulated client
         const client = await this.getClient();
 
         try {
           await client.query("BEGIN");
 
-          // Implementa le query di creazione tabelle come sopra
+          // Implement table creation queries as above
 
           console.log("Database initialized successfully (simulated)");
         } catch (error) {
