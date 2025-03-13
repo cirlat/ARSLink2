@@ -615,7 +615,7 @@ const SetupWizard = () => {
                           );
                           alert(
                             "Errore nell'inizializzazione del database: " +
-                              dbError.message,
+                              (dbError.message || "Errore sconosciuto"),
                           );
                           throw dbError;
                         }
@@ -624,7 +624,9 @@ const SetupWizard = () => {
                           "Connessione riuscita! Il database è stato inizializzato correttamente.",
                         );
                       } catch (error) {
-                        alert(`Errore di connessione: ${error.message}`);
+                        alert(
+                          `Errore di connessione: ${error.message || "Errore sconosciuto"}`,
+                        );
                       }
 
                       if (testButton instanceof HTMLButtonElement) {
@@ -634,7 +636,7 @@ const SetupWizard = () => {
                       }
                     } catch (error) {
                       alert(
-                        `Errore durante il test di connessione: ${error.message}`,
+                        `Errore durante il test di connessione: ${error.message || "Errore sconosciuto"}`,
                       );
                       const testButton = document.activeElement;
                       if (testButton instanceof HTMLButtonElement) {
