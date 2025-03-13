@@ -238,4 +238,17 @@ export class AppointmentModel {
       throw error;
     }
   }
+
+  async deleteByPatientId(patientId: number): Promise<number> {
+    try {
+      const result = await this.db.query(
+        "DELETE FROM appointments WHERE patient_id = $1 RETURNING id",
+        [patientId],
+      );
+      return result.length;
+    } catch (error) {
+      console.error("Error deleting appointments by patient id:", error);
+      throw error;
+    }
+  }
 }

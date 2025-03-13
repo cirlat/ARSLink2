@@ -1,10 +1,18 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
-const pg = require("pg");
-const { Client } = pg;
 const fs = require("fs");
 const { exec } = require("child_process");
 const util = require("util");
+
+// Dynamically import pg to avoid module issues
+let pg;
+let Client;
+try {
+  pg = require("pg");
+  Client = pg.Client;
+} catch (error) {
+  console.error("Failed to load pg module:", error);
+}
 
 const execPromise = util.promisify(exec);
 
@@ -57,6 +65,10 @@ app.on("activate", () => {
 // Database connection handler
 ipcMain.handle("connect-database", async (event, config) => {
   try {
+    if (!Client) {
+      throw new Error("PostgreSQL client not available");
+    }
+
     const client = new Client({
       host: config.host,
       port: parseInt(config.port),
@@ -81,6 +93,10 @@ ipcMain.handle("connect-database", async (event, config) => {
 // Query execution handler
 ipcMain.handle("execute-query", async (event, { query, params }) => {
   try {
+    if (!Client) {
+      throw new Error("PostgreSQL client not available");
+    }
+
     // Get DB config from app storage
     const dbConfig = getDbConfig();
 
