@@ -41,7 +41,11 @@ import { Switch } from "@/components/ui/switch";
 // Importazioni dinamiche per evitare errori di riferimento
 import { verifyLicenseKey } from "@/utils/licenseUtils";
 import { electronAPI } from "@/lib/electronBridge";
-import { testDatabaseConnection, initializeDatabase } from "@/utils/dbUtils";
+import {
+  testDatabaseConnection,
+  initializeDatabase,
+  createTable,
+} from "@/utils/dbUtils";
 
 const SetupWizard = () => {
   // Fix per il problema del passo 7 vuoto
@@ -63,6 +67,9 @@ const SetupWizard = () => {
     password: "",
     dbName: "patient_appointment_system",
   });
+
+  // Connection logs for detailed feedback
+  const [connectionLogs, setConnectionLogs] = useState<string[]>([]);
 
   // Admin user
   const [adminUser, setAdminUser] = useState({
@@ -180,6 +187,13 @@ const SetupWizard = () => {
     return false;
   };
 
+  const addConnectionLog = (message: string) => {
+    setConnectionLogs((prev) => [
+      ...prev,
+      `${new Date().toLocaleTimeString()}: ${message}`,
+    ]);
+  };
+
   const testConnection = async () => {
     try {
       // Verifica che tutti i campi siano compilati
@@ -200,6 +214,8 @@ const SetupWizard = () => {
       // Imposta lo stato di caricamento
       setIsDbLoading(true);
       setDbConnectionStatus({ status: "idle", message: "" });
+      setConnectionLogs([]);
+      addConnectionLog("Avvio test di connessione al database...");
 
       // Verifica se la porta è un numero valido
       const port = parseInt(dbConfig.port);
@@ -208,6 +224,9 @@ const SetupWizard = () => {
           status: "error",
           message: "La porta deve essere un numero valido tra 1 e 65535",
         });
+        addConnectionLog(
+          "Errore: La porta deve essere un numero valido tra 1 e 65535",
+        );
         setIsDbLoading(false);
         return;
       }
@@ -219,6 +238,7 @@ const SetupWizard = () => {
           status: "error",
           message: "Formato host non valido",
         });
+        addConnectionLog("Errore: Formato host non valido");
         setIsDbLoading(false);
         return;
       }
@@ -229,9 +249,16 @@ const SetupWizard = () => {
           status: "error",
           message: "La password è troppo corta",
         });
+        addConnectionLog(
+          "Errore: La password è troppo corta (minimo 3 caratteri)",
+        );
         setIsDbLoading(false);
         return;
       }
+
+      addConnectionLog(
+        `Tentativo di connessione a ${dbConfig.host}:${dbConfig.port}...`,
+      );
 
       // Usa l'API Electron per testare la connessione
       const result = await electronAPI.connectDatabase({
@@ -243,15 +270,49 @@ const SetupWizard = () => {
       });
 
       if (result.success) {
+        addConnectionLog("Connessione al database riuscita!");
+        addConnectionLog("Verifica delle tabelle in corso...");
+
+        // Crea le tabelle necessarie
+        const tables = [
+          "users",
+          "patients",
+          "appointments",
+          "license",
+          "configurations",
+        ];
+
+        for (const table of tables) {
+          addConnectionLog(`Creazione tabella ${table}...`);
+          try {
+            const tableResult = await createTable(dbConfig, table);
+            if (tableResult) {
+              addConnectionLog(
+                `Tabella ${table} creata/verificata con successo`,
+              );
+            } else {
+              addConnectionLog(`Errore nella creazione della tabella ${table}`);
+            }
+          } catch (tableError) {
+            addConnectionLog(
+              `Errore nella creazione della tabella ${table}: ${tableError.message}`,
+            );
+          }
+        }
+
         setDbConnectionStatus({
           status: "success",
           message: "Connessione riuscita! " + (result.message || ""),
         });
+        addConnectionLog("Setup database completato con successo");
       } else {
         setDbConnectionStatus({
           status: "error",
           message: result.error || "Errore di connessione al database",
         });
+        addConnectionLog(
+          `Errore di connessione: ${result.error || "Errore sconosciuto"}`,
+        );
       }
     } catch (error) {
       setDbConnectionStatus({
@@ -259,6 +320,9 @@ const SetupWizard = () => {
         message:
           error.message || "Errore sconosciuto durante il test di connessione",
       });
+      addConnectionLog(
+        `Errore: ${error.message || "Errore sconosciuto durante il test di connessione"}`,
+      );
     } finally {
       setIsDbLoading(false);
     }
@@ -554,6 +618,8 @@ const SetupWizard = () => {
                   id="db-host"
                   value={dbConfig.host}
                   onChange={(e) => handleDbConfigChange("host", e.target.value)}
+                  autoComplete="off"
+                  readOnly={false}
                 />
               </div>
 
@@ -563,6 +629,8 @@ const SetupWizard = () => {
                   id="db-port"
                   value={dbConfig.port}
                   onChange={(e) => handleDbConfigChange("port", e.target.value)}
+                  autoComplete="off"
+                  readOnly={false}
                 />
               </div>
 
@@ -574,6 +642,8 @@ const SetupWizard = () => {
                   onChange={(e) =>
                     handleDbConfigChange("username", e.target.value)
                   }
+                  autoComplete="off"
+                  readOnly={false}
                 />
               </div>
 
@@ -587,6 +657,8 @@ const SetupWizard = () => {
                     handleDbConfigChange("password", e.target.value)
                   }
                   required
+                  autoComplete="new-password"
+                  readOnly={false}
                 />
                 <p className="text-xs text-muted-foreground">
                   Campo obbligatorio per la connessione al database
@@ -601,6 +673,8 @@ const SetupWizard = () => {
                   onChange={(e) =>
                     handleDbConfigChange("dbName", e.target.value)
                   }
+                  autoComplete="off"
+                  readOnly={false}
                 />
                 <p className="text-xs text-muted-foreground">
                   Il database verrà creato automaticamente se non esiste
@@ -616,6 +690,24 @@ const SetupWizard = () => {
                   }`}
                 >
                   {dbConnectionStatus.message}
+                </div>
+              )}
+
+              {connectionLogs.length > 0 && (
+                <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                  <h4 className="text-sm font-medium mb-2">
+                    Log di connessione:
+                  </h4>
+                  <div className="max-h-40 overflow-y-auto text-xs font-mono">
+                    {connectionLogs.map((log, index) => (
+                      <div
+                        key={index}
+                        className="py-1 border-b border-gray-100 last:border-0"
+                      >
+                        {log}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -675,6 +767,8 @@ const SetupWizard = () => {
                   onChange={(e) =>
                     handleAdminUserChange("fullName", e.target.value)
                   }
+                  autoComplete="name"
+                  readOnly={false}
                 />
               </div>
 
@@ -687,6 +781,8 @@ const SetupWizard = () => {
                   onChange={(e) =>
                     handleAdminUserChange("email", e.target.value)
                   }
+                  autoComplete="email"
+                  readOnly={false}
                 />
               </div>
 
@@ -698,6 +794,8 @@ const SetupWizard = () => {
                   onChange={(e) =>
                     handleAdminUserChange("username", e.target.value)
                   }
+                  autoComplete="username"
+                  readOnly={false}
                 />
               </div>
 
@@ -710,6 +808,8 @@ const SetupWizard = () => {
                   onChange={(e) =>
                     handleAdminUserChange("password", e.target.value)
                   }
+                  autoComplete="new-password"
+                  readOnly={false}
                 />
               </div>
 
@@ -724,6 +824,8 @@ const SetupWizard = () => {
                   onChange={(e) =>
                     handleAdminUserChange("confirmPassword", e.target.value)
                   }
+                  autoComplete="new-password"
+                  readOnly={false}
                 />
               </div>
             </CardContent>
@@ -784,6 +886,8 @@ const SetupWizard = () => {
                   value={licenseKey}
                   onChange={(e) => setLicenseKey(e.target.value)}
                   placeholder="XXXX-XXXX-XXXX-XXXX"
+                  autoComplete="off"
+                  readOnly={false}
                 />
                 <p className="text-sm text-muted-foreground">
                   La licenza ha validità di 1 anno dalla data di attivazione
@@ -877,6 +981,8 @@ const SetupWizard = () => {
                       onChange={(e) =>
                         handleGoogleConfigChange("clientId", e.target.value)
                       }
+                      autoComplete="off"
+                      readOnly={false}
                     />
                   </div>
 
@@ -889,6 +995,8 @@ const SetupWizard = () => {
                       onChange={(e) =>
                         handleGoogleConfigChange("clientSecret", e.target.value)
                       }
+                      autoComplete="off"
+                      readOnly={false}
                     />
                   </div>
 
@@ -902,6 +1010,8 @@ const SetupWizard = () => {
                       onChange={(e) =>
                         handleGoogleConfigChange("redirectUri", e.target.value)
                       }
+                      autoComplete="off"
+                      readOnly={false}
                     />
                   </div>
 
@@ -1001,6 +1111,8 @@ const SetupWizard = () => {
                         )
                       }
                       disabled={!whatsappConfig.enabled}
+                      autoComplete="off"
+                      readOnly={false}
                     />
                     <p className="text-xs text-muted-foreground">
                       Percorso al browser Chrome/Chromium per l'automazione
@@ -1016,6 +1128,8 @@ const SetupWizard = () => {
                         handleWhatsappConfigChange("dataPath", e.target.value)
                       }
                       disabled={!whatsappConfig.enabled}
+                      autoComplete="off"
+                      readOnly={false}
                     />
                     <p className="text-xs text-muted-foreground">
                       Percorso dove salvare i dati della sessione WhatsApp
@@ -1115,6 +1229,8 @@ const SetupWizard = () => {
                   }
                   disabled={!backupConfig.autoBackup}
                   placeholder="Inserisci il percorso completo per i backup"
+                  autoComplete="off"
+                  readOnly={false}
                 />
                 <p className="text-xs text-muted-foreground">
                   Inserisci il percorso completo dove salvare i backup (es.
@@ -1148,6 +1264,8 @@ const SetupWizard = () => {
                   }
                   placeholder="Studio Medico Dr. Rossi"
                   disabled={false}
+                  autoComplete="organization"
+                  readOnly={false}
                 />
               </div>
 
@@ -1161,6 +1279,8 @@ const SetupWizard = () => {
                   }
                   placeholder="Via Roma 123, 00100 Roma"
                   disabled={false}
+                  autoComplete="street-address"
+                  readOnly={false}
                 />
               </div>
 
@@ -1176,6 +1296,8 @@ const SetupWizard = () => {
                     }
                     placeholder="info@studiomedico.it"
                     disabled={false}
+                    autoComplete="email"
+                    readOnly={false}
                   />
                 </div>
                 <div className="space-y-2">
@@ -1188,6 +1310,8 @@ const SetupWizard = () => {
                     }
                     placeholder="+39 06 12345678"
                     disabled={false}
+                    autoComplete="tel"
+                    readOnly={false}
                   />
                 </div>
               </div>
@@ -1257,6 +1381,8 @@ const SetupWizard = () => {
                   onChange={(e) =>
                     handleServerConfigChange("port", e.target.value)
                   }
+                  autoComplete="off"
+                  readOnly={false}
                 />
               </div>
 

@@ -180,46 +180,47 @@ export async function createDatabase(config: {
 }
 
 /**
- * Inizializza il database con le tabelle necessarie
- * @returns Promise<boolean> true se l'inizializzazione è riuscita, false altrimenti
+ * Crea una singola tabella nel database
+ * @param config Configurazione del database
+ * @param tableName Nome della tabella da creare
+ * @returns Promise<boolean> true se la creazione è riuscita, false altrimenti
  */
-export async function initializeDatabase(config: {
-  host: string;
-  port: string;
-  username: string;
-  password: string;
-  dbName: string;
-}): Promise<boolean> {
+export async function createTable(
+  config: {
+    host: string;
+    port: string;
+    username: string;
+    password: string;
+    dbName: string;
+  },
+  tableName: string,
+): Promise<boolean> {
   try {
-    // Prima crea il database se non esiste
-    const dbCreated = await createDatabase(config);
-    if (!dbCreated) {
-      throw new Error("Impossibile creare il database");
-    }
-
     // Verifica se siamo in Electron
     if (isRunningInElectron()) {
-      try {
-        // Connessione al database specifico
-        const connectResult = await electronAPI.connectDatabase({
-          host: config.host,
-          port: config.port,
-          username: config.username,
-          password: config.password,
-          dbName: config.dbName,
-        });
+      // Connessione al database specifico
+      const connectResult = await electronAPI.connectDatabase({
+        host: config.host,
+        port: config.port,
+        username: config.username,
+        password: config.password,
+        dbName: config.dbName,
+      });
 
-        if (!connectResult.success) {
-          console.error(
-            "Errore nella connessione al database specifico:",
-            connectResult.error,
-          );
-          return false;
-        }
+      if (!connectResult.success) {
+        console.error(
+          "Errore nella connessione al database specifico:",
+          connectResult.error,
+        );
+        return false;
+      }
 
-        // Usa l'API Electron per inizializzare il database
-        const createUsersTable = await electronAPI.executeQuery(
-          `CREATE TABLE IF NOT EXISTS users (
+      let query = "";
+
+      // Definisci la query in base al nome della tabella
+      switch (tableName) {
+        case "users":
+          query = `CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
             username VARCHAR(50) UNIQUE NOT NULL,
             password VARCHAR(100) NOT NULL,
@@ -228,21 +229,11 @@ export async function initializeDatabase(config: {
             role VARCHAR(20) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )`,
-          [],
-        );
+          )`;
+          break;
 
-        if (!createUsersTable.success) {
-          console.error(
-            "Errore nella creazione della tabella users:",
-            createUsersTable.error,
-          );
-          return false;
-        }
-
-        // Crea la tabella patients
-        const createPatientsTable = await electronAPI.executeQuery(
-          `CREATE TABLE IF NOT EXISTS patients (
+        case "patients":
+          query = `CREATE TABLE IF NOT EXISTS patients (
             id SERIAL PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
             codice_fiscale VARCHAR(16) UNIQUE NOT NULL,
@@ -261,21 +252,11 @@ export async function initializeDatabase(config: {
             marketing_consent BOOLEAN NOT NULL DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )`,
-          [],
-        );
+          )`;
+          break;
 
-        if (!createPatientsTable.success) {
-          console.error(
-            "Errore nella creazione della tabella patients:",
-            createPatientsTable.error,
-          );
-          return false;
-        }
-
-        // Crea la tabella appointments
-        const createAppointmentsTable = await electronAPI.executeQuery(
-          `CREATE TABLE IF NOT EXISTS appointments (
+        case "appointments":
+          query = `CREATE TABLE IF NOT EXISTS appointments (
             id SERIAL PRIMARY KEY,
             patient_id INTEGER NOT NULL,
             date DATE NOT NULL,
@@ -289,21 +270,11 @@ export async function initializeDatabase(config: {
             whatsapp_notification_time TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )`,
-          [],
-        );
+          )`;
+          break;
 
-        if (!createAppointmentsTable.success) {
-          console.error(
-            "Errore nella creazione della tabella appointments:",
-            createAppointmentsTable.error,
-          );
-          return false;
-        }
-
-        // Crea la tabella license
-        const createLicenseTable = await electronAPI.executeQuery(
-          `CREATE TABLE IF NOT EXISTS license (
+        case "license":
+          query = `CREATE TABLE IF NOT EXISTS license (
             id SERIAL PRIMARY KEY,
             license_key VARCHAR(100) UNIQUE NOT NULL,
             license_type VARCHAR(20) NOT NULL,
@@ -312,54 +283,45 @@ export async function initializeDatabase(config: {
             whatsapp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )`,
-          [],
-        );
+          )`;
+          break;
 
-        if (!createLicenseTable.success) {
-          console.error(
-            "Errore nella creazione della tabella license:",
-            createLicenseTable.error,
-          );
-          return false;
-        }
-
-        // Crea la tabella configurations
-        const createConfigurationsTable = await electronAPI.executeQuery(
-          `CREATE TABLE IF NOT EXISTS configurations (
+        case "configurations":
+          query = `CREATE TABLE IF NOT EXISTS configurations (
             id SERIAL PRIMARY KEY,
             key VARCHAR(50) UNIQUE NOT NULL,
             value TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )`,
-          [],
-        );
+          )`;
+          break;
 
-        if (!createConfigurationsTable.success) {
-          console.error(
-            "Errore nella creazione della tabella configurations:",
-            createConfigurationsTable.error,
-          );
+        default:
+          console.error(`Tabella ${tableName} non riconosciuta`);
           return false;
-        }
+      }
 
-        return true;
-      } catch (error) {
+      // Esegui la query
+      const result = await electronAPI.executeQuery(query, []);
+
+      if (!result.success) {
         console.error(
-          "Errore durante l'inizializzazione del database con Electron API:",
-          error,
+          `Errore nella creazione della tabella ${tableName}:`,
+          result.error,
         );
         return false;
       }
+
+      return true;
     }
 
     // Simulazione di successo in ambiente non-Electron per test
     if (!isRunningInElectron()) {
-      console.log("Simulazione: Tabelle create con successo");
+      console.log(`Simulazione: Tabella ${tableName} creata con successo`);
       return true;
     }
 
+    // Implementazione diretta con pg
     const port = parseInt(config.port);
     const { Client } = await import("pg");
     const client = new Client({
@@ -373,86 +335,141 @@ export async function initializeDatabase(config: {
 
     await client.connect();
 
-    // Crea le tabelle necessarie
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(50) UNIQUE NOT NULL,
-        password VARCHAR(100) NOT NULL,
-        full_name VARCHAR(100) NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        role VARCHAR(20) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    let query = "";
 
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS patients (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        codice_fiscale VARCHAR(16) UNIQUE NOT NULL,
-        date_of_birth DATE NOT NULL,
-        gender VARCHAR(10) NOT NULL,
-        email VARCHAR(100),
-        phone VARCHAR(20) NOT NULL,
-        address TEXT,
-        city VARCHAR(50),
-        postal_code VARCHAR(10),
-        medical_history TEXT,
-        allergies TEXT,
-        medications TEXT,
-        notes TEXT,
-        privacy_consent BOOLEAN NOT NULL DEFAULT FALSE,
-        marketing_consent BOOLEAN NOT NULL DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    // Definisci la query in base al nome della tabella
+    switch (tableName) {
+      case "users":
+        query = `CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          username VARCHAR(50) UNIQUE NOT NULL,
+          password VARCHAR(100) NOT NULL,
+          full_name VARCHAR(100) NOT NULL,
+          email VARCHAR(100) UNIQUE NOT NULL,
+          role VARCHAR(20) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`;
+        break;
 
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS appointments (
-        id SERIAL PRIMARY KEY,
-        patient_id INTEGER NOT NULL,
-        date DATE NOT NULL,
-        time TIME NOT NULL,
-        duration INTEGER NOT NULL,
-        appointment_type VARCHAR(50) NOT NULL,
-        notes TEXT,
-        google_calendar_synced BOOLEAN NOT NULL DEFAULT FALSE,
-        google_event_id VARCHAR(100),
-        whatsapp_notification_sent BOOLEAN NOT NULL DEFAULT FALSE,
-        whatsapp_notification_time TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+      case "patients":
+        query = `CREATE TABLE IF NOT EXISTS patients (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          codice_fiscale VARCHAR(16) UNIQUE NOT NULL,
+          date_of_birth DATE NOT NULL,
+          gender VARCHAR(10) NOT NULL,
+          email VARCHAR(100),
+          phone VARCHAR(20) NOT NULL,
+          address TEXT,
+          city VARCHAR(50),
+          postal_code VARCHAR(10),
+          medical_history TEXT,
+          allergies TEXT,
+          medications TEXT,
+          notes TEXT,
+          privacy_consent BOOLEAN NOT NULL DEFAULT FALSE,
+          marketing_consent BOOLEAN NOT NULL DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`;
+        break;
 
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS license (
-        id SERIAL PRIMARY KEY,
-        license_key VARCHAR(100) UNIQUE NOT NULL,
-        license_type VARCHAR(20) NOT NULL,
-        expiry_date DATE NOT NULL,
-        google_calendar_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-        whatsapp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+      case "appointments":
+        query = `CREATE TABLE IF NOT EXISTS appointments (
+          id SERIAL PRIMARY KEY,
+          patient_id INTEGER NOT NULL,
+          date DATE NOT NULL,
+          time TIME NOT NULL,
+          duration INTEGER NOT NULL,
+          appointment_type VARCHAR(50) NOT NULL,
+          notes TEXT,
+          google_calendar_synced BOOLEAN NOT NULL DEFAULT FALSE,
+          google_event_id VARCHAR(100),
+          whatsapp_notification_sent BOOLEAN NOT NULL DEFAULT FALSE,
+          whatsapp_notification_time TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`;
+        break;
 
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS configurations (
-        id SERIAL PRIMARY KEY,
-        key VARCHAR(50) UNIQUE NOT NULL,
-        value TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+      case "license":
+        query = `CREATE TABLE IF NOT EXISTS license (
+          id SERIAL PRIMARY KEY,
+          license_key VARCHAR(100) UNIQUE NOT NULL,
+          license_type VARCHAR(20) NOT NULL,
+          expiry_date DATE NOT NULL,
+          google_calendar_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+          whatsapp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`;
+        break;
 
+      case "configurations":
+        query = `CREATE TABLE IF NOT EXISTS configurations (
+          id SERIAL PRIMARY KEY,
+          key VARCHAR(50) UNIQUE NOT NULL,
+          value TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`;
+        break;
+
+      default:
+        console.error(`Tabella ${tableName} non riconosciuta`);
+        return false;
+    }
+
+    await client.query(query);
     await client.end();
     return true;
+  } catch (error) {
+    console.error(
+      `Errore durante la creazione della tabella ${tableName}:`,
+      error,
+    );
+    return false;
+  }
+}
+
+/**
+ * Inizializza il database con le tabelle necessarie
+ * @returns Promise<boolean> true se l'inizializzazione è riuscita, false altrimenti
+ */
+export async function initializeDatabase(config: {
+  host: string;
+  port: string;
+  username: string;
+  password: string;
+  dbName: string;
+}): Promise<boolean> {
+  try {
+    // Prima crea il database se non esiste
+    const dbCreated = await createDatabase(config);
+    if (!dbCreated) {
+      throw new Error("Impossibile creare il database");
+    }
+
+    // Crea tutte le tabelle
+    const tables = [
+      "users",
+      "patients",
+      "appointments",
+      "license",
+      "configurations",
+    ];
+    let allTablesCreated = true;
+
+    for (const table of tables) {
+      const tableCreated = await createTable(config, table);
+      if (!tableCreated) {
+        console.error(`Errore nella creazione della tabella ${table}`);
+        allTablesCreated = false;
+      }
+    }
+
+    return allTablesCreated;
   } catch (error) {
     console.error("Errore durante l'inizializzazione del database:", error);
     return false;
