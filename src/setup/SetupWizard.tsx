@@ -598,7 +598,7 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
       // 2. Crea l'utente amministratore
       try {
         // In un'implementazione reale, qui creeremmo l'utente nel database
-        // Per ora, salviamo solo in localStorage
+        // Per ora, salviamo in localStorage e proviamo a salvare nel database
         localStorage.setItem(
           "adminUser",
           JSON.stringify({
@@ -608,6 +608,39 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
             role: "Medico",
           }),
         );
+
+        // Salva anche le credenziali per il login
+        localStorage.setItem("userName", adminUser.fullName);
+        localStorage.setItem("userRole", "Medico");
+
+        // Prova a salvare nel database
+        try {
+          const query = `INSERT INTO users (username, password, full_name, email, role) 
+                         VALUES ($1, $2, $3, $4, $5) RETURNING id`;
+          const params = [
+            adminUser.username,
+            adminUser.password, // In un'implementazione reale, qui useremmo bcrypt
+            adminUser.fullName,
+            adminUser.email,
+            "Medico",
+          ];
+
+          const result = await electronAPI.executeQuery(query, params);
+          if (result.success) {
+            console.log("Utente amministratore salvato nel database");
+          } else {
+            console.warn(
+              "Non è stato possibile salvare l'utente nel database:",
+              result.error,
+            );
+          }
+        } catch (dbError) {
+          console.warn(
+            "Errore nel salvataggio dell'utente nel database:",
+            dbError,
+          );
+          // Continuiamo comunque con il setup
+        }
 
         console.log("Utente amministratore creato con successo");
       } catch (userError) {
@@ -654,7 +687,9 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
       localStorage.setItem("setupCompleted", "true");
 
       // Mostra un messaggio di successo
-      alert("Setup completato con successo! L'applicazione verrà riavviata.");
+      alert(
+        "Setup completato con successo! Verrai reindirizzato alla pagina di login.",
+      );
 
       // Reindirizza alla pagina di login
       navigate("/");
@@ -914,32 +949,77 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="admin-password">Password</Label>
-                <Input
-                  id="admin-password"
-                  type="password"
-                  value={adminUser.password}
-                  onChange={(e) =>
-                    handleAdminUserChange("password", e.target.value)
-                  }
-                  autoComplete="new-password"
-                  readOnly={false}
-                />
+                <div className="relative">
+                  <Input
+                    id="admin-password"
+                    type={showPassword ? "text" : "password"}
+                    value={adminUser.password}
+                    onChange={(e) =>
+                      handleAdminUserChange("password", e.target.value)
+                    }
+                    autoComplete="new-password"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-eye-off"
+                      >
+                        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                        <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                        <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                        <line x1="2" x2="22" y1="2" y2="22" />
+                      </svg>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-eye"
+                      >
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="admin-confirm-password">
                   Conferma Password
                 </Label>
-                <Input
-                  id="admin-confirm-password"
-                  type="password"
-                  value={adminUser.confirmPassword}
-                  onChange={(e) =>
-                    handleAdminUserChange("confirmPassword", e.target.value)
-                  }
-                  autoComplete="new-password"
-                  readOnly={false}
-                />
+                <div className="relative">
+                  <Input
+                    id="admin-confirm-password"
+                    type={showPassword ? "text" : "password"}
+                    value={adminUser.confirmPassword}
+                    onChange={(e) =>
+                      handleAdminUserChange("confirmPassword", e.target.value)
+                    }
+                    autoComplete="new-password"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
