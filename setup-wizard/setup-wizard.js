@@ -93,6 +93,63 @@ function verifyLicenseKey(licenseKey) {
 }
 
 /**
+ * Verifica la validità di una chiave di licenza
+ * @param licenseKey Chiave di licenza da verificare
+ * @returns Oggetto con informazioni sulla validità della licenza
+ */
+function verifyLicenseKey(licenseKey) {
+  try {
+    // Verifica il formato della licenza
+    const parts = licenseKey.split("-");
+    if (parts.length < 4) {
+      return { valid: false, error: "Formato licenza non valido" };
+    }
+
+    // Estrai le parti della licenza
+    const type = parts[0].toLowerCase();
+    const expiryCode = parts[2];
+    const providedChecksum = parts[3];
+
+    // Ricostruisci la base della licenza per verificare il checksum
+    const licenseBase = `${parts[0]}-${parts[1]}-${parts[2]}`;
+    const expectedChecksum = generateChecksum(licenseBase + LICENSE_SECRET);
+
+    // Verifica il checksum
+    if (providedChecksum !== expectedChecksum) {
+      return { valid: false, error: "Checksum non valido" };
+    }
+
+    // Verifica il tipo di licenza
+    if (!["basic", "google", "whatsapp", "full"].includes(type)) {
+      return { valid: false, error: "Tipo di licenza non valido" };
+    }
+
+    // Decodifica la data di scadenza
+    const expiryTimestamp = parseInt(expiryCode, 36);
+    const expiryDate = new Date(expiryTimestamp);
+
+    // Verifica se la licenza è scaduta
+    if (expiryDate < new Date()) {
+      return {
+        valid: false,
+        licenseType: type,
+        expiryDate,
+        error: "Licenza scaduta",
+      };
+    }
+
+    // Licenza valida
+    return {
+      valid: true,
+      licenseType: type,
+      expiryDate,
+    };
+  } catch (error) {
+    return { valid: false, error: "Errore durante la verifica della licenza" };
+  }
+}
+
+/**
  * Alias per compatibilità
  */
 function verifyLicenseKeyInternal(licenseKey) {
