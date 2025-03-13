@@ -218,16 +218,34 @@ export async function createTable(
   );
   try {
     // Save the database configuration to localStorage to ensure it's available
-    localStorage.setItem(
-      "dbConfig",
-      JSON.stringify({
-        host: config.host,
-        port: config.port,
-        username: config.username,
-        password: config.password || "",
-        dbName: config.dbName,
-      }),
-    );
+    try {
+      localStorage.setItem(
+        "dbConfig",
+        JSON.stringify({
+          host: config.host,
+          port: config.port,
+          username: config.username,
+          password: config.password || "",
+          dbName: config.dbName,
+        }),
+      );
+
+      // Also save to window object for immediate access
+      if (typeof window !== "undefined") {
+        window.dbConfigTemp = {
+          host: config.host,
+          port: config.port,
+          username: config.username,
+          password: config.password || "",
+          dbName: config.dbName,
+        };
+      }
+    } catch (storageError) {
+      console.warn(
+        "Could not save database config to localStorage:",
+        storageError,
+      );
+    }
 
     // Check if we're in Electron
     if (isRunningInElectron()) {
@@ -339,15 +357,23 @@ export async function createTable(
       console.log(query);
 
       // Execute query
-      const result = await electronAPI.executeQuery(query, []);
+      try {
+        const result = await electronAPI.executeQuery(query, []);
 
-      if (!result.success) {
-        console.error(`Error creating table ${tableName}:`, result.error);
+        if (!result.success) {
+          console.error(`Error creating table ${tableName}:`, result.error);
+          return false;
+        }
+
+        console.log(`Table ${tableName} created successfully`);
+        return true;
+      } catch (queryError) {
+        console.error(
+          `Error executing query for table ${tableName}:`,
+          queryError,
+        );
         return false;
       }
-
-      console.log(`Table ${tableName} created successfully`);
-      return true;
     }
 
     // Simulation for non-Electron environment for testing

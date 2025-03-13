@@ -249,25 +249,28 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
       );
 
       // Save the database configuration to localStorage before connecting
-      localStorage.setItem(
-        "dbConfig",
-        JSON.stringify({
+      try {
+        const configToSave = {
           host: dbConfig.host,
           port: dbConfig.port,
           username: dbConfig.username,
           password: dbConfig.password || "",
           dbName: dbConfig.dbName,
-        }),
-      );
+        };
 
-      // Also save it to window object for immediate access
-      window.dbConfigTemp = {
-        host: dbConfig.host,
-        port: dbConfig.port,
-        username: dbConfig.username,
-        password: dbConfig.password || "",
-        dbName: dbConfig.dbName,
-      };
+        localStorage.setItem("dbConfig", JSON.stringify(configToSave));
+
+        // Also save it to window object for immediate access
+        window.dbConfigTemp = configToSave;
+
+        // Log successful configuration save
+        console.log("Database configuration saved successfully", configToSave);
+      } catch (storageError) {
+        console.error("Error saving database configuration:", storageError);
+        addConnectionLog(
+          `Errore nel salvataggio della configurazione: ${storageError.message}`,
+        );
+      }
 
       // Usa l'API Electron per testare la connessione
       const result = await electronAPI.connectDatabase({

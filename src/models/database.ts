@@ -314,36 +314,45 @@ class Database {
   }
 
   private getDbConfig() {
-    // First check if we have a temporary config in the window object
-    if (window.dbConfigTemp) {
-      console.log("Using database configuration from window object:", {
-        host: window.dbConfigTemp.host,
-        port: window.dbConfigTemp.port,
-        username: window.dbConfigTemp.username,
-        dbName: window.dbConfigTemp.dbName,
-      });
-      return window.dbConfigTemp;
-    }
-
-    // Then check localStorage
-    const storedConfig = localStorage.getItem("dbConfig");
-    if (storedConfig) {
-      try {
-        const config = JSON.parse(storedConfig);
-        console.log("Using database configuration from localStorage:", {
-          host: config.host,
-          port: config.port,
-          username: config.username,
-          dbName: config.dbName,
+    try {
+      // First check if we have a temporary config in the window object
+      if (typeof window !== "undefined" && window.dbConfigTemp) {
+        console.log("Using database configuration from window object:", {
+          host: window.dbConfigTemp.host,
+          port: window.dbConfigTemp.port,
+          username: window.dbConfigTemp.username,
+          dbName: window.dbConfigTemp.dbName,
         });
-        return config;
-      } catch (error) {
-        console.error("Error parsing stored database configuration:", error);
+        return window.dbConfigTemp;
       }
-    } else {
-      console.warn(
-        "No database configuration found in localStorage, using defaults",
-      );
+
+      // Then check localStorage
+      if (typeof localStorage !== "undefined") {
+        const storedConfig = localStorage.getItem("dbConfig");
+        if (storedConfig) {
+          try {
+            const config = JSON.parse(storedConfig);
+            console.log("Using database configuration from localStorage:", {
+              host: config.host,
+              port: config.port,
+              username: config.username,
+              dbName: config.dbName,
+            });
+            return config;
+          } catch (error) {
+            console.error(
+              "Error parsing stored database configuration:",
+              error,
+            );
+          }
+        } else {
+          console.warn(
+            "No database configuration found in localStorage, using defaults",
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error accessing window or localStorage:", error);
     }
 
     // Default values
@@ -356,7 +365,7 @@ class Database {
     };
 
     // Save default config to localStorage if no config exists
-    if (!storedConfig) {
+    if (typeof localStorage !== "undefined") {
       try {
         localStorage.setItem("dbConfig", JSON.stringify(defaultConfig));
         console.log("Saved default database configuration to localStorage");
