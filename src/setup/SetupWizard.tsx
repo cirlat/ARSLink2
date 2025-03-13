@@ -1072,3 +1072,350 @@ const SetupWizard = () => {
               )}
             </CardContent>
           </Card>
+        );
+
+      case 5:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <MessageSquare className="mr-2 h-5 w-5" />
+                Configurazione WhatsApp
+              </CardTitle>
+              <CardDescription>
+                {isLicenseWithWhatsApp()
+                  ? "Configura l'integrazione con WhatsApp per le notifiche"
+                  : "Questa funzionalità non è disponibile con la licenza selezionata"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLicenseWithWhatsApp() ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="whatsapp-enabled">Abilita WhatsApp</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Attiva l'integrazione con WhatsApp per le notifiche
+                      </p>
+                    </div>
+                    <Switch
+                      id="whatsapp-enabled"
+                      checked={whatsappConfig.enabled}
+                      onCheckedChange={(checked) =>
+                        handleWhatsappConfigChange("enabled", checked)
+                      }
+                    />
+                  </div>
+
+                  {whatsappConfig.enabled && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="browser-path">Percorso Browser</Label>
+                        <Input
+                          id="browser-path"
+                          value={whatsappConfig.browserPath}
+                          onChange={(e) =>
+                            handleWhatsappConfigChange(
+                              "browserPath",
+                              e.target.value
+                            )
+                          }
+                          placeholder="C:\Program Files\Google\Chrome\Application\chrome.exe"
+                          autoComplete="off"
+                          readOnly={false}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Percorso completo dell'eseguibile del browser Chrome
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="data-path">Percorso Dati</Label>
+                        <Input
+                          id="data-path"
+                          value={whatsappConfig.dataPath}
+                          onChange={(e) =>
+                            handleWhatsappConfigChange(
+                              "dataPath",
+                              e.target.value
+                            )
+                          }
+                          placeholder="C:\ProgramData\PatientAppointmentSystem\WhatsApp"
+                          autoComplete="off"
+                          readOnly={false}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Cartella dove salvare i dati della sessione WhatsApp
+                        </p>
+                      </div>
+
+                      <div className="pt-4 space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                          Note sull'integrazione WhatsApp:
+                        </p>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                          <li>Richiede Chrome installato sul sistema</li>
+                          <li>Utilizza Selenium per automatizzare WhatsApp Web</li>
+                          <li>Necessita di scansione QR code al primo avvio</li>
+                          <li>Non invia messaggi a numeri non salvati</li>
+                        </ul>
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="p-6 text-center text-muted-foreground">
+                  <MessageSquare className="h-10 w-10 mx-auto mb-4 opacity-30" />
+                  <p>L'integrazione con WhatsApp non è disponibile con la licenza attuale.</p>
+                  <p className="text-sm mt-2">Aggiorna la tua licenza per sbloccare questa funzionalità.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+
+      case 6:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Server className="mr-2 h-5 w-5" />
+                Configurazione Server
+              </CardTitle>
+              <CardDescription>
+                Configura le impostazioni del server dell'applicazione
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="server-port">Porta Server</Label>
+                <Input
+                  id="server-port"
+                  value={serverConfig.port}
+                  onChange={(e) =>
+                    handleServerConfigChange("port", e.target.value)
+                  }
+                  placeholder="3000"
+                  autoComplete="off"
+                  readOnly={false}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Porta su cui il server dell'applicazione sarà in ascolto
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="auto-start">Avvio Automatico</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Avvia automaticamente il server all'apertura dell'applicazione
+                  </p>
+                </div>
+                <Switch
+                  id="auto-start"
+                  checked={serverConfig.autoStart}
+                  onCheckedChange={(checked) =>
+                    handleServerConfigChange("autoStart", checked)
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="start-with-windows">Avvio con Windows</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Avvia l'applicazione all'avvio di Windows
+                  </p>
+                </div>
+                <Switch
+                  id="start-with-windows"
+                  checked={serverConfig.startWithWindows}
+                  onCheckedChange={(checked) =>
+                    handleServerConfigChange("startWithWindows", checked)
+                  }
+                />
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case 7:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Database className="mr-2 h-5 w-5" />
+                Configurazione Backup
+              </CardTitle>
+              <CardDescription>
+                Configura le impostazioni di backup automatico
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="backup-path">Percorso Backup</Label>
+                <Input
+                  id="backup-path"
+                  value={backupConfig.backupPath}
+                  onChange={(e) =>
+                    handleBackupConfigChange("backupPath", e.target.value)
+                  }
+                  placeholder="C:\ProgramData\PatientAppointmentSystem\Backups"
+                  autoComplete="off"
+                  readOnly={false}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Cartella dove salvare i backup del database
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="auto-backup">Backup Automatico</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Esegui backup automatici del database
+                  </p>
+                </div>
+                <Switch
+                  id="auto-backup"
+                  checked={backupConfig.autoBackup}
+                  onCheckedChange={(checked) =>
+                    handleBackupConfigChange("autoBackup", checked)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="backup-frequency">Frequenza Backup</Label>
+                <RadioGroup
+                  value={backupConfig.backupFrequency}
+                  onValueChange={(value) =>
+                    handleBackupConfigChange("backupFrequency", value)
+                  }
+                  disabled={!backupConfig.autoBackup}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="daily" id="daily" />
+                    <Label htmlFor="daily">Giornaliera</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="weekly" id="weekly" />
+                    <Label htmlFor="weekly">Settimanale</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="monthly" id="monthly" />
+                    <Label htmlFor="monthly">Mensile</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case 8:
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Settings className="mr-2 h-5 w-5" />
+                Impostazioni Generali
+              </CardTitle>
+              <CardDescription>
+                Configura le impostazioni generali dell'applicazione
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="clinic-name">Nome Studio Medico</Label>
+                <Input
+                  id="clinic-name"
+                  value={generalSettings.clinicName}
+                  onChange={(e) =>
+                    handleGeneralSettingsChange("clinicName", e.target.value)
+                  }
+                  placeholder="Studio Medico Dr. Rossi"
+                  autoComplete="off"
+                  readOnly={false}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="clinic-address">Indirizzo</Label>
+                <Input
+                  id="clinic-address"
+                  value={generalSettings.address}
+                  onChange={(e) =>
+                    handleGeneralSettingsChange("address", e.target.value)
+                  }
+                  placeholder="Via Roma 123, 00100 Roma"
+                  autoComplete="off"
+                  readOnly={false}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="clinic-email">Email</Label>
+                  <Input
+                    id="clinic-email"
+                    value={generalSettings.email}
+                    onChange={(e) =>
+                      handleGeneralSettingsChange("email", e.target.value)
+                    }
+                    placeholder="info@studiomedico.it"
+                    autoComplete="off"
+                    readOnly={false}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="clinic-phone">Telefono</Label>
+                  <Input
+                    id="clinic-phone"
+                    value={generalSettings.phone}
+                    onChange={(e) =>
+                      handleGeneralSettingsChange("phone", e.target.value)
+                    }
+                    placeholder="+39 06 12345678"
+                    autoComplete="off"
+                    readOnly={false}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="dark-mode">Modalità Scura</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Attiva la modalità scura per l'interfaccia
+                  </p>
+                </div>
+                <Switch
+                  id="dark-mode"
+                  checked={generalSettings.darkMode}
+                  onCheckedChange={(checked) =>
+                    handleGeneralSettingsChange("darkMode", checked)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="language">Lingua</Label>
+                <Select
+                  value={generalSettings.language}
+                  onValueChange={(value) =>
+                    handleGeneralSettingsChange("language", value)
+                  }
+                >
+                  <SelectTrigger id="language">
+                    <SelectValue placeholder="Seleziona lingua" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="it">Italiano</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        );
