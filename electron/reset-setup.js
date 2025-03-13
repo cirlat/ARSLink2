@@ -33,11 +33,28 @@ function resetSetup() {
 
 // Se eseguito direttamente
 if (require.main === module) {
+  console.log("Avvio dello script di reset...");
+
   // Inizializza l'app Electron senza aprire finestre
-  app.whenReady().then(() => {
-    resetSetup();
-    app.quit();
-  });
+  app
+    .whenReady()
+    .then(() => {
+      console.log("Electron app pronta, esecuzione reset...");
+      const result = resetSetup();
+      console.log("Reset completato con risultato:", result);
+      console.log("Chiusura dell'applicazione...");
+      app.exit(0); // Forza l'uscita con codice 0 (successo)
+    })
+    .catch((err) => {
+      console.error("Errore durante l'inizializzazione di Electron:", err);
+      process.exit(1); // Esce con codice di errore
+    });
+
+  // Aggiungi un timeout di sicurezza
+  setTimeout(() => {
+    console.log("Timeout di sicurezza raggiunto, uscita forzata.");
+    process.exit(0);
+  }, 5000); // 5 secondi
 }
 
 module.exports = { resetSetup };
