@@ -86,7 +86,7 @@ ipcMain.handle("connect-database", async (event, config) => {
         host: config.host,
         port: parseInt(config.port),
         user: config.username,
-        password: config.password || "", // Ensure password is always a string
+        password: typeof config.password === "string" ? config.password : "", // Ensure password is always a string
         database: "postgres",
         ssl: false,
         connectionTimeoutMillis: 5000,
@@ -161,7 +161,7 @@ ipcMain.handle("execute-query", async (event, { query, params }) => {
       host: dbConfig.host,
       port: parseInt(dbConfig.port),
       user: dbConfig.username,
-      password: dbConfig.password || "", // Ensure password is always a string
+      password: typeof dbConfig.password === "string" ? dbConfig.password : "", // Ensure password is always a string
       database: dbConfig.dbName,
       ssl: false,
     });

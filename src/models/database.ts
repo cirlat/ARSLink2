@@ -60,7 +60,8 @@ class Database {
           host: dbConfig.host,
           port: parseInt(dbConfig.port),
           user: dbConfig.username,
-          password: dbConfig.password || "", // Ensure password is always a string
+          password:
+            typeof dbConfig.password === "string" ? dbConfig.password : "", // Ensure password is always a string
           database: dbConfig.dbName,
           ssl: false,
           // 5 second connection timeout
@@ -96,7 +97,8 @@ class Database {
               host: dbConfig.host,
               port: dbConfig.port,
               username: dbConfig.username,
-              password: dbConfig.password || "", // Ensure password is always a string
+              password:
+                typeof dbConfig.password === "string" ? dbConfig.password : "", // Ensure password is always a string
               dbName: dbConfig.dbName,
             });
             if (result.success) {
@@ -389,7 +391,8 @@ class Database {
           host: dbConfig.host,
           port: port,
           user: dbConfig.username,
-          password: dbConfig.password || "", // Ensure password is always a string
+          password:
+            typeof dbConfig.password === "string" ? dbConfig.password : "", // Ensure password is always a string
           database: dbConfig.dbName,
           ssl: false,
         });

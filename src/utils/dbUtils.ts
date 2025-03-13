@@ -31,7 +31,7 @@ export async function testDatabaseConnection(config: {
         host: config.host,
         port: config.port,
         username: config.username,
-        password: config.password || "", // Ensure password is always a string
+        password: typeof config.password === "string" ? config.password : "", // Ensure password is always a string
         dbName: config.dbName,
       });
       if (!result.success) {
@@ -65,7 +65,7 @@ export async function testDatabaseConnection(config: {
       host: config.host,
       port: config.port,
       username: config.username,
-      password: config.password || "", // Ensure password is always a string
+      password: typeof config.password === "string" ? config.password : "", // Ensure password is always a string
       dbName: config.dbName,
     });
     if (!result.success) {
@@ -106,7 +106,7 @@ export async function createDatabase(config: {
           host: config.host,
           port: config.port,
           username: config.username,
-          password: config.password || "", // Ensure password is always a string
+          password: typeof config.password === "string" ? config.password : "", // Ensure password is always a string
           dbName: "postgres", // Use system database
         });
 
@@ -166,7 +166,7 @@ export async function createDatabase(config: {
       host: config.host,
       port: port,
       user: config.username,
-      password: config.password || "", // Ensure password is always a string
+      password: typeof config.password === "string" ? config.password : "", // Ensure password is always a string
       database: "postgres", // Connect to system postgres database
       ssl: false,
     });
@@ -225,7 +225,7 @@ export async function createTable(
         host: config.host,
         port: config.port,
         username: config.username,
-        password: config.password || "", // Ensure password is always a string
+        password: typeof config.password === "string" ? config.password : "", // Ensure password is always a string
         dbName: config.dbName,
       });
 
@@ -351,7 +351,7 @@ export async function createTable(
       host: config.host,
       port: port,
       user: config.username,
-      password: config.password || "", // Ensure password is always a string
+      password: typeof config.password === "string" ? config.password : "", // Ensure password is always a string
       database: config.dbName,
       ssl: false,
     });
@@ -603,7 +603,10 @@ export async function backupDatabase(path: string): Promise<boolean> {
       const command = `pg_dump -h ${host} -p ${port} -U ${username} -F c -b -v -f "${fullBackupPath}" "${dbName}"`;
 
       // Set PGPASSWORD environment variable to avoid password prompt
-      const env = { ...process.env, PGPASSWORD: password || "" }; // Ensure password is always a string
+      const env = {
+        ...process.env,
+        PGPASSWORD: typeof password === "string" ? password : "",
+      }; // Ensure password is always a string
 
       await execPromise(command, { env });
 
