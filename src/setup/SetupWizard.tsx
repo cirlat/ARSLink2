@@ -418,8 +418,10 @@ const SetupWizard = () => {
         }
 
         // Aggiorna il messaggio
-        dbInitMessage.querySelector("p").textContent =
-          "Creazione tabelle in corso...";
+        const messageElement = dbInitMessage.querySelector("p");
+        if (messageElement) {
+          messageElement.textContent = "Creazione tabelle in corso...";
+        }
 
         // Inizializza il database con le tabelle necessarie
         const initResult = await initializeDatabase(dbConfig);

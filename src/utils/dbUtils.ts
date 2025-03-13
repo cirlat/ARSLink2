@@ -82,12 +82,58 @@ export async function createDatabase(config: {
   try {
     // Verifica se siamo in Electron
     if (isRunningInElectron()) {
-      // Connessione al server PostgreSQL senza specificare un database
-      const result = await electronAPI.executeQuery(
-        `CREATE DATABASE ${config.dbName}`,
-        [],
-      );
-      return result.success;
+      try {
+        // Prima connettiti al database postgres (database di sistema)
+        const connectResult = await electronAPI.connectDatabase({
+          host: config.host,
+          port: config.port,
+          username: config.username,
+          password: config.password,
+          dbName: "postgres", // Usa il database di sistema
+        });
+
+        if (!connectResult.success) {
+          console.error(
+            "Errore nella connessione al database postgres:",
+            connectResult.error,
+          );
+          return false;
+        }
+
+        // Verifica se il database esiste già
+        const checkResult = await electronAPI.executeQuery(
+          "SELECT 1 FROM pg_database WHERE datname = $1",
+          [config.dbName],
+        );
+
+        // Se il database non esiste, crealo
+        if (!checkResult.success || checkResult.rows.length === 0) {
+          const createResult = await electronAPI.executeQuery(
+            `CREATE DATABASE ${config.dbName}`,
+            [],
+          );
+
+          if (createResult.success) {
+            console.log(`Database ${config.dbName} creato con successo`);
+            return true;
+          } else {
+            console.error(
+              "Errore nella creazione del database:",
+              createResult.error,
+            );
+            return false;
+          }
+        } else {
+          console.log(`Il database ${config.dbName} esiste già`);
+          return true;
+        }
+      } catch (electronError) {
+        console.error(
+          "Errore durante l'operazione con Electron API:",
+          electronError,
+        );
+        return false;
+      }
     }
 
     const port = parseInt(config.port);
