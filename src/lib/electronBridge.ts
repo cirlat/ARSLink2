@@ -4,7 +4,9 @@ import type { ElectronAPI, DatabaseConfig } from "../types/electron";
 // Verifica se l'API Electron è disponibile
 const isElectron = (): boolean => {
   return (
-    typeof window !== "undefined" && typeof window.electronAPI !== "undefined"
+    typeof window !== "undefined" &&
+    typeof window.electronAPI !== "undefined" &&
+    Object.keys(window.electronAPI).length > 0
   );
 };
 

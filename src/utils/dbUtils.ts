@@ -249,6 +249,34 @@ export async function createTable(
 
     // Check if we're in Electron
     if (isRunningInElectron()) {
+      // First save the database configuration
+      console.log("Saving database configuration before connecting");
+      try {
+        const saveResult = await electronAPI.saveDbConfig({
+          host: config.host,
+          port: config.port,
+          username: config.username,
+          password: config.password || "",
+          dbName: config.dbName,
+        });
+
+        if (saveResult.success) {
+          console.log(
+            "Database configuration saved successfully before connection",
+          );
+        } else {
+          console.warn(
+            "Failed to save database configuration before connection",
+            saveResult.error,
+          );
+        }
+      } catch (saveError) {
+        console.warn(
+          "Error saving database configuration before connection:",
+          saveError,
+        );
+      }
+
       // Connect to specific database
       console.log(`Connecting to database ${config.dbName}`);
       const connectResult = await electronAPI.connectDatabase({
@@ -356,9 +384,10 @@ export async function createTable(
       console.log(`Executing query to create table ${tableName}`);
       console.log(query);
 
-      // First, save the database configuration to Electron's storage if the function exists
+      // First, save the database configuration to Electron's storage if in Electron environment
       try {
-        if (typeof electronAPI.saveDbConfig === "function") {
+        if (isRunningInElectron()) {
+          console.log("Saving database configuration to Electron");
           const saveResult = await electronAPI.saveDbConfig({
             host: config.host,
             port: config.port,
@@ -378,9 +407,7 @@ export async function createTable(
             );
           }
         } else {
-          console.log(
-            "saveDbConfig function not available in this environment, skipping",
-          );
+          console.log("Not in Electron environment, skipping saveDbConfig");
         }
       } catch (saveError) {
         console.error(

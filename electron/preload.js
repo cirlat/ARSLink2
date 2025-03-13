@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   connectDatabase: (config) => ipcRenderer.invoke("connect-database", config),
   executeQuery: (query, params) =>
     ipcRenderer.invoke("execute-query", { query, params }),
+  saveDbConfig: (config) => ipcRenderer.invoke("save-db-config", config),
 
   // Backup and restore
   backupDatabase: (path) => ipcRenderer.invoke("backup-database", path),

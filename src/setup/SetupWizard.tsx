@@ -269,28 +269,29 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
         // Save to Electron's storage if in Electron environment
         if (isRunningInElectron()) {
           try {
-            if (typeof electronAPI.saveDbConfig === "function") {
-              const saveResult = await electronAPI.saveDbConfig(configToSave);
-              if (saveResult.success) {
-                addConnectionLog(
-                  "Configurazione salvata nel processo principale di Electron",
-                );
-              } else {
-                addConnectionLog(
-                  `Errore nel salvataggio in Electron: ${saveResult.error}`,
-                );
-              }
+            addConnectionLog(
+              "Tentativo di salvataggio configurazione in Electron...",
+            );
+            const saveResult = await electronAPI.saveDbConfig(configToSave);
+            if (saveResult.success) {
+              addConnectionLog(
+                "Configurazione salvata nel processo principale di Electron",
+              );
             } else {
               addConnectionLog(
-                "Funzione saveDbConfig non disponibile, configurazione salvata solo in localStorage",
+                `Errore nel salvataggio in Electron: ${saveResult.error || "Errore sconosciuto"}`,
               );
             }
           } catch (electronError) {
             console.error("Error saving to Electron:", electronError);
             addConnectionLog(
-              `Errore nel salvataggio in Electron: ${electronError.message}`,
+              `Errore nel salvataggio in Electron: ${electronError.message || "Errore sconosciuto"}`,
             );
           }
+        } else {
+          addConnectionLog(
+            "Non in ambiente Electron, configurazione salvata solo in localStorage",
+          );
         }
 
         // Log successful configuration save
@@ -298,8 +299,15 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
       } catch (storageError) {
         console.error("Error saving database configuration:", storageError);
         addConnectionLog(
-          `Errore nel salvataggio della configurazione: ${storageError.message}`,
+          `Errore nel salvataggio della configurazione: ${storageError.message || "Errore sconosciuto"}`,
         );
+      }
+
+      // Verifica se siamo in ambiente Electron
+      if (isRunningInElectron()) {
+        addConnectionLog("Ambiente Electron rilevato, utilizzo API nativa");
+      } else {
+        addConnectionLog("Ambiente browser rilevato, utilizzo simulazione");
       }
 
       // Usa l'API Electron per testare la connessione
