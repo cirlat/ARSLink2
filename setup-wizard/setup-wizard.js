@@ -149,12 +149,7 @@ function verifyLicenseKey(licenseKey) {
   }
 }
 
-/**
- * Alias per compatibilità
- */
-function verifyLicenseKeyInternal(licenseKey) {
-  return verifyLicenseKey(licenseKey);
-}
+// Rimosso alias non necessario
 
 /**
  * Genera un checksum semplice per la verifica della licenza
@@ -931,8 +926,8 @@ function nextStep() {
   } else if (currentStep === 3) {
     // Validazione per lo step della licenza
     if (licenseKey) {
-      // Verifica la licenza con la funzione interna
-      const verificationResult = verifyLicenseKeyInternal(licenseKey);
+      // Verifica la licenza
+      const verificationResult = verifyLicenseKey(licenseKey);
 
       if (!verificationResult.valid) {
         alert(
@@ -942,10 +937,10 @@ function nextStep() {
       }
 
       // Aggiorna il tipo di licenza rilevato
-      setDetectedLicenseType(verificationResult.licenseType || "basic");
+      detectedLicenseType = verificationResult.licenseType || "basic";
     } else {
       // Se non è stata inserita una licenza, imposta il tipo su basic
-      setDetectedLicenseType("basic");
+      detectedLicenseType = "basic";
     }
   }
 
@@ -1076,8 +1071,8 @@ function verifyLicense() {
   }
 
   try {
-    // Verifica la licenza con la funzione interna
-    const verificationResult = verifyLicenseKeyInternal(licenseKey);
+    // Verifica la licenza
+    const verificationResult = verifyLicenseKey(licenseKey);
 
     if (verificationResult.valid) {
       const expiryDate =
@@ -1093,12 +1088,12 @@ function verifyLicense() {
         licenseTypeNames[verificationResult.licenseType || "basic"];
 
       // Aggiorna il tipo di licenza rilevato
-      setDetectedLicenseType(verificationResult.licenseType || "basic");
+      detectedLicenseType = verificationResult.licenseType || "basic";
 
       alert(`Licenza valida! \nTipo: ${typeName} \nScadenza: ${expiryDate}`);
     } else {
       // Resetta il tipo di licenza rilevato se non valida
-      setDetectedLicenseType(null);
+      detectedLicenseType = null;
       alert(
         `Licenza non valida: ${verificationResult.error || "Formato non riconosciuto"}`,
       );
@@ -1124,14 +1119,15 @@ function completeSetup() {
 
     // Verifica la licenza se è stata inserita
     if (licenseKey) {
-      const verificationResult = verifyLicenseKeyInternal(licenseKey);
+      const verificationResult = verifyLicenseKey(licenseKey);
 
       if (!verificationResult.valid) {
         alert(
           `Licenza non valida: ${verificationResult.error || "Formato non riconosciuto"}`,
         );
-        setCurrentStep(3);
-        setProgress((3 / totalSteps) * 100);
+        currentStep = 3;
+        progress = (3 / totalSteps) * 100;
+        renderStep(currentStep);
         return;
       }
 
@@ -1147,11 +1143,11 @@ function completeSetup() {
       }
 
       // Aggiorna il tipo di licenza rilevato
-      setDetectedLicenseType(licenseType);
+      detectedLicenseType = licenseType;
     } else {
       // Licenza base di default
       localStorage.setItem("licenseType", "basic");
-      setDetectedLicenseType("basic");
+      detectedLicenseType = "basic";
     }
 
     // Mostra un messaggio di caricamento
