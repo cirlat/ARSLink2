@@ -40,7 +40,7 @@ const LICENSE_SECRET = "ARSLink2-SecretKey-2024";
  * @param licenseKey Chiave di licenza da verificare
  * @returns Oggetto con informazioni sulla validità della licenza
  */
-function verifyLicenseKeyInternal(licenseKey) {
+function verifyLicenseKey(licenseKey) {
   try {
     // Verifica il formato della licenza
     const parts = licenseKey.split("-");
@@ -90,6 +90,13 @@ function verifyLicenseKeyInternal(licenseKey) {
   } catch (error) {
     return { valid: false, error: "Errore durante la verifica della licenza" };
   }
+}
+
+/**
+ * Alias per compatibilità
+ */
+function verifyLicenseKeyInternal(licenseKey) {
+  return verifyLicenseKey(licenseKey);
 }
 
 /**
