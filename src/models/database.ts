@@ -314,8 +314,18 @@ class Database {
   }
 
   private getDbConfig() {
-    // In a real implementation, this would read from a configuration file
-    // or from localStorage if configured through wizard
+    // First check if we have a temporary config in the window object
+    if (window.dbConfigTemp) {
+      console.log("Using database configuration from window object:", {
+        host: window.dbConfigTemp.host,
+        port: window.dbConfigTemp.port,
+        username: window.dbConfigTemp.username,
+        dbName: window.dbConfigTemp.dbName,
+      });
+      return window.dbConfigTemp;
+    }
+
+    // Then check localStorage
     const storedConfig = localStorage.getItem("dbConfig");
     if (storedConfig) {
       try {

@@ -260,6 +260,15 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
         }),
       );
 
+      // Also save it to window object for immediate access
+      window.dbConfigTemp = {
+        host: dbConfig.host,
+        port: dbConfig.port,
+        username: dbConfig.username,
+        password: dbConfig.password || "",
+        dbName: dbConfig.dbName,
+      };
+
       // Usa l'API Electron per testare la connessione
       const result = await electronAPI.connectDatabase({
         host: dbConfig.host,

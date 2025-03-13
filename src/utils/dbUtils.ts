@@ -217,6 +217,18 @@ export async function createTable(
     `Attempting to create table ${tableName} in database ${config.dbName}`,
   );
   try {
+    // Save the database configuration to localStorage to ensure it's available
+    localStorage.setItem(
+      "dbConfig",
+      JSON.stringify({
+        host: config.host,
+        port: config.port,
+        username: config.username,
+        password: config.password || "",
+        dbName: config.dbName,
+      }),
+    );
+
     // Check if we're in Electron
     if (isRunningInElectron()) {
       // Connect to specific database
@@ -583,12 +595,28 @@ export async function backupDatabase(path: string): Promise<boolean> {
           dbConfig = JSON.parse(configResult[0].value);
           console.log("Database configuration loaded from database");
         } else {
-          throw new Error("Database configuration not found");
+          // Use the provided config as fallback
+          dbConfig = {
+            host: "localhost",
+            port: "5432",
+            username: "postgres",
+            password: "",
+            dbName: "patient_appointment_system",
+          };
+          console.log("Using default database configuration");
         }
       }
     } catch (error) {
       console.error("Error loading database configuration:", error);
-      throw new Error("Database configuration not found");
+      // Use the provided config as fallback
+      dbConfig = {
+        host: "localhost",
+        port: "5432",
+        username: "postgres",
+        password: "",
+        dbName: "patient_appointment_system",
+      };
+      console.log("Using default database configuration after error");
     }
 
     const { host, port, username, password, dbName } = dbConfig;

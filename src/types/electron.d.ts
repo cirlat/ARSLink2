@@ -32,5 +32,6 @@ interface DatabaseConfig {
 declare global {
   interface Window {
     electronAPI: ElectronAPI;
+    dbConfigTemp?: DatabaseConfig;
   }
 }
