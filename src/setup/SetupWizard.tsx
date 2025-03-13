@@ -1061,3 +1061,14 @@ const SetupWizard = () => {
                       <Calendar className="mr-2 h-4 w-4" />
                       Vai alla Console Google Cloud
                     </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="p-6 text-center text-muted-foreground">
+                  <Calendar className="h-10 w-10 mx-auto mb-4 opacity-30" />
+                  <p>L'integrazione con Google Calendar non è disponibile con la licenza attuale.</p>
+                  <p className="text-sm mt-2">Aggiorna la tua licenza per sbloccare questa funzionalità.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
