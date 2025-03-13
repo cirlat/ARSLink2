@@ -10,7 +10,8 @@
 7. [Routing](#routing)
 8. [Autenticazione](#autenticazione)
 9. [Integrazioni Esterne](#integrazioni-esterne)
-10. [Manutenzione e Modifiche](#manutenzione-e-modifiche)
+10. [Setup Wizard](#setup-wizard)
+11. [Manutenzione e Modifiche](#manutenzione-e-modifiche)
 
 ## Panoramica dell'Architettura
 
@@ -30,9 +31,22 @@ src/
 ├── lib/               # Utility e mock per ambiente browser
 ├── models/            # Modelli di dati e interazione con DB
 ├── services/          # Servizi di business logic
-├── setup/             # Wizard di configurazione iniziale
+├── setup/             # Wizard di configurazione integrato
 ├── App.tsx            # Componente principale e routing
 └── main.tsx           # Entry point dell'applicazione
+
+electron/              # Codice specifico per Electron
+├── main.js            # Processo principale Electron
+├── preload.js         # Script di preload per sicurezza
+└── setup.js           # Gestione del setup wizard standalone
+
+setup-wizard/          # Setup wizard standalone
+├── index.html         # Interfaccia utente HTML
+└── setup-wizard.js    # Logica JavaScript del wizard
+
+license-generator/     # Generatore di licenze standalone
+├── index.html         # Interfaccia utente HTML
+└── license-generator.js # Logica JavaScript del generatore
 ```
 
 ## Dipendenze tra File
@@ -224,7 +238,7 @@ Gestisce l'integrazione con WhatsApp per l'invio di notifiche automatiche.
 | Settings | src/components/settings/Settings.tsx | Impostazioni dell'applicazione |
 | BackupStatus | src/components/system/BackupStatus.tsx | Stato dei backup |
 | LicenseAlert | src/components/system/LicenseAlert.tsx | Avviso scadenza licenza |
-| SetupWizard | src/setup/SetupWizard.tsx | Wizard di configurazione iniziale |
+| SetupWizard | src/setup/SetupWizard.tsx | Wizard di configurazione integrato |
 | NotificationTemplates | src/components/settings/NotificationTemplates.tsx | Gestione template per notifiche WhatsApp |
 
 ### Dettaglio dei Componenti Principali
@@ -384,41 +398,74 @@ L'integrazione con WhatsApp è gestita dal servizio WhatsAppService.
 - Promemoria: inviati il giorno prima dell'appuntamento
 - Notifiche manuali: l'utente può inviare notifiche personalizzate
 
-## Funzionalità Aggiuntive
+## Setup Wizard
 
-### Template per Notifiche WhatsApp
+Il sistema include due versioni del Setup Wizard per la configurazione iniziale dell'applicazione:
 
-Il sistema supporta la creazione e gestione di template personalizzati per le notifiche WhatsApp, accessibili dalla sezione Impostazioni > Notifiche per gli utenti con licenza WhatsApp o Full.
+### Versione Integrata (Browser)
 
-**Caratteristiche principali:**
-- Creazione di template personalizzati con segnaposto per dati dinamici
-- Supporto per diversi tipi di template: Appuntamento, Promemoria, Personalizzato
-- Possibilità di modificare ed eliminare i template esistenti
-- Utilizzo automatico dei template per le notifiche di conferma, promemoria e cancellazione appuntamenti
+Implementata come componente React in `src/setup/SetupWizard.tsx`, questa versione è integrata nell'applicazione principale e accessibile tramite la rotta `/setup`.
 
-**Segnaposto supportati:**
-- `{paziente}`: Nome e cognome del paziente
-- `{data}`: Data dell'appuntamento
-- `{ora}`: Orario dell'appuntamento
+**Caratteristiche**:
+- Interfaccia utente React con componenti shadcn/ui
+- Accesso tramite rotta `/setup` nell'applicazione principale
+- Reindirizzamento automatico al primo avvio
+- Utilizza le stesse API dell'applicazione principale
 
-### Backup Reale del Database
+### Versione Standalone (Desktop)
 
-Il sistema ora supporta il backup reale del database PostgreSQL utilizzando il comando `pg_dump`.
+Implementata come applicazione HTML/JavaScript separata in `setup-wizard/`, questa versione è progettata per essere eseguita come applicazione standalone prima dell'avvio dell'applicazione principale.
 
-**Caratteristiche principali:**
-- Backup completo del database in formato binario
-- Generazione automatica del nome del file con timestamp
-- Possibilità di eseguire backup manuali o automatici
-- Ripristino da backup tramite `pg_restore`
+**Caratteristiche**:
+- Interfaccia utente HTML/CSS/JavaScript pura
+- Eseguita in una finestra Electron separata
+- Comunicazione con il processo principale tramite IPC
+- Avviata automaticamente al primo avvio o quando la configurazione è mancante
 
-### Gestione Appuntamenti Migliorata
+**File principali**:
+- `setup-wizard/index.html`: Interfaccia utente HTML
+- `setup-wizard/setup-wizard.js`: Logica JavaScript per i passaggi del wizard
+- `electron/setup.js`: Gestione della finestra Electron e comunicazione IPC
+- `electron/setup-preload.js`: Script di preload per esporre API sicure
 
-La gestione degli appuntamenti è stata migliorata con le seguenti funzionalità:
+### Processo di Setup
 
-- Salvataggio effettivo degli appuntamenti in localStorage
-- Sincronizzazione con Google Calendar (per licenze Google o Full)
-- Invio automatico di notifiche WhatsApp per conferma, promemoria e cancellazione (per licenze WhatsApp o Full)
-- Eliminazione di appuntamenti con notifica al paziente
+Entrambe le versioni guidano l'utente attraverso gli stessi passaggi di configurazione:
+
+1. **Configurazione Database**: Connessione a PostgreSQL e creazione delle tabelle
+2. **Creazione Utente Admin**: Configurazione dell'account amministratore iniziale
+3. **Installazione Licenza**: Validazione e installazione della chiave di licenza
+4. **Configurazione Google Calendar** (opzionale): Setup dell'integrazione con Google API
+5. **Configurazione WhatsApp** (opzionale): Setup delle notifiche WhatsApp
+6. **Impostazioni Server**: Configurazione del server dell'applicazione
+7. **Impostazioni Backup**: Configurazione dei backup automatici
+8. **Impostazioni Generali**: Configurazione delle informazioni della clinica e preferenze
+
+### Utilizzo della Versione Standalone
+
+1. **Avvio Automatico**:
+   - Al primo avvio dell'applicazione, viene verificato se il setup è stato completato
+   - Se non è stato completato, viene avviato automaticamente il Setup Wizard standalone
+
+2. **Avvio Manuale**:
+   - Eseguire l'applicazione con il parametro `--setup`
+   - Esempio: `patient-appointment-system.exe --setup`
+
+3. **Reset della Configurazione**:
+   - Eseguire l'applicazione con il parametro `--reset-setup`
+   - Esempio: `patient-appointment-system.exe --reset-setup`
+
+### Memorizzazione delle Configurazioni
+
+Le configurazioni vengono salvate in diversi modi:
+
+1. **Database PostgreSQL**: Tabella `configurations` per le impostazioni dell'applicazione
+2. **Directory Dati Utente**: File JSON nella directory dei dati utente di Electron
+   - `dbConfig.json`: Configurazione del database
+   - `user.json`: Credenziali dell'utente amministratore
+   - `license.json`: Informazioni sulla licenza
+   - `config/*.json`: Altre configurazioni specifiche
+3. **Marker di Completamento**: File `setup-completed` nella directory dei dati utente
 
 ## Manutenzione e Modifiche
 
