@@ -40,7 +40,7 @@ import { Switch } from "@/components/ui/switch";
 
 // Importazioni dinamiche per evitare errori di riferimento
 import { verifyLicenseKey } from "@/utils/licenseUtils";
-import { electronAPI } from "@/lib/electronBridge";
+import { electronAPI, isRunningInElectron } from "@/lib/electronBridge";
 import {
   testDatabaseConnection,
   initializeDatabase,
@@ -248,7 +248,7 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
         `Tentativo di connessione a ${dbConfig.host}:${dbConfig.port}...`,
       );
 
-      // Save the database configuration to localStorage before connecting
+      // Save the database configuration to localStorage and Electron before connecting
       try {
         const configToSave = {
           host: dbConfig.host,
@@ -262,6 +262,27 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
 
         // Also save it to window object for immediate access
         window.dbConfigTemp = configToSave;
+
+        // Save to Electron's storage if in Electron environment
+        if (isRunningInElectron()) {
+          try {
+            const saveResult = await electronAPI.saveDbConfig(configToSave);
+            if (saveResult.success) {
+              addConnectionLog(
+                "Configurazione salvata nel processo principale di Electron",
+              );
+            } else {
+              addConnectionLog(
+                `Errore nel salvataggio in Electron: ${saveResult.error}`,
+              );
+            }
+          } catch (electronError) {
+            console.error("Error saving to Electron:", electronError);
+            addConnectionLog(
+              `Errore nel salvataggio in Electron: ${electronError.message}`,
+            );
+          }
+        }
 
         // Log successful configuration save
         console.log("Database configuration saved successfully", configToSave);

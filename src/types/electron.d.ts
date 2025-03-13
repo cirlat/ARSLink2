@@ -17,6 +17,9 @@ interface ElectronAPI {
   restoreDatabase: (
     path: string,
   ) => Promise<{ success: boolean; error?: string }>;
+  saveDbConfig: (
+    config: DatabaseConfig,
+  ) => Promise<{ success: boolean; error?: string }>;
   getAppVersion: () => string;
   getPlatform: () => string;
 }

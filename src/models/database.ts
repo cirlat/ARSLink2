@@ -346,9 +346,32 @@ class Database {
             );
           }
         } else {
-          console.warn(
-            "No database configuration found in localStorage, using defaults",
-          );
+          // Check for mock config in non-Electron environment
+          const mockConfig = localStorage.getItem("mockDbConfig");
+          if (mockConfig) {
+            try {
+              const config = JSON.parse(mockConfig);
+              console.log(
+                "Using mock database configuration from localStorage:",
+                {
+                  host: config.host,
+                  port: config.port,
+                  username: config.username,
+                  dbName: config.dbName,
+                },
+              );
+              return config;
+            } catch (error) {
+              console.error(
+                "Error parsing mock database configuration:",
+                error,
+              );
+            }
+          } else {
+            console.warn(
+              "No database configuration found in localStorage, using defaults",
+            );
+          }
         }
       }
     } catch (error) {

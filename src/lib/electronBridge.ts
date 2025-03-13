@@ -18,8 +18,11 @@ export const electronAPI: ElectronAPI = isElectron()
         // Simula un ritardo per rendere più realistico
         await new Promise((resolve) => setTimeout(resolve, 500));
 
+        // Salva la configurazione in localStorage per il mock
+        localStorage.setItem("mockDbConfig", JSON.stringify(config));
+
         // Verifica le credenziali di test
-        if (config.username === "postgres" && config.password === "postgres") {
+        if (config.username === "postgres") {
           return { success: true, message: "Connessione simulata al database" };
         } else {
           return {
@@ -44,6 +47,11 @@ export const electronAPI: ElectronAPI = isElectron()
       restoreDatabase: async (path: string) => {
         console.log("Mock: restoreDatabase", path);
         await new Promise((resolve) => setTimeout(resolve, 1000));
+        return { success: true };
+      },
+      saveDbConfig: async (config: DatabaseConfig) => {
+        console.log("Mock: saveDbConfig", config);
+        localStorage.setItem("mockDbConfig", JSON.stringify(config));
         return { success: true };
       },
       getAppVersion: () => "1.0.0",
