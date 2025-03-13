@@ -59,4 +59,9 @@ export default defineConfig({
       },
     },
   },
+  define: {
+    // Aggiungi questa definizione per evitare errori con process
+    "process.env": process.env,
+    "process.versions": process.versions || {},
+  },
 });
