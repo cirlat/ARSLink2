@@ -319,20 +319,46 @@ class Database {
     const storedConfig = localStorage.getItem("dbConfig");
     if (storedConfig) {
       try {
-        return JSON.parse(storedConfig);
+        const config = JSON.parse(storedConfig);
+        console.log("Using database configuration from localStorage:", {
+          host: config.host,
+          port: config.port,
+          username: config.username,
+          dbName: config.dbName,
+        });
+        return config;
       } catch (error) {
         console.error("Error parsing stored database configuration:", error);
       }
+    } else {
+      console.warn(
+        "No database configuration found in localStorage, using defaults",
+      );
     }
 
     // Default values
-    return {
+    const defaultConfig = {
       host: "localhost",
       port: "5432",
       username: "postgres",
       password: "", // Empty default password for security
       dbName: "patient_appointment_system",
     };
+
+    // Save default config to localStorage if no config exists
+    if (!storedConfig) {
+      try {
+        localStorage.setItem("dbConfig", JSON.stringify(defaultConfig));
+        console.log("Saved default database configuration to localStorage");
+      } catch (error) {
+        console.error(
+          "Error saving default database configuration to localStorage:",
+          error,
+        );
+      }
+    }
+
+    return defaultConfig;
   }
 
   public async connect(): Promise<void> {

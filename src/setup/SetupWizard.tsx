@@ -248,6 +248,18 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
         `Tentativo di connessione a ${dbConfig.host}:${dbConfig.port}...`,
       );
 
+      // Save the database configuration to localStorage before connecting
+      localStorage.setItem(
+        "dbConfig",
+        JSON.stringify({
+          host: dbConfig.host,
+          port: dbConfig.port,
+          username: dbConfig.username,
+          password: dbConfig.password || "",
+          dbName: dbConfig.dbName,
+        }),
+      );
+
       // Usa l'API Electron per testare la connessione
       const result = await electronAPI.connectDatabase({
         host: dbConfig.host,

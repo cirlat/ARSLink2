@@ -567,29 +567,28 @@ export async function backupDatabase(path: string): Promise<boolean> {
 
     // Get database configuration
     let dbConfig;
-    const db = Database.getInstance();
-
     try {
-      const configResult = await db.query(
-        "SELECT value FROM configurations WHERE key = 'db_config'",
-      );
-      if (configResult.length > 0) {
-        dbConfig = JSON.parse(configResult[0].value);
+      // Try to get from localStorage first
+      const dbConfigStr = localStorage.getItem("dbConfig");
+      if (dbConfigStr) {
+        dbConfig = JSON.parse(dbConfigStr);
+        console.log("Database configuration loaded from localStorage");
       } else {
-        // Fallback to localStorage
-        const dbConfigStr = localStorage.getItem("dbConfig");
-        if (!dbConfigStr) {
+        // If not in localStorage, try to get from database
+        const db = Database.getInstance();
+        const configResult = await db.query(
+          "SELECT value FROM configurations WHERE key = 'db_config'",
+        );
+        if (configResult.length > 0) {
+          dbConfig = JSON.parse(configResult[0].value);
+          console.log("Database configuration loaded from database");
+        } else {
           throw new Error("Database configuration not found");
         }
-        dbConfig = JSON.parse(dbConfigStr);
       }
     } catch (error) {
-      // Fallback to localStorage
-      const dbConfigStr = localStorage.getItem("dbConfig");
-      if (!dbConfigStr) {
-        throw new Error("Database configuration not found");
-      }
-      dbConfig = JSON.parse(dbConfigStr);
+      console.error("Error loading database configuration:", error);
+      throw new Error("Database configuration not found");
     }
 
     const { host, port, username, password, dbName } = dbConfig;
@@ -625,6 +624,7 @@ export async function backupDatabase(path: string): Promise<boolean> {
       const now = new Date();
 
       try {
+        const db = Database.getInstance();
         await db.query(
           "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
           ["last_backup", now.toISOString()],
