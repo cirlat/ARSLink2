@@ -27,7 +27,13 @@ export async function testDatabaseConnection(config: {
     // Check if we're in Electron
     if (isRunningInElectron()) {
       console.log("Using Electron API for database connection");
-      const result = await electronAPI.connectDatabase(config);
+      const result = await electronAPI.connectDatabase({
+        host: config.host,
+        port: config.port,
+        username: config.username,
+        password: config.password || "", // Ensure password is always a string
+        dbName: config.dbName,
+      });
       if (!result.success) {
         console.error("Electron API connection error:", result.error);
         throw new Error(result.error || "Database connection error");
@@ -55,7 +61,13 @@ export async function testDatabaseConnection(config: {
 
     // In browser environment, use simulated Electron API
     console.log("Using simulated Electron API (browser environment)");
-    const result = await electronAPI.connectDatabase(config);
+    const result = await electronAPI.connectDatabase({
+      host: config.host,
+      port: config.port,
+      username: config.username,
+      password: config.password || "", // Ensure password is always a string
+      dbName: config.dbName,
+    });
     if (!result.success) {
       console.error("Simulated connection error:", result.error);
       throw new Error(result.error || "Database connection error");
@@ -94,7 +106,7 @@ export async function createDatabase(config: {
           host: config.host,
           port: config.port,
           username: config.username,
-          password: config.password,
+          password: config.password || "", // Ensure password is always a string
           dbName: "postgres", // Use system database
         });
 
@@ -154,7 +166,7 @@ export async function createDatabase(config: {
       host: config.host,
       port: port,
       user: config.username,
-      password: config.password,
+      password: config.password || "", // Ensure password is always a string
       database: "postgres", // Connect to system postgres database
       ssl: false,
     });
@@ -213,7 +225,7 @@ export async function createTable(
         host: config.host,
         port: config.port,
         username: config.username,
-        password: config.password,
+        password: config.password || "", // Ensure password is always a string
         dbName: config.dbName,
       });
 
@@ -339,7 +351,7 @@ export async function createTable(
       host: config.host,
       port: port,
       user: config.username,
-      password: config.password,
+      password: config.password || "", // Ensure password is always a string
       database: config.dbName,
       ssl: false,
     });
@@ -591,7 +603,7 @@ export async function backupDatabase(path: string): Promise<boolean> {
       const command = `pg_dump -h ${host} -p ${port} -U ${username} -F c -b -v -f "${fullBackupPath}" "${dbName}"`;
 
       // Set PGPASSWORD environment variable to avoid password prompt
-      const env = { ...process.env, PGPASSWORD: password };
+      const env = { ...process.env, PGPASSWORD: password || "" }; // Ensure password is always a string
 
       await execPromise(command, { env });
 

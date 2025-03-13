@@ -60,7 +60,7 @@ class Database {
           host: dbConfig.host,
           port: parseInt(dbConfig.port),
           user: dbConfig.username,
-          password: dbConfig.password,
+          password: dbConfig.password || "", // Ensure password is always a string
           database: dbConfig.dbName,
           ssl: false,
           // 5 second connection timeout
@@ -92,7 +92,13 @@ class Database {
         } else if (isRunningInElectron()) {
           // If in Electron but couldn't use pg directly
           try {
-            const result = await electronAPI.connectDatabase(dbConfig);
+            const result = await electronAPI.connectDatabase({
+              host: dbConfig.host,
+              port: dbConfig.port,
+              username: dbConfig.username,
+              password: dbConfig.password || "", // Ensure password is always a string
+              dbName: dbConfig.dbName,
+            });
             if (result.success) {
               console.log(
                 "PostgreSQL connection established through Electron API",
@@ -383,7 +389,7 @@ class Database {
           host: dbConfig.host,
           port: port,
           user: dbConfig.username,
-          password: dbConfig.password,
+          password: dbConfig.password || "", // Ensure password is always a string
           database: dbConfig.dbName,
           ssl: false,
         });
