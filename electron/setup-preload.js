@@ -13,4 +13,7 @@ contextBridge.exposeInMainWorld("setupAPI", {
   saveLicense: (licenseData) => ipcRenderer.invoke("setup-save-license", licenseData),
   
   // Configuration
-  saveConfig: (config)
+  saveConfig: (config) => ipcRenderer.invoke("setup-save-config", config),
+  
+  // Complete setup
+  completeSetup: () => ipcRenderer.invoke("setup-complete-setup")

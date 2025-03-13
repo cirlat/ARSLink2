@@ -93,65 +93,6 @@ function verifyLicenseKey(licenseKey) {
 }
 
 /**
- * Verifica la validità di una chiave di licenza
- * @param licenseKey Chiave di licenza da verificare
- * @returns Oggetto con informazioni sulla validità della licenza
- */
-function verifyLicenseKey(licenseKey) {
-  try {
-    // Verifica il formato della licenza
-    const parts = licenseKey.split("-");
-    if (parts.length < 4) {
-      return { valid: false, error: "Formato licenza non valido" };
-    }
-
-    // Estrai le parti della licenza
-    const type = parts[0].toLowerCase();
-    const expiryCode = parts[2];
-    const providedChecksum = parts[3];
-
-    // Ricostruisci la base della licenza per verificare il checksum
-    const licenseBase = `${parts[0]}-${parts[1]}-${parts[2]}`;
-    const expectedChecksum = generateChecksum(licenseBase + LICENSE_SECRET);
-
-    // Verifica il checksum
-    if (providedChecksum !== expectedChecksum) {
-      return { valid: false, error: "Checksum non valido" };
-    }
-
-    // Verifica il tipo di licenza
-    if (!["basic", "google", "whatsapp", "full"].includes(type)) {
-      return { valid: false, error: "Tipo di licenza non valido" };
-    }
-
-    // Decodifica la data di scadenza
-    const expiryTimestamp = parseInt(expiryCode, 36);
-    const expiryDate = new Date(expiryTimestamp);
-
-    // Verifica se la licenza è scaduta
-    if (expiryDate < new Date()) {
-      return {
-        valid: false,
-        licenseType: type,
-        expiryDate,
-        error: "Licenza scaduta",
-      };
-    }
-
-    // Licenza valida
-    return {
-      valid: true,
-      licenseType: type,
-      expiryDate,
-    };
-  } catch (error) {
-    return { valid: false, error: "Errore durante la verifica della licenza" };
-  }
-}
-
-// Rimosso alias non necessario
-
-/**
  * Genera un checksum semplice per la verifica della licenza
  * @param input Stringa di input
  * @returns Checksum generato
@@ -965,7 +906,7 @@ function addConnectionLog(message) {
   renderStep(currentStep);
 }
 
-function testConnection() {
+async function testConnection() {
   // Verifica che tutti i campi siano compilati
   if (
     !dbConfig.host ||
@@ -1020,48 +961,74 @@ function testConnection() {
     `Tentativo di connessione a ${dbConfig.host}:${dbConfig.port}...`,
   );
 
-  // Simula un ritardo per il test di connessione
-  setTimeout(() => {
-    // Simula un successo (in un'applicazione reale, qui ci sarebbe una vera connessione al database)
-    const success = Math.random() > 0.3; // 70% di probabilità di successo
+  try {
+    // Salva la configurazione del database in localStorage
+    localStorage.setItem("dbConfig", JSON.stringify(dbConfig));
+    addConnectionLog("Configurazione database salvata in localStorage");
 
-    if (success) {
+    // Usa l'API di Electron per testare la connessione al database
+    if (window.setupAPI && window.setupAPI.testConnection) {
+      addConnectionLog("Utilizzo API Electron per testare la connessione...");
+      const result = await window.setupAPI.testConnection(dbConfig);
+
+      if (result.success) {
+        dbConnectionStatus = {
+          status: "success",
+          message:
+            "Connessione riuscita! " +
+            (result.message || "Database disponibile."),
+        };
+        addConnectionLog("Connessione al database riuscita!");
+        addConnectionLog("Verifica delle tabelle in corso...");
+
+        // Crea le tabelle necessarie
+        const createTablesResult = await window.setupAPI.createTables(dbConfig);
+        if (createTablesResult.success) {
+          addConnectionLog("Tabelle create/verificate con successo");
+          addConnectionLog("Setup database completato con successo");
+        } else {
+          addConnectionLog(
+            `Errore nella creazione delle tabelle: ${createTablesResult.error || "Errore sconosciuto"}`,
+          );
+        }
+      } else {
+        dbConnectionStatus = {
+          status: "error",
+          message: result.error || "Errore di connessione al database",
+        };
+        addConnectionLog(
+          `Errore di connessione: ${result.error || "Errore sconosciuto"}`,
+        );
+      }
+    } else {
+      // Fallback se l'API Electron non è disponibile
+      addConnectionLog("API Electron non disponibile, utilizzo simulazione");
+
+      // Simulazione di connessione riuscita
       dbConnectionStatus = {
         status: "success",
-        message: "Connessione riuscita! Database disponibile.",
-      };
-      addConnectionLog("Connessione al database riuscita!");
-      addConnectionLog("Verifica delle tabelle in corso...");
-
-      // Simula la creazione delle tabelle
-      setTimeout(() => {
-        const tables = [
-          "users",
-          "patients",
-          "appointments",
-          "license",
-          "configurations",
-        ];
-        tables.forEach((table) => {
-          addConnectionLog(`Tabella ${table} creata/verificata con successo`);
-        });
-        addConnectionLog("Setup database completato con successo");
-        isDbLoading = false;
-        renderStep(currentStep);
-      }, 1000);
-    } else {
-      dbConnectionStatus = {
-        status: "error",
         message:
-          "Errore di connessione al database. Verifica le credenziali e che il server sia in esecuzione.",
+          "Connessione simulata riuscita! (API Electron non disponibile)",
       };
+      addConnectionLog("Connessione al database simulata con successo");
       addConnectionLog(
-        "Errore di connessione: Impossibile connettersi al database",
+        "Nota: questa è una simulazione, le tabelle non sono state realmente create",
       );
-      isDbLoading = false;
-      renderStep(currentStep);
     }
-  }, 2000);
+  } catch (error) {
+    console.error("Errore durante il test di connessione:", error);
+    dbConnectionStatus = {
+      status: "error",
+      message:
+        error.message || "Errore sconosciuto durante il test di connessione",
+    };
+    addConnectionLog(
+      `Errore: ${error.message || "Errore sconosciuto durante il test di connessione"}`,
+    );
+  } finally {
+    isDbLoading = false;
+    renderStep(currentStep);
+  }
 }
 
 function verifyLicense() {
@@ -1104,7 +1071,7 @@ function verifyLicense() {
   }
 }
 
-function completeSetup() {
+async function completeSetup() {
   try {
     // Verifica che tutti i dati necessari siano presenti
     if (!adminUser.username || !adminUser.password || !adminUser.email) {
@@ -1118,6 +1085,7 @@ function completeSetup() {
     }
 
     // Verifica la licenza se è stata inserita
+    let licenseData = null;
     if (licenseKey) {
       const verificationResult = verifyLicenseKey(licenseKey);
 
@@ -1144,6 +1112,16 @@ function completeSetup() {
 
       // Aggiorna il tipo di licenza rilevato
       detectedLicenseType = licenseType;
+
+      // Prepara i dati della licenza per il salvataggio nel database
+      licenseData = {
+        licenseKey: licenseKey,
+        licenseType: licenseType,
+        expiryDate: verificationResult.expiryDate,
+        googleCalendarEnabled:
+          licenseType === "google" || licenseType === "full",
+        whatsappEnabled: licenseType === "whatsapp" || licenseType === "full",
+      };
     } else {
       // Licenza base di default
       localStorage.setItem("licenseType", "basic");
@@ -1159,32 +1137,119 @@ function completeSetup() {
       </div>
     `;
 
-    // Simula un ritardo per il completamento del setup
-    setTimeout(() => {
-      // Mostra un messaggio di successo
-      setupContainer.innerHTML = `
-        <div class="text-center py-12">
-          <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h3 class="text-lg font-medium mb-2">Setup Completato con Successo!</h3>
-          <p class="text-gray-500 mb-6">Il sistema è stato configurato correttamente e ora è pronto per l'uso.</p>
-          <button id="start-app-button" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-            Avvia Applicazione
-          </button>
-        </div>
-      `;
+    // Salva i dati nel database usando l'API Electron
+    if (window.setupAPI) {
+      try {
+        // 1. Crea l'utente amministratore
+        const adminResult = await window.setupAPI.createAdmin(adminUser);
+        console.log("Risultato creazione admin:", adminResult);
 
-      // Aggiungi event listener per il pulsante di avvio
-      document
-        .getElementById("start-app-button")
-        .addEventListener("click", () => {
-          // In un'applicazione reale, qui avvieremmo l'applicazione principale
-          window.location.href = "../index.html";
+        // 2. Salva la licenza se presente
+        if (licenseData) {
+          const licenseResult = await window.setupAPI.saveLicense(licenseData);
+          console.log("Risultato salvataggio licenza:", licenseResult);
+        }
+
+        // 3. Salva le configurazioni
+        // Google Calendar
+        if (
+          isLicenseWithGoogle() &&
+          googleConfig.clientId &&
+          googleConfig.clientSecret
+        ) {
+          const googleConfigResult = await window.setupAPI.saveConfig({
+            key: "google_calendar",
+            value: googleConfig,
+          });
+          console.log(
+            "Risultato salvataggio config Google:",
+            googleConfigResult,
+          );
+        }
+
+        // WhatsApp
+        if (isLicenseWithWhatsApp() && whatsappConfig.enabled) {
+          const whatsappConfigResult = await window.setupAPI.saveConfig({
+            key: "whatsapp",
+            value: whatsappConfig,
+          });
+          console.log(
+            "Risultato salvataggio config WhatsApp:",
+            whatsappConfigResult,
+          );
+        }
+
+        // Server
+        const serverConfigResult = await window.setupAPI.saveConfig({
+          key: "server",
+          value: serverConfig,
         });
-    }, 3000);
+        console.log("Risultato salvataggio config Server:", serverConfigResult);
+
+        // Backup
+        const backupConfigResult = await window.setupAPI.saveConfig({
+          key: "backup",
+          value: backupConfig,
+        });
+        console.log("Risultato salvataggio config Backup:", backupConfigResult);
+
+        // Impostazioni generali
+        const generalSettingsResult = await window.setupAPI.saveConfig({
+          key: "general_settings",
+          value: generalSettings,
+        });
+        console.log(
+          "Risultato salvataggio impostazioni generali:",
+          generalSettingsResult,
+        );
+
+        // Segna il setup come completato
+        const setupCompletedResult = await window.setupAPI.completeSetup();
+        console.log("Risultato completamento setup:", setupCompletedResult);
+      } catch (apiError) {
+        console.error(
+          "Errore durante il salvataggio dei dati tramite API:",
+          apiError,
+        );
+        // Continua comunque, i dati sono stati salvati in localStorage
+      }
+    } else {
+      console.log(
+        "API Electron non disponibile, i dati sono stati salvati solo in localStorage",
+      );
+    }
+
+    // Salva tutte le configurazioni in localStorage
+    localStorage.setItem("googleConfig", JSON.stringify(googleConfig));
+    localStorage.setItem("whatsappConfig", JSON.stringify(whatsappConfig));
+    localStorage.setItem("serverConfig", JSON.stringify(serverConfig));
+    localStorage.setItem("backupConfig", JSON.stringify(backupConfig));
+    localStorage.setItem("generalSettings", JSON.stringify(generalSettings));
+    localStorage.setItem("setupCompleted", "true");
+
+    // Mostra un messaggio di successo
+    setupContainer.innerHTML = `
+      <div class="text-center py-12">
+        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h3 class="text-lg font-medium mb-2">Setup Completato con Successo!</h3>
+        <p class="text-gray-500 mb-6">Il sistema è stato configurato correttamente e ora è pronto per l'uso.</p>
+        <button id="start-app-button" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+          Avvia Applicazione
+        </button>
+      </div>
+    `;
+
+    // Aggiungi event listener per il pulsante di avvio
+    document
+      .getElementById("start-app-button")
+      .addEventListener("click", () => {
+        // Avvia l'applicazione principale
+        window.location.href = "../index.html";
+      });
   } catch (error) {
     console.error("Errore durante il setup:", error);
     alert(

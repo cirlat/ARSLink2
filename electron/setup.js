@@ -47,6 +47,52 @@ function markSetupAsCompleted() {
   fs.writeFileSync(setupCompletedPath, new Date().toISOString());
 }
 
+// Funzione per salvare le credenziali dell'utente
+function saveUserCredentials(user) {
+  try {
+    const userDataPath = app.getPath("userData");
+    const userCredentialsPath = path.join(userDataPath, "user.json");
+    fs.writeFileSync(userCredentialsPath, JSON.stringify(user, null, 2));
+    console.log("Credenziali utente salvate con successo");
+    return true;
+  } catch (error) {
+    console.error("Errore nel salvataggio delle credenziali utente:", error);
+    return false;
+  }
+}
+
+// Funzione per salvare i dati della licenza
+function saveLicenseData(license) {
+  try {
+    const userDataPath = app.getPath("userData");
+    const licensePath = path.join(userDataPath, "license.json");
+    fs.writeFileSync(licensePath, JSON.stringify(license, null, 2));
+    console.log("Dati licenza salvati con successo");
+    return true;
+  } catch (error) {
+    console.error("Errore nel salvataggio dei dati della licenza:", error);
+    return false;
+  }
+}
+
+// Funzione per ottenere la configurazione del database
+function getDbConfig() {
+  try {
+    const userDataPath = app.getPath("userData");
+    const dbConfigPath = path.join(userDataPath, "dbConfig.json");
+    
+    if (fs.existsSync(dbConfigPath)) {
+      const configData = fs.readFileSync(dbConfigPath, "utf8");
+      return JSON.parse(configData);
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Errore nella lettura della configurazione del database:", error);
+    return null;
+  }
+}
+
 // Funzione per resettare lo stato del setup (per i test)
 function resetSetup() {
   const userDataPath = app.getPath("userData");
@@ -58,6 +104,15 @@ function resetSetup() {
 }
 
 // Gestori IPC per il setup wizard
+ipcMain.handle("setup-complete-setup", async (event) => {
+  try {
+    markSetupAsCompleted();
+    return { success: true, message: "Setup completato con successo" };
+  } catch (error) {
+    console.error("Errore nel completamento del setup:", error);
+    return { success: false, error: error.message };
+  }
+});
 ipcMain.handle("setup-test-connection", async (event, config) => {
   try {
     console.log("Tentativo di connessione al database con:", {
@@ -474,10 +529,26 @@ ipcMain.handle("setup-save-config", async (event, config) => {
     // Ottieni la configurazione del database
     const dbConfig = getDbConfig();
     if (!dbConfig) {
-      return {
-        success: false,
-        error: "Configurazione database non trovata",
-      };
+      // Salva comunque la configurazione in un file locale
+      try {
+        const userDataPath = app.getPath("userData");
+        const configDir = path.join(userDataPath, "config");
+        if (!fs.existsSync(configDir)) {
+          fs.mkdirSync(configDir, { recursive: true });
+        }
+        const configPath = path.join(configDir, `${config.key}.json`);
+        fs.writeFileSync(configPath, JSON.stringify(config.value, null, 2));
+        return {
+          success: true,
+          message: `Configurazione ${config.key} salvata localmente`,
+        };
+      } catch (fileError) {
+        console.error("Errore nel salvataggio della configurazione in file:", fileError);
+        return {
+          success: false,
+          error: "Errore nel salvataggio della configurazione: " + fileError.message,
+        };
+      }
     }
 
     const client = new pg.Client({
@@ -497,4 +568,4 @@ ipcMain.handle("setup-save-config", async (event, config) => {
          VALUES ($1, $2) 
          ON CONFLICT (key) DO UPDATE SET value = $2 
          RETURNING id`,
-        [config.key, JSON.stringify(config.value
+        [config.key, JSON.stringify(config.value)]
