@@ -303,11 +303,55 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
         );
       }
 
-      // Verifica se siamo in ambiente Electron
+      // Check if we're in Electron
       if (isRunningInElectron()) {
         addConnectionLog("Ambiente Electron rilevato, utilizzo API nativa");
       } else {
         addConnectionLog("Ambiente browser rilevato, utilizzo simulazione");
+      }
+
+      // Verifica se l'API Electron è effettivamente disponibile
+      if (
+        typeof window.electronAPI === "undefined" ||
+        !window.electronAPI.connectDatabase
+      ) {
+        addConnectionLog(
+          "ATTENZIONE: API Electron non disponibile, utilizzo simulazione",
+        );
+        // Forza l'uso della simulazione
+        window.electronAPI = {
+          connectDatabase: async (config) => {
+            console.log("Mock: connectDatabase", config);
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            localStorage.setItem("mockDbConfig", JSON.stringify(config));
+            return {
+              success: true,
+              message: "Connessione simulata al database",
+            };
+          },
+          executeQuery: async (query, params) => {
+            console.log("Mock: executeQuery", query, params);
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            return { success: true, rows: [] };
+          },
+          backupDatabase: async (path) => {
+            console.log("Mock: backupDatabase", path);
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return { success: true, path };
+          },
+          restoreDatabase: async (path) => {
+            console.log("Mock: restoreDatabase", path);
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return { success: true };
+          },
+          saveDbConfig: async (config) => {
+            console.log("Mock: saveDbConfig", config);
+            localStorage.setItem("mockDbConfig", JSON.stringify(config));
+            return { success: true };
+          },
+          getAppVersion: () => "1.0.0",
+          getPlatform: () => "browser",
+        };
       }
 
       // Usa l'API Electron per testare la connessione
@@ -1274,13 +1318,28 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
                         Attiva l'integrazione con WhatsApp per le notifiche
                       </p>
                     </div>
-                    <Switch
-                      id="whatsapp-enabled"
-                      checked={whatsappConfig.enabled}
-                      onCheckedChange={(checked) =>
-                        handleWhatsappConfigChange("enabled", checked)
-                      }
-                    />
+                    <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                      <input
+                        type="checkbox"
+                        id="whatsapp-enabled"
+                        checked={whatsappConfig.enabled}
+                        onChange={(e) =>
+                          handleWhatsappConfigChange(
+                            "enabled",
+                            e.target.checked,
+                          )
+                        }
+                        className="sr-only"
+                      />
+                      <label
+                        htmlFor="whatsapp-enabled"
+                        className={`block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer ${whatsappConfig.enabled ? "bg-blue-500" : ""}`}
+                      >
+                        <span
+                          className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform ${whatsappConfig.enabled ? "translate-x-4" : ""}`}
+                        ></span>
+                      </label>
+                    </div>
                   </div>
 
                   {whatsappConfig.enabled && (
@@ -1395,13 +1454,25 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
                     dell'applicazione
                   </p>
                 </div>
-                <Switch
-                  id="auto-start"
-                  checked={serverConfig.autoStart}
-                  onCheckedChange={(checked) =>
-                    handleServerConfigChange("autoStart", checked)
-                  }
-                />
+                <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                  <input
+                    type="checkbox"
+                    id="auto-start"
+                    checked={serverConfig.autoStart}
+                    onChange={(e) =>
+                      handleServerConfigChange("autoStart", e.target.checked)
+                    }
+                    className="sr-only"
+                  />
+                  <label
+                    htmlFor="auto-start"
+                    className={`block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer ${serverConfig.autoStart ? "bg-blue-500" : ""}`}
+                  >
+                    <span
+                      className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform ${serverConfig.autoStart ? "translate-x-4" : ""}`}
+                    ></span>
+                  </label>
+                </div>
               </div>
 
               <div className="flex items-center justify-between">
@@ -1411,13 +1482,28 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
                     Avvia l'applicazione all'avvio di Windows
                   </p>
                 </div>
-                <Switch
-                  id="start-with-windows"
-                  checked={serverConfig.startWithWindows}
-                  onCheckedChange={(checked) =>
-                    handleServerConfigChange("startWithWindows", checked)
-                  }
-                />
+                <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                  <input
+                    type="checkbox"
+                    id="start-with-windows"
+                    checked={serverConfig.startWithWindows}
+                    onChange={(e) =>
+                      handleServerConfigChange(
+                        "startWithWindows",
+                        e.target.checked,
+                      )
+                    }
+                    className="sr-only"
+                  />
+                  <label
+                    htmlFor="start-with-windows"
+                    className={`block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer ${serverConfig.startWithWindows ? "bg-blue-500" : ""}`}
+                  >
+                    <span
+                      className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform ${serverConfig.startWithWindows ? "translate-x-4" : ""}`}
+                    ></span>
+                  </label>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1438,16 +1524,43 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="backup-path">Percorso Backup</Label>
-                <Input
-                  id="backup-path"
-                  value={backupConfig.backupPath}
-                  onChange={(e) =>
-                    handleBackupConfigChange("backupPath", e.target.value)
-                  }
-                  placeholder="C:\ProgramData\PatientAppointmentSystem\Backups"
-                  autoComplete="off"
-                  readOnly={false}
-                />
+                <div className="flex">
+                  <Input
+                    id="backup-path"
+                    value={backupConfig.backupPath}
+                    onChange={(e) =>
+                      handleBackupConfigChange("backupPath", e.target.value)
+                    }
+                    placeholder="C:\\ProgramData\\PatientAppointmentSystem\\Backups"
+                    autoComplete="off"
+                    readOnly={false}
+                    className="flex-1 rounded-r-none"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="rounded-l-none"
+                    onClick={() => {
+                      // In un ambiente reale, qui apriremmo un selettore di directory
+                      // Per ora, simuliamo la selezione di una directory
+                      const mockDirectories = [
+                        "C:\\ProgramData\\PatientAppointmentSystem\\Backups",
+                        "C:\\Users\\Admin\\Documents\\Backups",
+                        "D:\\Backups",
+                      ];
+                      const selectedDir =
+                        mockDirectories[
+                          Math.floor(Math.random() * mockDirectories.length)
+                        ];
+                      handleBackupConfigChange("backupPath", selectedDir);
+                      alert(
+                        `Directory selezionata: ${selectedDir}\n\nNota: In un'applicazione reale, qui si aprirebbe un selettore di directory.`,
+                      );
+                    }}
+                  >
+                    Sfoglia...
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Cartella dove salvare i backup del database
                 </p>
@@ -1460,13 +1573,25 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
                     Esegui backup automatici del database
                   </p>
                 </div>
-                <Switch
-                  id="auto-backup"
-                  checked={backupConfig.autoBackup}
-                  onCheckedChange={(checked) =>
-                    handleBackupConfigChange("autoBackup", checked)
-                  }
-                />
+                <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                  <input
+                    type="checkbox"
+                    id="auto-backup"
+                    checked={backupConfig.autoBackup}
+                    onChange={(e) =>
+                      handleBackupConfigChange("autoBackup", e.target.checked)
+                    }
+                    className="sr-only"
+                  />
+                  <label
+                    htmlFor="auto-backup"
+                    className={`block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer ${backupConfig.autoBackup ? "bg-blue-500" : ""}`}
+                  >
+                    <span
+                      className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform ${backupConfig.autoBackup ? "translate-x-4" : ""}`}
+                    ></span>
+                  </label>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -1574,13 +1699,25 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
                     Attiva la modalità scura per l'interfaccia
                   </p>
                 </div>
-                <Switch
-                  id="dark-mode"
-                  checked={generalSettings.darkMode}
-                  onCheckedChange={(checked) =>
-                    handleGeneralSettingsChange("darkMode", checked)
-                  }
-                />
+                <div className="relative inline-block w-10 mr-2 align-middle select-none">
+                  <input
+                    type="checkbox"
+                    id="dark-mode"
+                    checked={generalSettings.darkMode}
+                    onChange={(e) =>
+                      handleGeneralSettingsChange("darkMode", e.target.checked)
+                    }
+                    className="sr-only"
+                  />
+                  <label
+                    htmlFor="dark-mode"
+                    className={`block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer ${generalSettings.darkMode ? "bg-blue-500" : ""}`}
+                  >
+                    <span
+                      className={`block h-6 w-6 rounded-full bg-white shadow transform transition-transform ${generalSettings.darkMode ? "translate-x-4" : ""}`}
+                    ></span>
+                  </label>
+                </div>
               </div>
 
               <div className="space-y-2">

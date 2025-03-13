@@ -6,7 +6,8 @@ const isElectron = (): boolean => {
   return (
     typeof window !== "undefined" &&
     typeof window.electronAPI !== "undefined" &&
-    Object.keys(window.electronAPI).length > 0
+    window.electronAPI !== null &&
+    Object.keys(window.electronAPI || {}).length > 0
   );
 };
 
