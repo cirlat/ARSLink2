@@ -118,8 +118,20 @@ const SetupWizard = () => {
     language: "it",
   });
 
+  // Loading state for database operations
+  const [isDbLoading, setIsDbLoading] = useState(false);
+  const [dbConnectionStatus, setDbConnectionStatus] = useState<{
+    status: "idle" | "success" | "error";
+    message: string;
+  }>({
+    status: "idle",
+    message: "",
+  });
+
   const handleDbConfigChange = (field: string, value: string) => {
     setDbConfig({ ...dbConfig, [field]: value });
+    // Reset connection status when config changes
+    setDbConnectionStatus({ status: "idle", message: "" });
   };
 
   const handleAdminUserChange = (field: string, value: string) => {
@@ -168,9 +180,97 @@ const SetupWizard = () => {
     return false;
   };
 
+  const testConnection = async () => {
+    try {
+      // Verifica che tutti i campi siano compilati
+      if (
+        !dbConfig.host ||
+        !dbConfig.port ||
+        !dbConfig.username ||
+        !dbConfig.password |n        !dbConfig.dbName
+      ) {
+        setDbConnectionStatus({
+          status: "error",
+          message: "Compila tutti i campi prima di testare la connessione",
+        });
+        return;
+      }
+
+      // Imposta lo stato di caricamento
+      setIsDbLoading(true);
+      setDbConnectionStatus({ status: "idle", message: "" });
+
+      // Verifica se la porta è un numero valido
+      const port = parseInt(dbConfig.port);
+      if (isNaN(port) || port <= 0 || port > 65535) {
+        setDbConnectionStatus({
+          status: "error",
+          message: "La porta deve essere un numero valido tra 1 e 65535",
+        });
+        setIsDbLoading(false);
+        return;
+      }
+
+      // Usa l'API Electron per testare la connessione
+      const result = await electronAPI.connectDatabase({
+        host: dbConfig.host,
+        port: dbConfig.port,
+        username: dbConfig.username,
+        password: dbConfig.password,
+        dbName: dbConfig.dbName,
+      });
+
+      if (result.success) {
+        setDbConnectionStatus({
+          status: "success",
+          message: "Connessione riuscita! " + (result.message || ""),
+        });
+      } else {
+        setDbConnectionStatus({
+          status: "error",
+          message: result.error || "Errore di connessione al database",
+        });
+      }
+    } catch (error) {
+      setDbConnectionStatus({
+        status: "error",
+        message: error.message || "Errore sconosciuto durante il test di connessione",
+      });
+    } finally {
+      setIsDbLoading(false);
+    }
+  };
+
   const nextStep = () => {
     // Validazione specifica per ogni step
-    if (currentStep === 2) {
+    if (currentStep === 1) {
+      // Validazione per lo step del database
+      if (
+        !dbConfig.host ||
+        !dbConfig.port ||
+        !dbConfig.username ||
+        !dbConfig.password ||
+        !dbConfig.dbName
+      ) {
+        alert("Compila tutti i campi del database prima di procedere.");
+        return;
+      }
+
+      // Verifica se la porta è un numero valido
+      const port = parseInt(dbConfig.port);
+      if (isNaN(port) || port <= 0 || port > 65535) {
+        alert("La porta deve essere un numero valido tra 1 e 65535");
+        return;
+      }
+
+      // Se non è stato fatto un test di connessione con successo, chiedi conferma
+      if (dbConnectionStatus.status !== "success") {
+        const confirm = window.confirm(
+          "Non hai testato la connessione al database o il test non è riuscito. Vuoi procedere comunque?"
+        );
+        if (!confirm) return;
+      }
+    } else if (currentStep === 2) {
       // Validazione per lo step dell'utente amministratore
       if (
         !adminUser.username ||
@@ -270,14 +370,38 @@ const SetupWizard = () => {
 
       // 1. Inizializza il database
       try {
+        // Mostra un messaggio di caricamento
+        const dbInitMessage = document.createElement("div");
+        dbInitMessage.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+        dbInitMessage.innerHTML = `
+          <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-lg font-medium mb-4">Inizializzazione Database</h3>
+            <div class="space-y-4">
+              <div class="flex items-center">
+                <div class="spinner mr-3"></div>
+                <p>Connessione al database in corso...</p>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(dbInitMessage);
+
         // Verifica la connessione al database
         const connectionResult = await testDatabaseConnection(dbConfig);
         if (!connectionResult) {
+          document.body.removeChild(dbInitMessage);
           throw new Error("Impossibile connettersi al database");
         }
 
+        // Aggiorna il messaggio
+        dbInitMessage.querySelector("p").textContent = "Creazione tabelle in corso...";
+
         // Inizializza il database con le tabelle necessarie
         const initResult = await initializeDatabase(dbConfig);
+        
+        // Rimuovi il messaggio di caricamento
+        document.body.removeChild(dbInitMessage);
+        
         if (!initResult) {
           throw new Error("Errore nell'inizializzazione del database");
         }
@@ -353,6 +477,9 @@ const SetupWizard = () => {
 
       // Segna il setup come completato
       localStorage.setItem("setupCompleted", "true");
+
+      // Mostra un messaggio di successo
+      alert("Setup completato con successo! L'applicazione verrà riavviata.");
 
       // Reindirizza alla pagina di login
       navigate("/");
@@ -433,7 +560,20 @@ const SetupWizard = () => {
                     handleDbConfigChange("dbName", e.target.value)
                   }
                 />
+                <p className="text-xs text-muted-foreground">
+                  Il database verrà creato automaticamente se non esiste
+                </p>
               </div>
+
+              {dbConnectionStatus.status !== "idle" && (
+                <div className={`p-3 rounded-md ${
+                  dbConnectionStatus.status === "success" 
+                    ? "bg-green-50 border border-green-200 text-green-800" 
+                    : "bg-red-50 border border-red-200 text-red-800"
+                }`}>
+                  {dbConnectionStatus.message}
+                </div>
+              )}
 
               <div className="flex justify-between pt-4">
                 <Button
@@ -450,88 +590,20 @@ const SetupWizard = () => {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={async () => {
-                    try {
-                      // Verifica che tutti i campi siano compilati
-                      if (
-                        !dbConfig.host ||
-                        !dbConfig.port ||
-                        !dbConfig.username ||
-                        !dbConfig.password ||
-                        !dbConfig.dbName
-                      ) {
-                        alert(
-                          "Compila tutti i campi prima di testare la connessione",
-                        );
-                        return;
-                      }
-
-                      // Disabilita il pulsante durante il test di connessione
-                      const testButton = document.activeElement;
-                      if (testButton instanceof HTMLButtonElement) {
-                        testButton.disabled = true;
-                        testButton.innerHTML =
-                          '<span class="spinner"></span> Connessione in corso...';
-                      }
-
-                      // Verifica se la porta è un numero valido
-                      const port = parseInt(dbConfig.port);
-                      if (isNaN(port) || port <= 0 || port > 65535) {
-                        alert(
-                          "Errore: La porta deve essere un numero valido tra 1 e 65535",
-                        );
-                        if (testButton instanceof HTMLButtonElement) {
-                          testButton.disabled = false;
-                          testButton.innerHTML =
-                            '<svg class="mr-2 h-4 w-4" viewBox="0 0 24 24"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path></svg>Testa Connessione';
-                        }
-                        return;
-                      }
-
-                      // Test di connessione al database PostgreSQL
-                      try {
-                        // Usa l'API Electron per testare la connessione
-                        const result = await electronAPI.connectDatabase({
-                          host: dbConfig.host,
-                          port: dbConfig.port,
-                          username: dbConfig.username,
-                          password: dbConfig.password,
-                          dbName: dbConfig.dbName,
-                        });
-
-                        if (result.success) {
-                          alert("Connessione riuscita! " + result.message);
-                        } else {
-                          throw new Error(
-                            result.error || "Errore di connessione",
-                          );
-                        }
-                      } catch (error) {
-                        alert(
-                          `Errore di connessione: ${error.message || "Errore sconosciuto"}`,
-                        );
-                      }
-
-                      if (testButton instanceof HTMLButtonElement) {
-                        testButton.disabled = false;
-                        testButton.innerHTML =
-                          '<svg class="mr-2 h-4 w-4" viewBox="0 0 24 24"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path></svg>Testa Connessione';
-                      }
-                    } catch (error) {
-                      alert(
-                        `Errore durante il test di connessione: ${error.message || "Errore sconosciuto"}`,
-                      );
-                      const testButton = document.activeElement;
-                      if (testButton instanceof HTMLButtonElement) {
-                        testButton.disabled = false;
-                        testButton.innerHTML =
-                          '<svg class="mr-2 h-4 w-4" viewBox="0 0 24 24"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path></svg>Testa Connessione';
-                      }
-                    }
-                  }}
+                  onClick={testConnection}
+                  disabled={isDbLoading}
                 >
-                  <Database className="mr-2 h-4 w-4" />
-                  Testa Connessione
+                  {isDbLoading ? (
+                    <>
+                      <span className="spinner mr-2"></span>
+                      Connessione in corso...
+                    </>
+                  ) : (
+                    <>
+                      <Database className="mr-2 h-4 w-4" />
+                      Testa Connessione
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>

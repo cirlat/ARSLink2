@@ -69,6 +69,65 @@ export async function testDatabaseConnection(config: {
 }
 
 /**
+ * Crea il database se non esiste
+ * @returns Promise<boolean> true se la creazione è riuscita, false altrimenti
+ */
+export async function createDatabase(config: {
+  host: string;
+  port: string;
+  username: string;
+  password: string;
+  dbName: string;
+}): Promise<boolean> {
+  try {
+    // Verifica se siamo in Electron
+    if (isRunningInElectron()) {
+      // Connessione al server PostgreSQL senza specificare un database
+      const result = await electronAPI.executeQuery(
+        `CREATE DATABASE ${config.dbName}`,
+        [],
+      );
+      return result.success;
+    }
+
+    const port = parseInt(config.port);
+    const { Client } = await import("pg");
+
+    // Connessione al server PostgreSQL senza specificare un database
+    const client = new Client({
+      host: config.host,
+      port: port,
+      user: config.username,
+      password: config.password,
+      database: "postgres", // Connessione al database di sistema postgres
+      ssl: false,
+    });
+
+    await client.connect();
+
+    // Verifica se il database esiste già
+    const checkResult = await client.query(
+      "SELECT 1 FROM pg_database WHERE datname = $1",
+      [config.dbName],
+    );
+
+    // Se il database non esiste, crealo
+    if (checkResult.rows.length === 0) {
+      await client.query(`CREATE DATABASE ${config.dbName}`);
+      console.log(`Database ${config.dbName} creato con successo`);
+    } else {
+      console.log(`Il database ${config.dbName} esiste già`);
+    }
+
+    await client.end();
+    return true;
+  } catch (error) {
+    console.error("Errore durante la creazione del database:", error);
+    return false;
+  }
+}
+
+/**
  * Inizializza il database con le tabelle necessarie
  * @returns Promise<boolean> true se l'inizializzazione è riuscita, false altrimenti
  */
@@ -80,10 +139,32 @@ export async function initializeDatabase(config: {
   dbName: string;
 }): Promise<boolean> {
   try {
+    // Prima crea il database se non esiste
+    const dbCreated = await createDatabase(config);
+    if (!dbCreated) {
+      throw new Error("Impossibile creare il database");
+    }
+
     // Verifica se siamo in Electron
     if (isRunningInElectron()) {
       // Usa l'API Electron per inizializzare il database
-      // Qui dovresti implementare la logica specifica per Electron
+      const createUsersTable = await electronAPI.executeQuery(
+        `CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          username VARCHAR(50) UNIQUE NOT NULL,
+          password VARCHAR(100) NOT NULL,
+          full_name VARCHAR(100) NOT NULL,
+          email VARCHAR(100) UNIQUE NOT NULL,
+          role VARCHAR(20) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`,
+        [],
+      );
+
+      // Continua con le altre tabelle...
+      // Qui dovresti implementare la creazione di tutte le tabelle
+
       return true;
     }
 

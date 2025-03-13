@@ -71,6 +71,40 @@ ipcMain.handle("connect-database", async (event, config) => {
       throw new Error("PostgreSQL client not available");
     }
 
+    // Prima verifica se il database esiste
+    try {
+      // Connessione al database postgres (database di sistema)
+      const pgClient = new Client({
+        host: config.host,
+        port: parseInt(config.port),
+        user: config.username,
+        password: config.password,
+        database: "postgres",
+        ssl: false,
+        connectionTimeoutMillis: 5000,
+      });
+
+      await pgClient.connect();
+
+      // Verifica se il database esiste
+      const checkResult = await pgClient.query(
+        "SELECT 1 FROM pg_database WHERE datname = $1",
+        [config.dbName],
+      );
+
+      // Se il database non esiste, crealo
+      if (checkResult.rows.length === 0) {
+        await pgClient.query(`CREATE DATABASE ${config.dbName}`);
+        console.log(`Database ${config.dbName} creato con successo`);
+      }
+
+      await pgClient.end();
+    } catch (pgError) {
+      console.error("Error checking/creating database:", pgError);
+      // Continuiamo comunque con il tentativo di connessione al database specificato
+    }
+
+    // Ora tenta la connessione al database specificato
     const client = new Client({
       host: config.host,
       port: parseInt(config.port),
