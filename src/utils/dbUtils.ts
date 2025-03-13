@@ -356,23 +356,31 @@ export async function createTable(
       console.log(`Executing query to create table ${tableName}`);
       console.log(query);
 
-      // First, save the database configuration to Electron's storage
+      // First, save the database configuration to Electron's storage if the function exists
       try {
-        const saveResult = await electronAPI.saveDbConfig({
-          host: config.host,
-          port: config.port,
-          username: config.username,
-          password: config.password || "",
-          dbName: config.dbName,
-        });
+        if (typeof electronAPI.saveDbConfig === "function") {
+          const saveResult = await electronAPI.saveDbConfig({
+            host: config.host,
+            port: config.port,
+            username: config.username,
+            password: config.password || "",
+            dbName: config.dbName,
+          });
 
-        if (!saveResult.success) {
-          console.error(
-            "Failed to save database configuration to Electron:",
-            saveResult.error,
-          );
+          if (!saveResult.success) {
+            console.error(
+              "Failed to save database configuration to Electron:",
+              saveResult.error,
+            );
+          } else {
+            console.log(
+              "Database configuration saved to Electron successfully",
+            );
+          }
         } else {
-          console.log("Database configuration saved to Electron successfully");
+          console.log(
+            "saveDbConfig function not available in this environment, skipping",
+          );
         }
       } catch (saveError) {
         console.error(
