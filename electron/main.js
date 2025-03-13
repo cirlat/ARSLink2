@@ -1,10 +1,15 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
-const pg = require("pg");
+let pg;
+try {
+  pg = require("pg");
+} catch (error) {
+  console.error("Errore nel caricamento del modulo pg:", error);
+}
 const { exec } = require("child_process");
 
-const { Client } = pg;
+const Client = pg ? pg.Client : null;
 
 // __dirname is already defined in CommonJS
 
@@ -55,6 +60,10 @@ ipcMain.handle("connect-database", async (event, config) => {
     }
 
     // Crea una nuova connessione
+    if (!Client) {
+      throw new Error("Modulo pg non disponibile");
+    }
+
     dbClient = new Client({
       host: config.host,
       port: config.port,

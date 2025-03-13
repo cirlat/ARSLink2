@@ -18,7 +18,21 @@ try {
     process.versions &&
     process.versions.node
   ) {
-    pg = require("pg");
+    // Utilizziamo dynamic import per evitare problemi con ESM
+    const importPg = async () => {
+      try {
+        return await import("pg");
+      } catch (err) {
+        console.error("Errore nel caricamento dinamico di pg:", err);
+        return null;
+      }
+    };
+
+    // Inizializziamo pg come null, verrà caricato in modo asincrono
+    pg = null;
+    importPg().then((module) => {
+      if (module) pg = module;
+    });
   }
 } catch (e) {
   console.log("Ambiente browser rilevato, utilizzo simulazione DB");
