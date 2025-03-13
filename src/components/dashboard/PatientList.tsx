@@ -265,10 +265,26 @@ const PatientList: React.FC<PatientListProps> = ({
         const success = await patientModel.delete(parseInt(id));
 
         if (!success) {
-          throw new Error("Errore nell'eliminazione del paziente dal database");
+          // Se il modello non riesce a eliminare, proviamo con una query diretta
+          try {
+            const { default: Database } = await import("@/models/database");
+            const db = Database.getInstance();
+            await db.query("DELETE FROM patients WHERE id = $1", [
+              parseInt(id),
+            ]);
+            console.log(
+              `Paziente ${id} eliminato dal database con query diretta`,
+            );
+          } catch (directQueryError) {
+            console.error(
+              "Errore nell'eliminazione diretta dal database:",
+              directQueryError,
+            );
+            throw directQueryError;
+          }
+        } else {
+          console.log(`Paziente ${id} eliminato dal database`);
         }
-
-        console.log(`Paziente ${id} eliminato dal database`);
 
         // Elimina anche gli appuntamenti associati a questo paziente
         try {
@@ -285,6 +301,22 @@ const PatientList: React.FC<PatientListProps> = ({
             "Errore nell'eliminazione degli appuntamenti associati:",
             appointmentError,
           );
+          // Prova con una query diretta
+          try {
+            const { default: Database } = await import("@/models/database");
+            const db = Database.getInstance();
+            await db.query("DELETE FROM appointments WHERE patient_id = $1", [
+              parseInt(id),
+            ]);
+            console.log(
+              `Appuntamenti per il paziente ${id} eliminati con query diretta`,
+            );
+          } catch (directQueryError) {
+            console.error(
+              "Errore nell'eliminazione diretta degli appuntamenti:",
+              directQueryError,
+            );
+          }
         }
 
         // Aggiorna lo stato o ricarica i dati
@@ -296,6 +328,20 @@ const PatientList: React.FC<PatientListProps> = ({
 
         // Aggiorna la lista dei pazienti rimuovendo il paziente eliminato
         setPatients(patients.filter((patient) => patient.id !== id));
+
+        // Salva anche in localStorage per il caso in cui il DB non sia disponibile
+        try {
+          const storedPatients = JSON.parse(
+            localStorage.getItem("patients") || "[]",
+          );
+          const updatedPatients = storedPatients.filter((p) => p.id !== id);
+          localStorage.setItem("patients", JSON.stringify(updatedPatients));
+        } catch (localStorageError) {
+          console.error(
+            "Errore nell'aggiornamento di localStorage:",
+            localStorageError,
+          );
+        }
       } catch (dbError) {
         console.error("Errore nell'eliminazione dal database:", dbError);
         throw dbError;

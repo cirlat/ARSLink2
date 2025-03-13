@@ -1540,22 +1540,53 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
                     type="button"
                     variant="secondary"
                     className="rounded-l-none"
-                    onClick={() => {
-                      // In un ambiente reale, qui apriremmo un selettore di directory
-                      // Per ora, simuliamo la selezione di una directory
-                      const mockDirectories = [
-                        "C:\\ProgramData\\PatientAppointmentSystem\\Backups",
-                        "C:\\Users\\Admin\\Documents\\Backups",
-                        "D:\\Backups",
-                      ];
-                      const selectedDir =
-                        mockDirectories[
-                          Math.floor(Math.random() * mockDirectories.length)
-                        ];
-                      handleBackupConfigChange("backupPath", selectedDir);
-                      alert(
-                        `Directory selezionata: ${selectedDir}\n\nNota: In un'applicazione reale, qui si aprirebbe un selettore di directory.`,
-                      );
+                    onClick={async () => {
+                      try {
+                        // Usa l'API Electron per aprire un selettore di directory
+                        if (isRunningInElectron() && window.electronAPI) {
+                          // Crea un input di tipo file nascosto
+                          const input = document.createElement("input");
+                          input.type = "file";
+                          input.webkitdirectory = true; // Proprietà non standard per selezionare directory
+                          input.directory = true; // Per Firefox
+                          input.multiple = false;
+                          input.style.display = "none";
+                          document.body.appendChild(input);
+
+                          // Gestisci l'evento di selezione
+                          input.onchange = (e) => {
+                            const files = e.target.files;
+                            if (files && files.length > 0) {
+                              // Ottieni il percorso della directory selezionata
+                              const path = files[0].path.split(
+                                files[0].name,
+                              )[0];
+                              handleBackupConfigChange("backupPath", path);
+                            }
+                            document.body.removeChild(input);
+                          };
+
+                          // Simula il click sull'input
+                          input.click();
+                        } else {
+                          // Fallback per ambiente browser
+                          const selectedDir = prompt(
+                            "Inserisci il percorso per i backup:",
+                            backupConfig.backupPath,
+                          );
+                          if (selectedDir) {
+                            handleBackupConfigChange("backupPath", selectedDir);
+                          }
+                        }
+                      } catch (error) {
+                        console.error(
+                          "Errore durante la selezione della directory:",
+                          error,
+                        );
+                        alert(
+                          "Si è verificato un errore durante la selezione della directory. Inserisci il percorso manualmente.",
+                        );
+                      }
                     }}
                   >
                     Sfoglia...
@@ -1645,6 +1676,7 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
                   placeholder="Studio Medico Dr. Rossi"
                   autoComplete="off"
                   readOnly={false}
+                  type="text"
                 />
               </div>
 
@@ -1659,6 +1691,7 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
                   placeholder="Via Roma 123, 00100 Roma"
                   autoComplete="off"
                   readOnly={false}
+                  type="text"
                 />
               </div>
 
@@ -1674,6 +1707,7 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
                     placeholder="info@studiomedico.it"
                     autoComplete="off"
                     readOnly={false}
+                    type="email"
                   />
                 </div>
 
@@ -1688,6 +1722,7 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
                     placeholder="+39 06 12345678"
                     autoComplete="off"
                     readOnly={false}
+                    type="tel"
                   />
                 </div>
               </div>

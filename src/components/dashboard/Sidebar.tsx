@@ -85,7 +85,7 @@ const Sidebar = ({
     { id: "calendar", label: "Calendario", icon: Calendar, path: "/calendar" },
     { id: "patients", label: "Pazienti", icon: Users, path: "/patients" },
     // Mostra le notifiche solo se l'utente ha una licenza che include WhatsApp
-    ...(hasWhatsAppLicense
+    ...(hasWhatsAppLicense || true // Temporaneamente mostra sempre le notifiche per debug
       ? [
           {
             id: "notifications",

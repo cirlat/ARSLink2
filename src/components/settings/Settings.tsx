@@ -54,8 +54,8 @@ const Settings = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Impostazioni</h1>
         <Button
-          onClick={() => {
-            // Salva tutte le impostazioni in localStorage
+          onClick={async () => {
+            // Salva tutte le impostazioni in localStorage e nel database
 
             // Impostazioni generali
             const clinicName = document.getElementById("clinic-name")?.value;
@@ -100,6 +100,35 @@ const Settings = () => {
               JSON.stringify(generalSettings),
             );
             localStorage.setItem("backupConfig", JSON.stringify(backupConfig));
+
+            // Salva anche nel database
+            try {
+              const { default: Database } = await import("@/models/database");
+              const db = Database.getInstance();
+
+              // Salva le impostazioni generali
+              await db.query(
+                `INSERT INTO configurations (key, value) 
+                 VALUES ($1, $2) 
+                 ON CONFLICT (key) DO UPDATE SET value = $2`,
+                ["general_settings", JSON.stringify(generalSettings)],
+              );
+
+              // Salva le impostazioni di backup
+              await db.query(
+                `INSERT INTO configurations (key, value) 
+                 VALUES ($1, $2) 
+                 ON CONFLICT (key) DO UPDATE SET value = $2`,
+                ["backup_config", JSON.stringify(backupConfig)],
+              );
+
+              console.log("Impostazioni salvate nel database");
+            } catch (dbError) {
+              console.error(
+                "Errore nel salvataggio delle impostazioni nel database:",
+                dbError,
+              );
+            }
 
             // Applica la modalità scura se necessario
             if (darkMode) {
@@ -638,11 +667,56 @@ const Settings = () => {
                       />
                     </div>
 
-                    <Button className="mt-2">Cambia Password</Button>
+                    <Button
+                      className="mt-2"
+                      onClick={async () => {
+                        try {
+                          const currentPassword = (
+                            document.getElementById(
+                              "current-password",
+                            ) as HTMLInputElement
+                          )?.value;
+                          const newPassword = (
+                            document.getElementById(
+                              "new-password",
+                            ) as HTMLInputElement
+                          )?.value;
+                          const confirmPassword = (
+                            document.getElementById(
+                              "confirm-password",
+                            ) as HTMLInputElement
+                          )?.value;
+
+                          if (
+                            !currentPassword ||
+                            !newPassword ||
+                            !confirmPassword
+                          ) {
+                            alert("Compila tutti i campi");
+                            return;
+                          }
+                        } catch (error) {
+                          console.error("Error changing password:", error);
+                          alert(
+                            "Si è verificato un errore durante il cambio password",
+                          );
+                        }
+                      }}
+                    >
+                      Cambia Password
+                    </Button>
                   </div>
+                </CardContent>
+              </Card>
 
-                  <Separator />
-
+              <Card>
+                <CardHeader>
+                  <CardTitle>Sicurezza Sessione</CardTitle>
+                  <CardDescription>
+                    Configura le impostazioni di sicurezza della sessione
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
                   <div className="space-y-4">
                     <h3 className="text-sm font-medium">Sessione</h3>
 

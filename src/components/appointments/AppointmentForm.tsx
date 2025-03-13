@@ -68,13 +68,8 @@ const durationOptions = [
   { value: "120", label: "2 ore" },
 ];
 
-const mockPatients = [
-  { id: "1", name: "Maria Rossi" },
-  { id: "2", name: "Giuseppe Verdi" },
-  { id: "3", name: "Francesca Bianchi" },
-  { id: "4", name: "Alessandro Romano" },
-  { id: "5", name: "Lucia Ferrari" },
-];
+// Inizializzazione vuota, verrà popolata dal database
+const mockPatients: { id: string; name: string }[] = [];
 
 const AppointmentForm: React.FC<AppointmentFormProps> = ({
   onSubmit = () => {},
@@ -94,16 +89,248 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   appointment = null,
 }) => {
   const [date, setDate] = useState<Date | undefined>(initialData.date);
+  const [patients, setPatients] = useState(mockPatients);
+
+  // Carica i pazienti dal database
+  useEffect(() => {
+    const loadPatients = async () => {
+      try {
+        // Carica i pazienti dal database
+        const { PatientModel } = await import("@/models/patient");
+        const patientModel = new PatientModel();
+
+        // Ottieni tutti i pazienti
+        const result = await patientModel.findAll();
+
+        if (result.patients && result.patients.length > 0) {
+          // Converti i dati dal formato del database al formato richiesto dal componente
+          const formattedPatients = result.patients.map((p: any) => ({
+            id: p.id.toString(),
+            name: p.name,
+          }));
+          setPatients(formattedPatients);
+        } else {
+          // Fallback a localStorage
+          try {
+            const storedPatients = JSON.parse(
+              localStorage.getItem("patients") || "[]",
+            );
+            if (storedPatients.length > 0) {
+              // Converti i dati dal formato di storage al formato richiesto dal componente
+              const formattedPatients = storedPatients.map((p: any) => ({
+                id: p.id || String(Date.now()),
+                name:
+                  p.name || `${p.firstName || ""} ${p.lastName || ""}`.trim(),
+              }));
+              setPatients(formattedPatients);
+            } else {
+              // Usa dati di fallback
+              setPatients([
+                { id: "1", name: "Maria Rossi" },
+                { id: "2", name: "Giuseppe Verdi" },
+                { id: "3", name: "Francesca Bianchi" },
+                { id: "4", name: "Alessandro Romano" },
+                { id: "5", name: "Lucia Ferrari" },
+              ]);
+            }
+          } catch (localStorageError) {
+            console.error(
+              "Errore nel caricamento dei pazienti da localStorage:",
+              localStorageError,
+            );
+            // Usa dati di fallback
+            setPatients([
+              { id: "1", name: "Maria Rossi" },
+              { id: "2", name: "Giuseppe Verdi" },
+              { id: "3", name: "Francesca Bianchi" },
+              { id: "4", name: "Alessandro Romano" },
+              { id: "5", name: "Lucia Ferrari" },
+            ]);
+          }
+        }
+      } catch (error) {
+        console.error("Errore nel caricamento dei pazienti:", error);
+        // Usa dati di fallback
+        setPatients([
+          { id: "1", name: "Maria Rossi" },
+          { id: "2", name: "Giuseppe Verdi" },
+          { id: "3", name: "Francesca Bianchi" },
+          { id: "4", name: "Alessandro Romano" },
+          { id: "5", name: "Lucia Ferrari" },
+        ]);
+      }
+    };
+
+    loadPatients();
+  }, []);
 
   const form = useForm<AppointmentFormData>({
     defaultValues: initialData,
   });
 
-  const handleSubmit = (data: AppointmentFormData) => {
-    // In un'implementazione reale, questo gestirebbe l'invio del form
-    // e potenzialmente le chiamate API per la sincronizzazione con Google Calendar
-    onSubmit(data);
-    onClose();
+  const handleSubmit = async (data: AppointmentFormData) => {
+    try {
+      // Salva l'appuntamento nel database
+      const { AppointmentModel } = await import("@/models/appointment");
+      const appointmentModel = new AppointmentModel();
+
+      // Prepara i dati per il salvataggio
+      const appointmentData = {
+        patient_id: parseInt(data.patientId),
+        date: data.date.toISOString().split("T")[0],
+        time: data.time,
+        duration: parseInt(data.duration),
+        appointment_type: data.appointmentType,
+        notes: data.notes || "",
+        google_calendar_synced: data.googleCalendarSync,
+        whatsapp_notification_sent: false,
+      };
+
+      // Salva l'appuntamento
+      let savedAppointment;
+      if (isEditing && appointment?.id) {
+        savedAppointment = await appointmentModel.update(
+          parseInt(appointment.id),
+          appointmentData,
+        );
+      } else {
+        savedAppointment = await appointmentModel.create(appointmentData);
+      }
+
+      if (savedAppointment) {
+        console.log("Appuntamento salvato con successo:", savedAppointment);
+
+        // Invia notifica WhatsApp se richiesto
+        if (data.sendWhatsAppNotification) {
+          try {
+            const { WhatsAppService } = await import(
+              "@/services/whatsapp.service"
+            );
+            const whatsAppService = WhatsAppService.getInstance();
+
+            // Verifica se il servizio è abilitato e autenticato
+            const isEnabled = await whatsAppService.isServiceEnabled();
+            const isAuthenticated =
+              await whatsAppService.isServiceAuthenticated();
+
+            if (isEnabled && isAuthenticated) {
+              // Trova il paziente per ottenere il numero di telefono
+              const patient = patients.find((p) => p.id === data.patientId);
+              if (patient) {
+                await whatsAppService.sendAppointmentConfirmation(
+                  savedAppointment.id,
+                  patient.name,
+                  data.date,
+                  data.time,
+                );
+                console.log("Notifica WhatsApp inviata con successo");
+              }
+            }
+          } catch (whatsappError) {
+            console.error(
+              "Errore nell'invio della notifica WhatsApp:",
+              whatsappError,
+            );
+          }
+        }
+
+        // Sincronizza con Google Calendar se richiesto
+        if (data.googleCalendarSync) {
+          try {
+            const { GoogleCalendarService } = await import(
+              "@/services/googleCalendar.service"
+            );
+            const googleCalendarService = GoogleCalendarService.getInstance();
+
+            // Verifica se il servizio è abilitato e autenticato
+            const isEnabled = await googleCalendarService.isServiceEnabled();
+            const isAuthenticated =
+              await googleCalendarService.isServiceAuthenticated();
+
+            if (isEnabled && isAuthenticated) {
+              // Trova il paziente per ottenere il nome
+              const patient = patients.find((p) => p.id === data.patientId);
+              if (patient) {
+                await googleCalendarService.syncAppointment(
+                  savedAppointment.id,
+                  patient.name,
+                  data.date,
+                  data.time,
+                  parseInt(data.duration),
+                  data.appointmentType,
+                  data.notes || "",
+                );
+                console.log("Appuntamento sincronizzato con Google Calendar");
+              }
+            }
+          } catch (googleError) {
+            console.error(
+              "Errore nella sincronizzazione con Google Calendar:",
+              googleError,
+            );
+          }
+        }
+
+        // Salva anche in localStorage per il caso in cui il DB non sia disponibile
+        try {
+          const storedAppointments = JSON.parse(
+            localStorage.getItem("appointments") || "[]",
+          );
+          const newAppointment = {
+            id: savedAppointment.id || Date.now().toString(),
+            patientId: data.patientId,
+            patientName:
+              patients.find((p) => p.id === data.patientId)?.name || "Paziente",
+            date: data.date.toISOString(),
+            time: data.time,
+            duration: data.duration,
+            type: data.appointmentType,
+            notes: data.notes,
+            synced: data.googleCalendarSync,
+            notified: data.sendWhatsAppNotification,
+          };
+
+          if (isEditing && appointment?.id) {
+            // Aggiorna l'appuntamento esistente
+            const updatedAppointments = storedAppointments.map((a: any) =>
+              a.id === appointment.id ? newAppointment : a,
+            );
+            localStorage.setItem(
+              "appointments",
+              JSON.stringify(updatedAppointments),
+            );
+          } else {
+            // Aggiungi il nuovo appuntamento
+            storedAppointments.push(newAppointment);
+            localStorage.setItem(
+              "appointments",
+              JSON.stringify(storedAppointments),
+            );
+          }
+        } catch (localStorageError) {
+          console.error(
+            "Errore nel salvataggio in localStorage:",
+            localStorageError,
+          );
+        }
+
+        // Chiudi il form e aggiorna la vista
+        alert(
+          isEditing
+            ? "Appuntamento aggiornato con successo"
+            : "Appuntamento creato con successo",
+        );
+        onSubmit(data);
+        onClose();
+      } else {
+        throw new Error("Errore nel salvataggio dell'appuntamento");
+      }
+    } catch (error) {
+      console.error("Errore durante il salvataggio dell'appuntamento:", error);
+      alert(
+        `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+      );
+    }
   };
 
   return (
@@ -136,7 +363,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {mockPatients.map((patient) => (
+                    {patients.map((patient) => (
                       <SelectItem key={patient.id} value={patient.id}>
                         {patient.name}
                       </SelectItem>

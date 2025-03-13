@@ -120,6 +120,8 @@ class LoginFormClass extends React.Component<LoginFormProps> {
                     className="pl-10"
                     value={username}
                     onChange={this.handleInputChange}
+                    autoComplete="username"
+                    readOnly={false}
                   />
                 </div>
               </div>
@@ -138,6 +140,7 @@ class LoginFormClass extends React.Component<LoginFormProps> {
                     autoComplete="current-password"
                     value={password}
                     onChange={this.handleInputChange}
+                    readOnly={false}
                   />
                 </div>
               </div>

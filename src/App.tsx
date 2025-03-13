@@ -78,7 +78,7 @@ function App() {
           {import.meta.env.VITE_TEMPO && useRoutes(routes)}
 
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<Dashboard />} />
             <Route path="/calendar" element={<CalendarView />} />
             <Route path="/patients" element={<PatientList />} />
             <Route path="/patients/new" element={<PatientForm />} />
