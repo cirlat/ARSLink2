@@ -9,32 +9,13 @@ interface PgPool {
   end: () => Promise<void>;
 }
 
-// Importiamo il modulo pg in modo condizionale
+// Non importiamo pg direttamente nel browser
 let pg: any = null;
-try {
-  // Tentiamo di importare pg solo se siamo in un ambiente Node.js
-  if (
-    typeof process !== "undefined" &&
-    process.versions &&
-    process.versions.node
-  ) {
-    // Utilizziamo dynamic import per evitare problemi con ESM
-    const importPg = async () => {
-      try {
-        return await import("pg");
-      } catch (err) {
-        console.error("Errore nel caricamento dinamico di pg:", err);
-        return null;
-      }
-    };
 
-    // Inizializziamo pg come null, verrà caricato in modo asincrono
-    pg = null;
-    importPg().then((module) => {
-      if (module) pg = module;
-    });
-  }
-} catch (e) {
+// In ambiente Electron, pg sarà disponibile tramite preload
+if (isRunningInElectron()) {
+  console.log("Ambiente Electron rilevato, utilizzo pg tramite preload");
+} else {
   console.log("Ambiente browser rilevato, utilizzo simulazione DB");
 }
 

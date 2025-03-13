@@ -5,7 +5,12 @@ interface ElectronAPI {
   executeQuery: (
     query: string,
     params: any[],
-  ) => Promise<{ success: boolean; rows?: any[]; error?: string }>;
+  ) => Promise<{
+    success: boolean;
+    rows?: any[];
+    rowCount?: number;
+    error?: string;
+  }>;
   backupDatabase: (
     path: string,
   ) => Promise<{ success: boolean; path?: string; error?: string }>;

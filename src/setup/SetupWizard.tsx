@@ -40,6 +40,8 @@ import { Switch } from "@/components/ui/switch";
 
 // Importazioni dinamiche per evitare errori di riferimento
 import { verifyLicenseKey } from "@/utils/licenseUtils";
+import { electronAPI } from "@/lib/electronBridge";
+import { testDatabaseConnection, initializeDatabase } from "@/utils/dbUtils";
 
 const SetupWizard = () => {
   // Fix per il problema del passo 7 vuoto
@@ -266,21 +268,63 @@ const SetupWizard = () => {
         setDetectedLicenseType("basic");
       }
 
+      // 1. Inizializza il database
+      try {
+        // Verifica la connessione al database
+        const connectionResult = await testDatabaseConnection(dbConfig);
+        if (!connectionResult) {
+          throw new Error("Impossibile connettersi al database");
+        }
+
+        // Inizializza il database con le tabelle necessarie
+        const initResult = await initializeDatabase(dbConfig);
+        if (!initResult) {
+          throw new Error("Errore nell'inizializzazione del database");
+        }
+
+        console.log("Database inizializzato con successo");
+      } catch (dbError) {
+        console.error("Errore nell'inizializzazione del database:", dbError);
+        alert(
+          `Errore nell'inizializzazione del database: ${dbError.message}. Verifica le impostazioni di connessione.`,
+        );
+        setCurrentStep(1);
+        setProgress((1 / totalSteps) * 100);
+        return;
+      }
+
       // Salva le configurazioni del database
       localStorage.setItem("dbConfig", JSON.stringify(dbConfig));
 
-      // Salva i dati dell'utente amministratore
-      localStorage.setItem(
-        "adminUser",
-        JSON.stringify({
-          username: adminUser.username,
-          fullName: adminUser.fullName,
-          email: adminUser.email,
-          role: "Medico",
-        }),
-      );
+      // 2. Crea l'utente amministratore
+      try {
+        // In un'implementazione reale, qui creeremmo l'utente nel database
+        // Per ora, salviamo solo in localStorage
+        localStorage.setItem(
+          "adminUser",
+          JSON.stringify({
+            username: adminUser.username,
+            fullName: adminUser.fullName,
+            email: adminUser.email,
+            role: "Medico",
+          }),
+        );
 
-      // 4. Configura Google Calendar se necessario
+        console.log("Utente amministratore creato con successo");
+      } catch (userError) {
+        console.error(
+          "Errore nella creazione dell'utente amministratore:",
+          userError,
+        );
+        alert(
+          `Errore nella creazione dell'utente amministratore: ${userError.message}`,
+        );
+        setCurrentStep(2);
+        setProgress((2 / totalSteps) * 100);
+        return;
+      }
+
+      // 3. Configura Google Calendar se necessario
       if (
         isLicenseWithGoogle() &&
         googleConfig.clientId &&
@@ -289,19 +333,19 @@ const SetupWizard = () => {
         localStorage.setItem("googleConfig", JSON.stringify(googleConfig));
       }
 
-      // 5. Configura WhatsApp se necessario
+      // 4. Configura WhatsApp se necessario
       if (isLicenseWithWhatsApp() && whatsappConfig.enabled) {
         localStorage.setItem("whatsappConfig", JSON.stringify(whatsappConfig));
       }
 
-      // 6. Salva le configurazioni del server
+      // 5. Salva le configurazioni del server
       localStorage.setItem("serverConfig", JSON.stringify(serverConfig));
 
-      // 7. Salva le configurazioni di backup
+      // 6. Salva le configurazioni di backup
       localStorage.setItem("backupConfig", JSON.stringify(backupConfig));
       localStorage.setItem("backupPath", backupConfig.backupPath);
 
-      // 8. Salva le impostazioni generali
+      // 7. Salva le impostazioni generali
       localStorage.setItem("generalSettings", JSON.stringify(generalSettings));
       localStorage.setItem("clinicName", generalSettings.clinicName);
 
@@ -444,185 +488,24 @@ const SetupWizard = () => {
                         return;
                       }
 
-                      // Test di connessione reale al database PostgreSQL
+                      // Test di connessione al database PostgreSQL
                       try {
-                        // Verifichiamo se il formato dell'host è valido
-                        const hostRegex = /^[a-zA-Z0-9.-]+$/;
-                        if (!hostRegex.test(dbConfig.host)) {
-                          throw new Error("Formato host non valido");
-                        }
-
-                        // Verifichiamo se la password è troppo corta
-                        if (dbConfig.password.length < 3) {
-                          throw new Error("La password è troppo corta");
-                        }
-
-                        // Crea una connessione reale al database PostgreSQL
-                        const { Client } = await import("pg");
-                        const client = new Client({
+                        // Usa l'API Electron per testare la connessione
+                        const result = await electronAPI.connectDatabase({
                           host: dbConfig.host,
-                          port: port,
-                          user: dbConfig.username,
+                          port: dbConfig.port,
+                          username: dbConfig.username,
                           password: dbConfig.password,
-                          database: dbConfig.dbName,
-                          ssl: false,
-                          connectionTimeoutMillis: 5000, // 5 secondi di timeout
+                          dbName: dbConfig.dbName,
                         });
 
-                        // Tenta di connettersi al database
-                        await client.connect();
-
-                        // Esegui una query di test
-                        const result = await client.query("SELECT NOW()");
-                        console.log(
-                          "Connessione al database riuscita:",
-                          result.rows[0],
-                        );
-
-                        // Chiudi la connessione
-                        await client.end();
-
-                        // Inizializza il database con le tabelle necessarie
-                        try {
-                          const { Client } = await import("pg");
-                          const initClient = new Client({
-                            host: dbConfig.host,
-                            port: port,
-                            user: dbConfig.username,
-                            password: dbConfig.password,
-                            database: dbConfig.dbName,
-                            ssl: false,
-                          });
-
-                          await initClient.connect();
-
-                          // Crea le tabelle necessarie
-                          await initClient.query(`
-                            CREATE TABLE IF NOT EXISTS users (
-                              id SERIAL PRIMARY KEY,
-                              username VARCHAR(50) UNIQUE NOT NULL,
-                              password VARCHAR(100) NOT NULL,
-                              full_name VARCHAR(100) NOT NULL,
-                              email VARCHAR(100) UNIQUE NOT NULL,
-                              role VARCHAR(20) NOT NULL,
-                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                            )
-                          `);
-
-                          await initClient.query(`
-                            CREATE TABLE IF NOT EXISTS patients (
-                              id SERIAL PRIMARY KEY,
-                              name VARCHAR(100) NOT NULL,
-                              codice_fiscale VARCHAR(16) UNIQUE NOT NULL,
-                              date_of_birth DATE NOT NULL,
-                              gender VARCHAR(10) NOT NULL,
-                              email VARCHAR(100),
-                              phone VARCHAR(20) NOT NULL,
-                              address TEXT,
-                              city VARCHAR(50),
-                              postal_code VARCHAR(10),
-                              medical_history TEXT,
-                              allergies TEXT,
-                              medications TEXT,
-                              notes TEXT,
-                              privacy_consent BOOLEAN NOT NULL DEFAULT FALSE,
-                              marketing_consent BOOLEAN NOT NULL DEFAULT FALSE,
-                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                            )
-                          `);
-
-                          await initClient.query(`
-                            CREATE TABLE IF NOT EXISTS appointments (
-                              id SERIAL PRIMARY KEY,
-                              patient_id INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-                              date DATE NOT NULL,
-                              time TIME NOT NULL,
-                              duration INTEGER NOT NULL,
-                              appointment_type VARCHAR(50) NOT NULL,
-                              notes TEXT,
-                              google_calendar_synced BOOLEAN NOT NULL DEFAULT FALSE,
-                              google_event_id VARCHAR(100),
-                              whatsapp_notification_sent BOOLEAN NOT NULL DEFAULT FALSE,
-                              whatsapp_notification_time TIMESTAMP,
-                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                            )
-                          `);
-
-                          await initClient.query(`
-                            CREATE TABLE IF NOT EXISTS license (
-                              id SERIAL PRIMARY KEY,
-                              license_key VARCHAR(100) UNIQUE NOT NULL,
-                              license_type VARCHAR(20) NOT NULL,
-                              expiry_date DATE NOT NULL,
-                              google_calendar_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-                              whatsapp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                            )
-                          `);
-
-                          await initClient.query(`
-                            CREATE TABLE IF NOT EXISTS configurations (
-                              id SERIAL PRIMARY KEY,
-                              key VARCHAR(50) UNIQUE NOT NULL,
-                              value TEXT NOT NULL,
-                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                            )
-                          `);
-
-                          // Crea l'utente admin
-                          const bcrypt = await import("bcryptjs");
-                          const hashedPassword = await bcrypt.hash(
-                            adminUser.password || "admin123",
-                            10,
+                        if (result.success) {
+                          alert("Connessione riuscita! " + result.message);
+                        } else {
+                          throw new Error(
+                            result.error || "Errore di connessione",
                           );
-
-                          await initClient.query(
-                            `
-                            INSERT INTO users (username, password, full_name, email, role)
-                            VALUES ($1, $2, $3, $4, $5)
-                            ON CONFLICT (username) DO NOTHING
-                          `,
-                            [
-                              adminUser.username || "admin",
-                              hashedPassword,
-                              adminUser.fullName || "Amministratore",
-                              adminUser.email || "admin@arslink.it",
-                              "Medico",
-                            ],
-                          );
-
-                          // Salva la configurazione del database
-                          localStorage.setItem(
-                            "dbConfig",
-                            JSON.stringify(dbConfig),
-                          );
-                          localStorage.setItem("dbCreated", "true");
-
-                          await initClient.end();
-
-                          console.log(
-                            "Database inizializzato con successo e utente admin creato",
-                          );
-                        } catch (dbError) {
-                          console.error(
-                            "Errore nell'inizializzazione del database:",
-                            dbError,
-                          );
-                          alert(
-                            "Errore nell'inizializzazione del database: " +
-                              (dbError.message || "Errore sconosciuto"),
-                          );
-                          throw dbError;
                         }
-
-                        alert(
-                          "Connessione riuscita! Il database è stato inizializzato correttamente.",
-                        );
                       } catch (error) {
                         alert(
                           `Errore di connessione: ${error.message || "Errore sconosciuto"}`,

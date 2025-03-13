@@ -28,11 +28,22 @@ export default defineConfig({
     esbuildOptions: {
       target: "es2020",
     },
+    exclude: ["pg", "pg-native", "bcryptjs"],
   },
   build: {
     target: "es2020",
     commonjsOptions: {
       transformMixedEsModules: true,
     },
+  },
+  define: {
+    "process.env.NODE_ENV": JSON.stringify(
+      process.env.NODE_ENV || "development",
+    ),
+    "process.env.ELECTRON_RUN_AS_NODE": JSON.stringify(
+      process.env.ELECTRON_RUN_AS_NODE,
+    ),
+    "process.versions.node": JSON.stringify(process.versions?.node || "16.0.0"),
+    "process.platform": JSON.stringify(process.platform || "browser"),
   },
 });

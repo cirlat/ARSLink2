@@ -54,26 +54,12 @@ export async function testDatabaseConnection(config: {
       throw new Error("La password è troppo corta");
     }
 
-    // Tenta di connettersi al database usando pg direttamente
-    const { Client } = await import("pg");
-    const client = new Client({
-      host: config.host,
-      port: port,
-      user: config.username,
-      password: config.password,
-      database: config.dbName,
-      ssl: false,
-      connectionTimeoutMillis: 5000, // 5 secondi di timeout
-    });
-
-    await client.connect();
-
-    // Esegui una query di test
-    const result = await client.query("SELECT NOW()");
-    console.log("Test di connessione riuscito:", result.rows[0]);
-
-    // Chiudi la connessione
-    await client.end();
+    // In ambiente browser, utilizziamo l'API Electron simulata
+    const result = await electronAPI.connectDatabase(config);
+    if (!result.success) {
+      throw new Error(result.error || "Errore di connessione al database");
+    }
+    console.log("Test di connessione riuscito (simulazione):", result);
 
     return true;
   } catch (error) {

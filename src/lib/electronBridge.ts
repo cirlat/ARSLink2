@@ -15,18 +15,23 @@ export const electronAPI: ElectronAPI = isElectron()
       // Implementazioni mock per l'ambiente browser
       connectDatabase: async (config: DatabaseConfig) => {
         console.log("Mock: connectDatabase", config);
+        // Simula un ritardo per rendere più realistico
+        await new Promise((resolve) => setTimeout(resolve, 500));
         return { success: true, message: "Connessione simulata al database" };
       },
       executeQuery: async (query: string, params: any[]) => {
         console.log("Mock: executeQuery", query, params);
+        await new Promise((resolve) => setTimeout(resolve, 300));
         return { success: true, rows: [] };
       },
       backupDatabase: async (path: string) => {
         console.log("Mock: backupDatabase", path);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         return { success: true, path };
       },
       restoreDatabase: async (path: string) => {
         console.log("Mock: restoreDatabase", path);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         return { success: true };
       },
       getAppVersion: () => "1.0.0",

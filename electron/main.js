@@ -112,12 +112,26 @@ ipcMain.handle("execute-query", async (event, { query, params }) => {
     });
 
     await client.connect();
-    const result = await client.query(query, params || []);
-    await client.end();
 
-    return { success: true, rows: result.rows };
+    try {
+      // Esegui la query
+      const result = await client.query(query, params || []);
+
+      // Log per debug
+      console.log(`Query eseguita con successo: ${query.substring(0, 50)}...`);
+      console.log(`Parametri: ${JSON.stringify(params || [])}`);
+      console.log(`Risultato: ${result.rowCount} righe`);
+
+      return { success: true, rows: result.rows, rowCount: result.rowCount };
+    } catch (queryError) {
+      console.error("Query execution error:", queryError);
+      return { success: false, error: queryError.message };
+    } finally {
+      // Assicurati che il client venga sempre chiuso
+      await client.end();
+    }
   } catch (error) {
-    console.error("Query execution error:", error);
+    console.error("Database connection error:", error);
     return { success: false, error: error.message };
   }
 });
@@ -166,8 +180,22 @@ ipcMain.handle("restore-database", async (event, path) => {
 
 // Helper function to get DB config
 function getDbConfig() {
-  // In a real app, this would read from a secure storage
-  // For now, we'll use hardcoded values
+  try {
+    // Tenta di leggere la configurazione dal localStorage
+    const storedConfig = mainWindow?.webContents.executeJavaScript(
+      'localStorage.getItem("dbConfig")',
+    );
+
+    if (storedConfig) {
+      const config = JSON.parse(storedConfig);
+      console.log("Configurazione DB caricata da localStorage:", config);
+      return config;
+    }
+  } catch (error) {
+    console.error("Errore nel caricamento della configurazione DB:", error);
+  }
+
+  // Valori di default se non è possibile caricare dal localStorage
   return {
     host: "localhost",
     port: "5432",
