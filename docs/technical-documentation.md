@@ -115,52 +115,6 @@ Il database PostgreSQL contiene le seguenti tabelle:
 | LicenseModel | models/license.ts | license | getCurrentLicense, isLicenseValid, getDaysUntilExpiry, isGoogleCalendarEnabled, isWhatsAppEnabled, installLicense, verifyLicenseKey |
 | Database | models/database.ts | Tutte | connect, query, getClient, close, initializeDatabase |
 
-### Dettaglio delle Operazioni sui Modelli
-
-#### UserModel (models/user.ts)
-
-- **create**: Crea un nuovo utente con password criptata
-- **findByUsername**: Cerca un utente per nome utente
-- **findByEmail**: Cerca un utente per email
-- **findById**: Cerca un utente per ID
-- **update**: Aggiorna i dati di un utente
-- **delete**: Elimina un utente
-- **authenticate**: Verifica le credenziali di un utente
-- **resetPassword**: Reimposta la password di un utente
-
-#### PatientModel (models/patient.ts)
-
-- **create**: Crea un nuovo paziente
-- **findById**: Cerca un paziente per ID
-- **findByCodiceFiscale**: Cerca un paziente per codice fiscale
-- **findAll**: Recupera tutti i pazienti con paginazione e ricerca
-- **update**: Aggiorna i dati di un paziente
-- **delete**: Elimina un paziente
-
-#### AppointmentModel (models/appointment.ts)
-
-- **create**: Crea un nuovo appuntamento
-- **findById**: Cerca un appuntamento per ID
-- **findByPatientId**: Trova tutti gli appuntamenti di un paziente
-- **findByDateRange**: Trova appuntamenti in un intervallo di date
-- **findByDate**: Trova appuntamenti in una data specifica
-- **findUpcoming**: Trova i prossimi appuntamenti
-- **update**: Aggiorna un appuntamento
-- **delete**: Elimina un appuntamento
-- **updateGoogleCalendarSync**: Aggiorna lo stato di sincronizzazione con Google Calendar
-- **updateWhatsAppNotification**: Aggiorna lo stato di notifica WhatsApp
-- **findPendingNotifications**: Trova appuntamenti che necessitano di notifiche
-
-#### LicenseModel (models/license.ts)
-
-- **getCurrentLicense**: Ottiene la licenza corrente
-- **isLicenseValid**: Verifica se la licenza è valida
-- **getDaysUntilExpiry**: Calcola i giorni rimanenti alla scadenza
-- **isGoogleCalendarEnabled**: Verifica se l'integrazione Google Calendar è abilitata
-- **isWhatsAppEnabled**: Verifica se l'integrazione WhatsApp è abilitata
-- **installLicense**: Installa una nuova licenza
-- **verifyLicenseKey**: Verifica la validità di una chiave di licenza
-
 ## Servizi
 
 ### AuthService (services/auth.service.ts)
@@ -241,80 +195,6 @@ Gestisce l'integrazione con WhatsApp per l'invio di notifiche automatiche.
 | SetupWizard | src/setup/SetupWizard.tsx | Wizard di configurazione integrato |
 | NotificationTemplates | src/components/settings/NotificationTemplates.tsx | Gestione template per notifiche WhatsApp |
 
-### Dettaglio dei Componenti Principali
-
-#### App (src/App.tsx)
-
-Componente principale che gestisce il routing dell'applicazione. Utilizza React Router per definire le rotte disponibili.
-
-**Rotte principali**:
-- `/`: Home/Login
-- `/calendar`: Vista calendario
-- `/patients`: Lista pazienti
-- `/patients/new`: Nuovo paziente
-- `/patients/:id`: Dettagli paziente
-- `/patients/:id/edit`: Modifica paziente
-- `/notifications`: Centro notifiche
-- `/settings`: Impostazioni
-- `/forgot-password`: Recupero password
-- `/reset-password`: Reset password
-- `/setup`: Wizard di configurazione
-
-#### Home (src/components/home.tsx)
-
-Componente che mostra il form di login o la dashboard in base allo stato di autenticazione.
-
-**Funzionalità**:
-- Gestisce lo stato di autenticazione
-- Mostra LoginForm se non autenticato
-- Mostra Dashboard se autenticato
-- Gestisce gli avvisi di licenza
-
-#### Dashboard (src/components/dashboard/Dashboard.tsx)
-
-Layout principale dell'applicazione dopo il login.
-
-**Funzionalità**:
-- Sidebar per la navigazione
-- Visualizzazione del contenuto in base alla pagina attiva
-- Gestione degli avvisi di sistema (licenza, backup)
-
-#### CalendarView (src/components/dashboard/CalendarView.tsx)
-
-Vista calendario per la gestione degli appuntamenti.
-
-**Funzionalità**:
-- Visualizzazione giornaliera, settimanale e mensile
-- Creazione, modifica ed eliminazione appuntamenti
-- Visualizzazione stato sincronizzazione e notifiche
-
-#### PatientList (src/components/dashboard/PatientList.tsx)
-
-Lista dei pazienti con funzionalità di ricerca e paginazione.
-
-**Funzionalità**:
-- Ricerca per nome, codice fiscale, email o telefono
-- Paginazione dei risultati
-- Azioni rapide (visualizza, modifica, elimina)
-
-#### NotificationCenter (src/components/dashboard/NotificationCenter.tsx)
-
-Centro di gestione delle notifiche WhatsApp.
-
-**Funzionalità**:
-- Visualizzazione notifiche inviate, in attesa e fallite
-- Filtri per stato e tipo di notifica
-- Invio manuale di notifiche
-
-#### NotificationTemplates (src/components/settings/NotificationTemplates.tsx)
-
-Gestione dei template per le notifiche WhatsApp.
-
-**Funzionalità**:
-- Creazione, modifica ed eliminazione di template
-- Supporto per diversi tipi di template (appuntamento, promemoria, personalizzato)
-- Utilizzo di segnaposto per dati dinamici
-
 ## Routing
 
 L'applicazione utilizza React Router per la gestione delle rotte. Le rotte sono definite nel componente App.tsx.
@@ -334,13 +214,6 @@ L'applicazione utilizza React Router per la gestione delle rotte. Le rotte sono 
   <Route path="/setup" element={<SetupWizard />} />
 </Routes>
 ```
-
-### Flusso di Navigazione
-
-1. L'utente accede all'applicazione (`/`)
-2. Se non autenticato, viene mostrato il form di login
-3. Dopo l'autenticazione, viene mostrata la dashboard
-4. L'utente può navigare tra le diverse sezioni tramite la sidebar o la barra di navigazione superiore
 
 ## Autenticazione
 
@@ -443,17 +316,14 @@ Entrambe le versioni guidano l'utente attraverso gli stessi passaggi di configur
 
 ### Utilizzo della Versione Standalone
 
-1. **Avvio Automatico**:
+1. **Avvio durante lo sviluppo**:
+   - Navigare nella cartella `setup-wizard`
+   - Eseguire `npx http-server` per avviare un server locale
+   - Aprire il browser all'indirizzo mostrato (tipicamente http://localhost:8080)
+
+2. **Avvio nell'applicazione finale**:
    - Al primo avvio dell'applicazione, viene verificato se il setup è stato completato
    - Se non è stato completato, viene avviato automaticamente il Setup Wizard standalone
-
-2. **Avvio Manuale**:
-   - Eseguire l'applicazione con il parametro `--setup`
-   - Esempio: `patient-appointment-system.exe --setup`
-
-3. **Reset della Configurazione**:
-   - Eseguire l'applicazione con il parametro `--reset-setup`
-   - Esempio: `patient-appointment-system.exe --reset-setup`
 
 ### Memorizzazione delle Configurazioni
 
@@ -534,35 +404,3 @@ I comuni italiani e i relativi codici catastali sono memorizzati nel file `src/d
    - Il codice catastale deve essere di 4 caratteri (solitamente una lettera seguita da 3 numeri)
 
 I comuni aggiunti tramite l'interfaccia utente vengono salvati in localStorage con la chiave 'italianCities' e vengono caricati all'avvio dell'applicazione.
-
-### Risoluzione dei Problemi Comuni
-
-1. **Problemi di Autenticazione**:
-   - Verificare `AuthService` e `UserModel`
-   - Controllare la validità della licenza in `LicenseModel`
-
-2. **Problemi di Sincronizzazione Google Calendar**:
-   - Verificare le credenziali OAuth2
-   - Controllare `GoogleCalendarService` e i log di errore
-   - Verificare che la licenza includa questa funzionalità
-
-3. **Problemi con le Notifiche WhatsApp**:
-   - Verificare che Chrome/Chromium sia installato e accessibile
-   - Controllare che WhatsApp Web sia autenticato
-   - Verificare `WhatsAppService` e i log di errore
-   - Verificare che la licenza includa questa funzionalità
-
-4. **Problemi di Database**:
-   - Verificare la connessione al database in `Database.getInstance()`
-   - Controllare i log di errore per le query fallite
-   - Verificare che lo schema del database sia aggiornato
-   
-5. **Problemi di Backup**:
-   - Verificare che il percorso di backup specificato esista e sia accessibile
-   - Controllare i permessi di scrittura nella directory di backup
-   - Verificare lo spazio disponibile sul disco
-   
-6. **Problemi con il Codice Fiscale**:
-   - Verificare che tutti i dati anagrafici siano inseriti correttamente
-   - Controllare che il comune di nascita sia presente nell'elenco con il codice catastale corretto
-   - Se il codice generato non è corretto, è possibile inserirlo manualmente

@@ -32,6 +32,87 @@ let licenseType = "basic";
 let licenseKey = "";
 let detectedLicenseType = null;
 
+// Chiave segreta per la generazione e verifica delle licenze
+const LICENSE_SECRET = "ARSLink2-SecretKey-2024";
+
+/**
+ * Verifica la validità di una chiave di licenza
+ * @param licenseKey Chiave di licenza da verificare
+ * @returns Oggetto con informazioni sulla validità della licenza
+ */
+function verifyLicenseKeyInternal(licenseKey) {
+  try {
+    // Verifica il formato della licenza
+    const parts = licenseKey.split("-");
+    if (parts.length < 4) {
+      return { valid: false, error: "Formato licenza non valido" };
+    }
+
+    // Estrai le parti della licenza
+    const type = parts[0].toLowerCase();
+    const expiryCode = parts[2];
+    const providedChecksum = parts[3];
+
+    // Ricostruisci la base della licenza per verificare il checksum
+    const licenseBase = `${parts[0]}-${parts[1]}-${parts[2]}`;
+    const expectedChecksum = generateChecksum(licenseBase + LICENSE_SECRET);
+
+    // Verifica il checksum
+    if (providedChecksum !== expectedChecksum) {
+      return { valid: false, error: "Checksum non valido" };
+    }
+
+    // Verifica il tipo di licenza
+    if (!["basic", "google", "whatsapp", "full"].includes(type)) {
+      return { valid: false, error: "Tipo di licenza non valido" };
+    }
+
+    // Decodifica la data di scadenza
+    const expiryTimestamp = parseInt(expiryCode, 36);
+    const expiryDate = new Date(expiryTimestamp);
+
+    // Verifica se la licenza è scaduta
+    if (expiryDate < new Date()) {
+      return {
+        valid: false,
+        licenseType: type,
+        expiryDate,
+        error: "Licenza scaduta",
+      };
+    }
+
+    // Licenza valida
+    return {
+      valid: true,
+      licenseType: type,
+      expiryDate,
+    };
+  } catch (error) {
+    return { valid: false, error: "Errore durante la verifica della licenza" };
+  }
+}
+
+/**
+ * Genera un checksum semplice per la verifica della licenza
+ * @param input Stringa di input
+ * @returns Checksum generato
+ */
+function generateChecksum(input) {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    const char = input.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Converti in integer a 32 bit
+  }
+
+  // Converti in stringa esadecimale e prendi gli ultimi 8 caratteri
+  return Math.abs(hash)
+    .toString(16)
+    .toUpperCase()
+    .padStart(8, "0")
+    .substring(0, 8);
+}
+
 let googleConfig = {
   clientId: "",
   clientSecret: "",
@@ -612,7 +693,7 @@ function renderBackupStep() {
       <div class="space-y-2">
         <label class="block text-sm font-medium text-gray-700">Percorso Backup</label>
         <input type="text" value="${backupConfig.backupPath}" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
-          placeholder="C:\ProgramData\PatientAppointmentSystem\Backups" 
+          placeholder="C:\\ProgramData\\PatientAppointmentSystem\\Backups" 
           onchange="backupConfig.backupPath = this.value" />
         <p class="text-xs text-gray-500">Cartella dove salvare i backup del database</p>
       </div>
@@ -786,8 +867,8 @@ function nextStep() {
   } else if (currentStep === 3) {
     // Validazione per lo step della licenza
     if (licenseKey) {
-      // Verifica la licenza se è stata inserita
-      const verificationResult = verifyLicenseKey(licenseKey);
+      // Verifica la licenza con la funzione interna
+      const verificationResult = verifyLicenseKeyInternal(licenseKey);
 
       if (!verificationResult.valid) {
         alert(
@@ -797,10 +878,10 @@ function nextStep() {
       }
 
       // Aggiorna il tipo di licenza rilevato
-      detectedLicenseType = verificationResult.licenseType || "basic";
+      setDetectedLicenseType(verificationResult.licenseType || "basic");
     } else {
       // Se non è stata inserita una licenza, imposta il tipo su basic
-      detectedLicenseType = "basic";
+      setDetectedLicenseType("basic");
     }
   }
 
@@ -930,86 +1011,124 @@ function verifyLicense() {
     return;
   }
 
-  // Simula la verifica della licenza
-  const licenseTypes = ["basic", "google", "whatsapp", "full"];
-  const randomType =
-    licenseTypes[Math.floor(Math.random() * licenseTypes.length)];
-  const expiryDate = new Date();
-  expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+  try {
+    // Verifica la licenza con la funzione interna
+    const verificationResult = verifyLicenseKeyInternal(licenseKey);
 
-  const verificationResult = {
-    valid: Math.random() > 0.2, // 80% di probabilità che sia valida
-    licenseType: randomType,
-    expiryDate: expiryDate,
-    error: "Formato non riconosciuto",
-  };
+    if (verificationResult.valid) {
+      const expiryDate =
+        verificationResult.expiryDate?.toLocaleDateString() ||
+        "data sconosciuta";
+      const licenseTypeNames = {
+        basic: "Base",
+        google: "Base + Google Calendar",
+        whatsapp: "Base + WhatsApp",
+        full: "Completa",
+      };
+      const typeName =
+        licenseTypeNames[verificationResult.licenseType || "basic"];
 
-  if (verificationResult.valid) {
-    const typeName = {
-      basic: "Base",
-      google: "Base + Google Calendar",
-      whatsapp: "Base + WhatsApp",
-      full: "Completa",
-    }[verificationResult.licenseType];
+      // Aggiorna il tipo di licenza rilevato
+      setDetectedLicenseType(verificationResult.licenseType || "basic");
 
-    // Aggiorna il tipo di licenza rilevato
-    detectedLicenseType = verificationResult.licenseType;
-
-    alert(
-      `Licenza valida! \nTipo: ${typeName} \nScadenza: ${expiryDate.toLocaleDateString()}`,
-    );
-  } else {
-    // Resetta il tipo di licenza rilevato se non valida
-    detectedLicenseType = null;
-    alert(`Licenza non valida: ${verificationResult.error}`);
+      alert(`Licenza valida! \nTipo: ${typeName} \nScadenza: ${expiryDate}`);
+    } else {
+      // Resetta il tipo di licenza rilevato se non valida
+      setDetectedLicenseType(null);
+      alert(
+        `Licenza non valida: ${verificationResult.error || "Formato non riconosciuto"}`,
+      );
+    }
+  } catch (error) {
+    console.error("Errore durante la verifica della licenza:", error);
+    alert("Si è verificato un errore durante la verifica della licenza.");
   }
 }
 
 function completeSetup() {
-  // Verifica che tutti i dati necessari siano presenti
-  if (!adminUser.username || !adminUser.password || !adminUser.email) {
-    alert(
-      "Dati utente amministratore incompleti. Torna al passaggio 2 e completa tutti i campi.",
-    );
-    currentStep = 2;
-    progress = (2 / totalSteps) * 100;
-    renderStep(currentStep);
-    return;
-  }
+  try {
+    // Verifica che tutti i dati necessari siano presenti
+    if (!adminUser.username || !adminUser.password || !adminUser.email) {
+      alert(
+        "Dati utente amministratore incompleti. Torna al passaggio 2 e completa tutti i campi.",
+      );
+      currentStep = 2;
+      progress = (2 / totalSteps) * 100;
+      renderStep(currentStep);
+      return;
+    }
 
-  // Mostra un messaggio di caricamento
-  setupContainer.innerHTML = `
-    <div class="text-center py-12">
-      <div class="spinner mx-auto mb-4"></div>
-      <h3 class="text-lg font-medium mb-2">Completamento Setup in corso...</h3>
-      <p class="text-gray-500">Stiamo configurando il sistema con i parametri inseriti.</p>
-    </div>
-  `;
+    // Verifica la licenza se è stata inserita
+    if (licenseKey) {
+      const verificationResult = verifyLicenseKeyInternal(licenseKey);
 
-  // Simula un ritardo per il completamento del setup
-  setTimeout(() => {
-    // Mostra un messaggio di successo
+      if (!verificationResult.valid) {
+        alert(
+          `Licenza non valida: ${verificationResult.error || "Formato non riconosciuto"}`,
+        );
+        setCurrentStep(3);
+        setProgress((3 / totalSteps) * 100);
+        return;
+      }
+
+      // Salva il tipo di licenza per l'uso nell'applicazione
+      const licenseType = verificationResult.licenseType || "basic";
+      localStorage.setItem("licenseType", licenseType);
+      localStorage.setItem("licenseKey", licenseKey);
+      if (verificationResult.expiryDate) {
+        localStorage.setItem(
+          "licenseExpiry",
+          verificationResult.expiryDate.toISOString(),
+        );
+      }
+
+      // Aggiorna il tipo di licenza rilevato
+      setDetectedLicenseType(licenseType);
+    } else {
+      // Licenza base di default
+      localStorage.setItem("licenseType", "basic");
+      setDetectedLicenseType("basic");
+    }
+
+    // Mostra un messaggio di caricamento
     setupContainer.innerHTML = `
       <div class="text-center py-12">
-        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h3 class="text-lg font-medium mb-2">Setup Completato con Successo!</h3>
-        <p class="text-gray-500 mb-6">Il sistema è stato configurato correttamente e ora è pronto per l'uso.</p>
-        <button id="start-app-button" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-          Avvia Applicazione
-        </button>
+        <div class="spinner mx-auto mb-4"></div>
+        <h3 class="text-lg font-medium mb-2">Completamento Setup in corso...</h3>
+        <p class="text-gray-500">Stiamo configurando il sistema con i parametri inseriti.</p>
       </div>
     `;
 
-    // Aggiungi event listener per il pulsante di avvio
-    document
-      .getElementById("start-app-button")
-      .addEventListener("click", () => {
-        // In un'applicazione reale, qui avvieremmo l'applicazione principale
-        window.location.href = "../index.html";
-      });
-  }, 3000);
+    // Simula un ritardo per il completamento del setup
+    setTimeout(() => {
+      // Mostra un messaggio di successo
+      setupContainer.innerHTML = `
+        <div class="text-center py-12">
+          <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h3 class="text-lg font-medium mb-2">Setup Completato con Successo!</h3>
+          <p class="text-gray-500 mb-6">Il sistema è stato configurato correttamente e ora è pronto per l'uso.</p>
+          <button id="start-app-button" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            Avvia Applicazione
+          </button>
+        </div>
+      `;
+
+      // Aggiungi event listener per il pulsante di avvio
+      document
+        .getElementById("start-app-button")
+        .addEventListener("click", () => {
+          // In un'applicazione reale, qui avvieremmo l'applicazione principale
+          window.location.href = "../index.html";
+        });
+    }, 3000);
+  } catch (error) {
+    console.error("Errore durante il setup:", error);
+    alert(
+      "Si è verificato un errore durante il setup. Controlla la console per i dettagli.",
+    );
+  }
 }
