@@ -203,7 +203,6 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
         !dbConfig.host ||
         !dbConfig.port ||
         !dbConfig.username ||
-        !dbConfig.password ||
         !dbConfig.dbName
       ) {
         setDbConnectionStatus({
@@ -245,19 +244,6 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
         return;
       }
 
-      // Verifica che la password sia abbastanza lunga
-      if (dbConfig.password.length < 3) {
-        setDbConnectionStatus({
-          status: "error",
-          message: "La password è troppo corta",
-        });
-        addConnectionLog(
-          "Errore: La password è troppo corta (minimo 3 caratteri)",
-        );
-        setIsDbLoading(false);
-        return;
-      }
-
       addConnectionLog(
         `Tentativo di connessione a ${dbConfig.host}:${dbConfig.port}...`,
       );
@@ -267,8 +253,7 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
         host: dbConfig.host,
         port: dbConfig.port,
         username: dbConfig.username,
-        password:
-          typeof dbConfig.password === "string" ? dbConfig.password : "", // Ensure password is always a string
+        password: dbConfig.password || "", // Ensure password is always a string
         dbName: dbConfig.dbName,
       });
 
@@ -339,7 +324,6 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
         !dbConfig.host ||
         !dbConfig.port ||
         !dbConfig.username ||
-        !dbConfig.password ||
         !dbConfig.dbName
       ) {
         alert("Compila tutti i campi del database prima di procedere.");
@@ -483,20 +467,13 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
           port: dbConfig.port,
           username: dbConfig.username,
           dbName: dbConfig.dbName,
-          password:
-            typeof dbConfig.password === "string" ? "***" : "non è una stringa",
         });
 
-        // Assicurati che la password sia una stringa
-        const dbConfigWithStringPassword = {
+        const connectionResult = await testDatabaseConnection({
           ...dbConfig,
-          password:
-            typeof dbConfig.password === "string" ? dbConfig.password : "",
-        };
+          password: dbConfig.password || "",
+        });
 
-        const connectionResult = await testDatabaseConnection(
-          dbConfigWithStringPassword,
-        );
         if (!connectionResult) {
           document.body.removeChild(dbInitMessage);
           throw new Error("Impossibile connettersi al database");
@@ -509,7 +486,10 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
         }
 
         // Inizializza il database con le tabelle necessarie
-        const initResult = await initializeDatabase(dbConfigWithStringPassword);
+        const initResult = await initializeDatabase({
+          ...dbConfig,
+          password: dbConfig.password || "",
+        });
 
         // Rimuovi il messaggio di caricamento
         document.body.removeChild(dbInitMessage);
@@ -545,13 +525,13 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
       }
 
       // Salva le configurazioni del database
-      // Assicurati che la password sia una stringa prima di salvare
-      const dbConfigToSave = {
-        ...dbConfig,
-        password:
-          typeof dbConfig.password === "string" ? dbConfig.password : "",
-      };
-      localStorage.setItem("dbConfig", JSON.stringify(dbConfigToSave));
+      localStorage.setItem(
+        "dbConfig",
+        JSON.stringify({
+          ...dbConfig,
+          password: dbConfig.password || "",
+        }),
+      );
 
       // 2. Crea l'utente amministratore
       try {
@@ -683,7 +663,6 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
                   onChange={(e) =>
                     handleDbConfigChange("password", e.target.value)
                   }
-                  required
                   autoComplete="new-password"
                   readOnly={false}
                 />

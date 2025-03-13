@@ -76,6 +76,7 @@
     "cross-env": "^7.0.3",
     "electron": "^35.0.1",
     "electron-builder": "^25.1.8",
+    "electron-reload": "^2.0.0-alpha.1",
     "postcss": "^8.4.38",
     "tailwindcss": "3.4.1",
     "tempo-devtools": "^2.0.95",

@@ -86,7 +86,7 @@ ipcMain.handle("connect-database", async (event, config) => {
         host: config.host,
         port: parseInt(config.port),
         user: config.username,
-        password: typeof config.password === "string" ? config.password : "", // Ensure password is always a string
+        password: config.password || "", // Ensure password is always a string
         database: "postgres",
         ssl: false,
         connectionTimeoutMillis: 5000,
@@ -106,174 +106,186 @@ ipcMain.handle("connect-database", async (event, config) => {
         console.log(
           `Database ${config.dbName} does not exist, creating it now...`,
         );
-        await pgClient.query(`CREATE DATABASE "${config.dbName}"`); // Added quotes around database name
+        await pgClient.query(`CREATE DATABASE "${config.dbName}"`);
         console.log(`Database ${config.dbName} created successfully`);
       } else {
         console.log(`Database ${config.dbName} already exists`);
       }
 
       await pgClient.end();
-    } catch (pgError) {
-      console.error("Error checking/creating database:", pgError);
-      // Continue with the attempt to connect to the specified database
+
+      // Now connect to the specific database
+      const dbClient = new Client({
+        host: config.host,
+        port: parseInt(config.port),
+        user: config.username,
+        password: config.password || "", // Ensure password is always a string
+        database: config.dbName,
+        ssl: false,
+        connectionTimeoutMillis: 5000,
+      });
+
+      await dbClient.connect();
+      console.log(`Connected to ${config.dbName} database successfully`);
+      await dbClient.end();
+
+      return { success: true, message: "Database connection successful" };
+    } catch (error) {
+      console.error("Database connection error:", error);
+      return { success: false, error: error.message };
     }
-
-    // Now attempt to connect to the specified database
-    const client = new Client({
-      host: config.host,
-      port: parseInt(config.port),
-      user: config.username,
-      password: config.password || "", // Ensure password is always a string
-      database: config.dbName,
-      ssl: false,
-      connectionTimeoutMillis: 5000,
-    });
-
-    await client.connect();
-    const testResult = await client.query("SELECT NOW()");
-    console.log("Database connection test successful:", testResult.rows[0]);
-    await client.end();
-
-    return { success: true, message: "Database connection successful" };
   } catch (error) {
-    console.error("Database connection error:", error);
+    console.error("Error in connect-database handler:", error);
     return { success: false, error: error.message };
   }
 });
 
-// Query execution handler
+// Execute query handler
 ipcMain.handle("execute-query", async (event, { query, params }) => {
   try {
     if (!Client) {
       throw new Error("PostgreSQL client not available");
     }
 
-    // Get DB config from app storage
+    // Get database configuration from app storage
     const dbConfig = getDbConfig();
     if (!dbConfig) {
       throw new Error("Database configuration not found");
     }
-
-    console.log(`Executing query: ${query.substring(0, 100)}...`);
-    console.log(`With parameters: ${JSON.stringify(params || [])}`);
 
     const client = new Client({
       host: dbConfig.host,
       port: parseInt(dbConfig.port),
       user: dbConfig.username,
-      password: typeof dbConfig.password === "string" ? dbConfig.password : "", // Ensure password is always a string
+      password: dbConfig.password || "", // Ensure password is always a string
       database: dbConfig.dbName,
       ssl: false,
     });
 
     await client.connect();
+    console.log("Connected to database for query execution");
 
-    try {
-      // Execute the query
-      const result = await client.query(query, params || []);
+    const result = await client.query(query, params);
+    await client.end();
 
-      // Debug log
-      console.log(`Query executed successfully: ${query.substring(0, 50)}...`);
-      console.log(`Parameters: ${JSON.stringify(params || [])}`);
-      console.log(`Result: ${result.rowCount} rows`);
-
-      return { success: true, rows: result.rows, rowCount: result.rowCount };
-    } catch (queryError) {
-      console.error("Query execution error:", queryError);
-      return { success: false, error: queryError.message };
-    } finally {
-      // Always ensure the client is closed
-      await client.end();
-    }
+    return { success: true, rows: result.rows, rowCount: result.rowCount };
   } catch (error) {
-    console.error("Database connection error:", error);
+    console.error("Error executing query:", error);
     return { success: false, error: error.message };
   }
 });
 
 // Backup database handler
-ipcMain.handle("backup-database", async (event, path) => {
+ipcMain.handle("backup-database", async (event, backupPath) => {
   try {
+    // Get database configuration from app storage
     const dbConfig = getDbConfig();
     if (!dbConfig) {
       throw new Error("Database configuration not found");
     }
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const backupFileName = `${dbConfig.dbName}_backup_${timestamp}.sql`;
-    const fullBackupPath = `${path}/${backupFileName}`;
-
-    // Ensure directory exists
-    if (!fs.existsSync(path)) {
-      fs.mkdirSync(path, { recursive: true });
+    // Create backup directory if it doesn't exist
+    if (!fs.existsSync(backupPath)) {
+      fs.mkdirSync(backupPath, { recursive: true });
     }
 
-    const command = `pg_dump -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -F c -b -v -f "${fullBackupPath}" "${dbConfig.dbName}"`;
-    const env = { ...process.env, PGPASSWORD: dbConfig.password || "" }; // Ensure password is always a string
+    // Create backup filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const backupFileName = `${dbConfig.dbName}_backup_${timestamp}.sql`;
+    const fullBackupPath = path.join(backupPath, backupFileName);
 
-    console.log(`Executing backup command: ${command}`);
+    // pg_dump command
+    const command = `pg_dump -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -F c -b -v -f "${fullBackupPath}" "${dbConfig.dbName}"`;
+
+    // Set PGPASSWORD environment variable to avoid password prompt
+    const env = {
+      ...process.env,
+      PGPASSWORD: dbConfig.password || "", // Ensure password is always a string
+    };
+
+    console.log(`Executing backup to ${fullBackupPath}`);
     await execPromise(command, { env });
+    console.log("Backup completed successfully");
 
     return { success: true, path: fullBackupPath };
   } catch (error) {
-    console.error("Backup error:", error);
+    console.error("Error backing up database:", error);
     return { success: false, error: error.message };
   }
 });
 
 // Restore database handler
-ipcMain.handle("restore-database", async (event, path) => {
+ipcMain.handle("restore-database", async (event, restorePath) => {
   try {
+    // Get database configuration from app storage
     const dbConfig = getDbConfig();
     if (!dbConfig) {
       throw new Error("Database configuration not found");
     }
 
-    const command = `pg_restore -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -d "${dbConfig.dbName}" -c "${path}"`;
-    const env = { ...process.env, PGPASSWORD: dbConfig.password || "" }; // Ensure password is always a string
+    // Check if restore file exists
+    if (!fs.existsSync(restorePath)) {
+      throw new Error(`Restore file not found: ${restorePath}`);
+    }
 
-    console.log(`Executing restore command: ${command}`);
+    // pg_restore command
+    const command = `pg_restore -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -d "${dbConfig.dbName}" -c -v "${restorePath}"`;
+
+    // Set PGPASSWORD environment variable to avoid password prompt
+    const env = {
+      ...process.env,
+      PGPASSWORD: dbConfig.password || "", // Ensure password is always a string
+    };
+
+    console.log(`Executing restore from ${restorePath}`);
     await execPromise(command, { env });
+    console.log("Restore completed successfully");
 
     return { success: true };
   } catch (error) {
-    console.error("Restore error:", error);
+    console.error("Error restoring database:", error);
     return { success: false, error: error.message };
   }
 });
 
-// Helper function to get DB config
+// Helper function to get database configuration
 function getDbConfig() {
   try {
-    // Try to read configuration from localStorage
-    if (mainWindow) {
-      const storedConfig = mainWindow.webContents.executeJavaScript(
-        'localStorage.getItem("dbConfig")',
-        true,
-      );
+    // In a real implementation, this would read from a configuration file or secure storage
+    // For now, we'll use a simple approach
+    const configPath = path.join(app.getPath("userData"), "dbConfig.json");
 
-      if (storedConfig) {
-        const config = JSON.parse(storedConfig);
-        console.log("DB configuration loaded from localStorage:", {
-          host: config.host,
-          port: config.port,
-          user: config.username,
-          database: config.dbName,
-        });
-        return config;
-      }
+    if (fs.existsSync(configPath)) {
+      const configData = fs.readFileSync(configPath, "utf8");
+      return JSON.parse(configData);
     }
-  } catch (error) {
-    console.error("Error loading DB configuration:", error);
-  }
 
-  // Default values if unable to load from localStorage
-  console.log("Using default database configuration");
-  return {
-    host: "localhost",
-    port: "5432",
-    username: "postgres",
-    password: "", // Empty default password for security
-    dbName: "patient_appointment_system",
-  };
+    return null;
+  } catch (error) {
+    console.error("Error reading database configuration:", error);
+    return null;
+  }
 }
+
+// Helper function to save database configuration
+function saveDbConfig(config) {
+  try {
+    const configPath = path.join(app.getPath("userData"), "dbConfig.json");
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    return true;
+  } catch (error) {
+    console.error("Error saving database configuration:", error);
+    return false;
+  }
+}
+
+// Save database configuration handler
+ipcMain.handle("save-db-config", async (event, config) => {
+  try {
+    const success = saveDbConfig(config);
+    return { success };
+  } catch (error) {
+    console.error("Error saving database configuration:", error);
+    return { success: false, error: error.message };
+  }
+});
