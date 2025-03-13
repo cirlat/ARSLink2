@@ -187,7 +187,8 @@ const SetupWizard = () => {
         !dbConfig.host ||
         !dbConfig.port ||
         !dbConfig.username ||
-        !dbConfig.password |n        !dbConfig.dbName
+        !dbConfig.password ||
+        !dbConfig.dbName
       ) {
         setDbConnectionStatus({
           status: "error",
@@ -206,6 +207,27 @@ const SetupWizard = () => {
         setDbConnectionStatus({
           status: "error",
           message: "La porta deve essere un numero valido tra 1 e 65535",
+        });
+        setIsDbLoading(false);
+        return;
+      }
+
+      // Verifica che l'host sia in un formato valido
+      const hostRegex = /^[a-zA-Z0-9.-]+$/;
+      if (!hostRegex.test(dbConfig.host)) {
+        setDbConnectionStatus({
+          status: "error",
+          message: "Formato host non valido",
+        });
+        setIsDbLoading(false);
+        return;
+      }
+
+      // Verifica che la password sia abbastanza lunga
+      if (dbConfig.password.length < 3) {
+        setDbConnectionStatus({
+          status: "error",
+          message: "La password è troppo corta",
         });
         setIsDbLoading(false);
         return;
@@ -234,7 +256,8 @@ const SetupWizard = () => {
     } catch (error) {
       setDbConnectionStatus({
         status: "error",
-        message: error.message || "Errore sconosciuto durante il test di connessione",
+        message:
+          error.message || "Errore sconosciuto durante il test di connessione",
       });
     } finally {
       setIsDbLoading(false);
@@ -266,7 +289,7 @@ const SetupWizard = () => {
       // Se non è stato fatto un test di connessione con successo, chiedi conferma
       if (dbConnectionStatus.status !== "success") {
         const confirm = window.confirm(
-          "Non hai testato la connessione al database o il test non è riuscito. Vuoi procedere comunque?"
+          "Non hai testato la connessione al database o il test non è riuscito. Vuoi procedere comunque?",
         );
         if (!confirm) return;
       }
@@ -372,7 +395,8 @@ const SetupWizard = () => {
       try {
         // Mostra un messaggio di caricamento
         const dbInitMessage = document.createElement("div");
-        dbInitMessage.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+        dbInitMessage.className =
+          "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
         dbInitMessage.innerHTML = `
           <div class="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 class="text-lg font-medium mb-4">Inizializzazione Database</h3>
@@ -394,14 +418,15 @@ const SetupWizard = () => {
         }
 
         // Aggiorna il messaggio
-        dbInitMessage.querySelector("p").textContent = "Creazione tabelle in corso...";
+        dbInitMessage.querySelector("p").textContent =
+          "Creazione tabelle in corso...";
 
         // Inizializza il database con le tabelle necessarie
         const initResult = await initializeDatabase(dbConfig);
-        
+
         // Rimuovi il messaggio di caricamento
         document.body.removeChild(dbInitMessage);
-        
+
         if (!initResult) {
           throw new Error("Errore nell'inizializzazione del database");
         }
@@ -566,11 +591,13 @@ const SetupWizard = () => {
               </div>
 
               {dbConnectionStatus.status !== "idle" && (
-                <div className={`p-3 rounded-md ${
-                  dbConnectionStatus.status === "success" 
-                    ? "bg-green-50 border border-green-200 text-green-800" 
-                    : "bg-red-50 border border-red-200 text-red-800"
-                }`}>
+                <div
+                  className={`p-3 rounded-md ${
+                    dbConnectionStatus.status === "success"
+                      ? "bg-green-50 border border-green-200 text-green-800"
+                      : "bg-red-50 border border-red-200 text-red-800"
+                  }`}
+                >
                   {dbConnectionStatus.message}
                 </div>
               )}
