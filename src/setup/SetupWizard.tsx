@@ -47,7 +47,9 @@ import {
   createTable,
 } from "@/utils/dbUtils";
 
-const SetupWizard = () => {
+interface SetupWizardProps {}
+
+const SetupWizard: React.FC<SetupWizardProps> = () => {
   // Fix per il problema del passo 7 vuoto
   useEffect(() => {
     // Assicuriamoci che il componente Switch sia correttamente importato e disponibile
@@ -265,7 +267,8 @@ const SetupWizard = () => {
         host: dbConfig.host,
         port: dbConfig.port,
         username: dbConfig.username,
-        password: typeof dbConfig.password === "string" ? dbConfig.password : "", // Ensure password is always a string
+        password:
+          typeof dbConfig.password === "string" ? dbConfig.password : "", // Ensure password is always a string
         dbName: dbConfig.dbName,
       });
 
@@ -487,7 +490,8 @@ const SetupWizard = () => {
         // Assicurati che la password sia una stringa
         const dbConfigWithStringPassword = {
           ...dbConfig,
-          password: typeof dbConfig.password === "string" ? dbConfig.password : "",
+          password:
+            typeof dbConfig.password === "string" ? dbConfig.password : "",
         };
 
         const connectionResult = await testDatabaseConnection(
@@ -544,7 +548,8 @@ const SetupWizard = () => {
       // Assicurati che la password sia una stringa prima di salvare
       const dbConfigToSave = {
         ...dbConfig,
-        password: typeof dbConfig.password === "string" ? dbConfig.password : "",
+        password:
+          typeof dbConfig.password === "string" ? dbConfig.password : "",
       };
       localStorage.setItem("dbConfig", JSON.stringify(dbConfigToSave));
 
@@ -1066,8 +1071,13 @@ const SetupWizard = () => {
               ) : (
                 <div className="p-6 text-center text-muted-foreground">
                   <Calendar className="h-10 w-10 mx-auto mb-4 opacity-30" />
-                  <p>L'integrazione con Google Calendar non è disponibile con la licenza attuale.</p>
-                  <p className="text-sm mt-2">Aggiorna la tua licenza per sbloccare questa funzionalità.</p>
+                  <p>
+                    L'integrazione con Google Calendar non è disponibile con la
+                    licenza attuale.
+                  </p>
+                  <p className="text-sm mt-2">
+                    Aggiorna la tua licenza per sbloccare questa funzionalità.
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -1117,7 +1127,7 @@ const SetupWizard = () => {
                           onChange={(e) =>
                             handleWhatsappConfigChange(
                               "browserPath",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           placeholder="C:\Program Files\Google\Chrome\Application\chrome.exe"
@@ -1137,7 +1147,7 @@ const SetupWizard = () => {
                           onChange={(e) =>
                             handleWhatsappConfigChange(
                               "dataPath",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           placeholder="C:\ProgramData\PatientAppointmentSystem\WhatsApp"
@@ -1155,7 +1165,9 @@ const SetupWizard = () => {
                         </p>
                         <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
                           <li>Richiede Chrome installato sul sistema</li>
-                          <li>Utilizza Selenium per automatizzare WhatsApp Web</li>
+                          <li>
+                            Utilizza Selenium per automatizzare WhatsApp Web
+                          </li>
                           <li>Necessita di scansione QR code al primo avvio</li>
                           <li>Non invia messaggi a numeri non salvati</li>
                         </ul>
@@ -1166,8 +1178,13 @@ const SetupWizard = () => {
               ) : (
                 <div className="p-6 text-center text-muted-foreground">
                   <MessageSquare className="h-10 w-10 mx-auto mb-4 opacity-30" />
-                  <p>L'integrazione con WhatsApp non è disponibile con la licenza attuale.</p>
-                  <p className="text-sm mt-2">Aggiorna la tua licenza per sbloccare questa funzionalità.</p>
+                  <p>
+                    L'integrazione con WhatsApp non è disponibile con la licenza
+                    attuale.
+                  </p>
+                  <p className="text-sm mt-2">
+                    Aggiorna la tua licenza per sbloccare questa funzionalità.
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -1208,7 +1225,8 @@ const SetupWizard = () => {
                 <div className="space-y-0.5">
                   <Label htmlFor="auto-start">Avvio Automatico</Label>
                   <p className="text-sm text-muted-foreground">
-                    Avvia automaticamente il server all'apertura dell'applicazione
+                    Avvia automaticamente il server all'apertura
+                    dell'applicazione
                   </p>
                 </div>
                 <Switch
@@ -1419,3 +1437,59 @@ const SetupWizard = () => {
             </CardContent>
           </Card>
         );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-6 flex flex-col items-center justify-center">
+      <div className="w-full max-w-3xl mx-auto">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold">Setup Wizard</h1>
+          <p className="text-muted-foreground mt-2">
+            Configura il Sistema di Gestione Appuntamenti
+          </p>
+        </div>
+
+        <div className="mb-6">
+          <div className="flex justify-between mb-2">
+            <span className="text-sm font-medium">
+              Passo {currentStep} di {totalSteps}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {Math.round(progress)}%
+            </span>
+          </div>
+          <Progress value={progress} className="h-2" />
+        </div>
+
+        {renderStep()}
+
+        <div className="flex justify-between mt-6">
+          <Button
+            variant="outline"
+            onClick={prevStep}
+            disabled={currentStep === 1}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Indietro
+          </Button>
+          <Button onClick={nextStep}>
+            {currentStep === totalSteps ? (
+              "Completa Setup"
+            ) : (
+              <>
+                Avanti
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SetupWizard;
