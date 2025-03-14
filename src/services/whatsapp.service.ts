@@ -60,15 +60,57 @@ export class WhatsAppService {
       this.browserPath = browserPath;
       this.dataPath = dataPath;
 
+      // Crea la directory per i dati WhatsApp se non esiste
+      try {
+        const { createDirectoryIfNotExists } = await import(
+          "@/utils/fileUtils"
+        );
+        await createDirectoryIfNotExists(dataPath);
+        console.log(`Directory per i dati WhatsApp creata: ${dataPath}`);
+      } catch (dirError) {
+        console.error(
+          "Errore nella creazione della directory per i dati WhatsApp:",
+          dirError,
+        );
+        // Continuiamo comunque, perché potrebbe essere un errore di permessi che non impedisce il funzionamento
+      }
+
       // Salva le configurazioni in localStorage
       localStorage.setItem(
         "whatsappConfig",
         JSON.stringify({
           browserPath,
           dataPath,
-          isAuthenticated: false,
+          isAuthenticated: this.isAuthenticated,
         }),
       );
+
+      // Salva anche nel database se possibile
+      try {
+        const { default: Database } = await import("@/models/database");
+        const db = Database.getInstance();
+
+        await db.query(
+          `INSERT INTO configurations (key, value) 
+           VALUES ($1, $2) 
+           ON CONFLICT (key) DO UPDATE SET value = $2`,
+          [
+            "whatsapp_config",
+            JSON.stringify({
+              browserPath,
+              dataPath,
+              isAuthenticated: this.isAuthenticated,
+            }),
+          ],
+        );
+
+        console.log("Configurazione WhatsApp salvata nel database");
+      } catch (dbError) {
+        console.error(
+          "Errore nel salvataggio della configurazione WhatsApp nel database:",
+          dbError,
+        );
+      }
 
       return true;
     } catch (error) {
@@ -78,13 +120,32 @@ export class WhatsAppService {
   }
 
   async authenticate(): Promise<boolean> {
-    if (!this.isEnabled || !this.browserPath || !this.dataPath) {
+    if (!this.isEnabled) {
+      alert("Il servizio WhatsApp non è abilitato con la licenza corrente.");
+      return false;
+    }
+
+    if (!this.browserPath) {
+      alert(
+        "Percorso del browser non configurato. Configura il percorso del browser Chrome nelle impostazioni.",
+      );
+      return false;
+    }
+
+    if (!this.dataPath) {
+      alert(
+        "Percorso dati WhatsApp non configurato. Configura il percorso dati WhatsApp nelle impostazioni.",
+      );
       return false;
     }
 
     try {
       // In un'implementazione reale, qui avvieremmo il browser e autenticheremmo WhatsApp Web
-      // Per ora, simuliamo il successo
+      // Per ora, simuliamo il successo e mostriamo un messaggio all'utente
+
+      alert(
+        "In un'implementazione reale, qui verrebbe aperto il browser Chrome all'indirizzo web.whatsapp.com per la scansione del codice QR. Per ora, l'autenticazione viene simulata.",
+      );
 
       // Aggiorna lo stato di autenticazione in localStorage
       const config = JSON.parse(localStorage.getItem("whatsappConfig") || "{}");
@@ -95,6 +156,9 @@ export class WhatsAppService {
       return true;
     } catch (error) {
       console.error("Error authenticating WhatsApp:", error);
+      alert(
+        `Errore durante l'autenticazione di WhatsApp: ${error.message || "Errore sconosciuto"}`,
+      );
       return false;
     }
   }
@@ -144,10 +208,16 @@ export class WhatsAppService {
       }
 
       // Crea la notifica con stato "pending"
+      // Verifica che appointment.id sia un numero valido prima di usarlo
+      let appointmentId = null;
+      if (appointment.id && !isNaN(parseInt(appointment.id.toString()))) {
+        appointmentId = parseInt(appointment.id.toString());
+      }
+
       const notification = await notificationModel.create({
         patient_id: appointment.patient_id,
         patient_name: patientName,
-        appointment_id: appointment.id,
+        appointment_id: appointmentId,
         appointment_date: new Date(appointment.date),
         appointment_time: appointment.time,
         message,

@@ -98,6 +98,83 @@ const Settings = () => {
           setBackupFrequency(backupConfig.backupFrequency || "daily");
         }
 
+        // Load Google Calendar settings
+        const googleCalendarConfigResult = await db.query(
+          "SELECT value FROM configurations WHERE key = 'google_calendar_config'",
+          [],
+        );
+
+        if (googleCalendarConfigResult.length > 0) {
+          const googleCalendarConfig = JSON.parse(
+            googleCalendarConfigResult[0].value,
+          );
+          setGoogleCalendarSync(googleCalendarConfig.enabled !== false);
+
+          // Set values for the form fields
+          if (googleCalendarConfig.clientId) {
+            localStorage.setItem(
+              "googleClientId",
+              googleCalendarConfig.clientId,
+            );
+          }
+
+          if (googleCalendarConfig.clientSecret) {
+            localStorage.setItem(
+              "googleClientSecret",
+              googleCalendarConfig.clientSecret,
+            );
+          }
+
+          if (googleCalendarConfig.redirectUri) {
+            localStorage.setItem(
+              "googleRedirectUri",
+              googleCalendarConfig.redirectUri,
+            );
+          }
+        }
+
+        // Load WhatsApp settings
+        const whatsappConfigResult = await db.query(
+          "SELECT value FROM configurations WHERE key = 'whatsapp_config'",
+          [],
+        );
+
+        if (whatsappConfigResult.length > 0) {
+          const whatsappConfig = JSON.parse(whatsappConfigResult[0].value);
+          setWhatsappIntegration(whatsappConfig.enabled !== false);
+
+          // Set values for the form fields
+          if (whatsappConfig.browserPath) {
+            localStorage.setItem(
+              "whatsappBrowserPath",
+              whatsappConfig.browserPath,
+            );
+          }
+
+          if (whatsappConfig.dataPath) {
+            localStorage.setItem("whatsappDataPath", whatsappConfig.dataPath);
+          }
+
+          // Update WhatsApp service configuration
+          try {
+            const { WhatsAppService } = await import(
+              "@/services/whatsapp.service"
+            );
+            const whatsAppService = WhatsAppService.getInstance();
+            if (whatsappConfig.browserPath && whatsappConfig.dataPath) {
+              await whatsAppService.configure(
+                whatsappConfig.browserPath,
+                whatsappConfig.dataPath,
+              );
+            }
+          } catch (serviceError) {
+            console.error(
+              "Error updating WhatsApp service configuration:",
+              serviceError,
+            );
+          }
+        }
+
         // Apply dark mode if needed
         if (darkMode) {
           document.documentElement.classList.add("dark");
@@ -130,6 +207,30 @@ const Settings = () => {
                 : true,
             );
             setBackupFrequency(backupConfig.backupFrequency || "daily");
+          }
+
+          // Load Google Calendar settings from localStorage
+          const googleClientId = localStorage.getItem("googleClientId");
+          const googleClientSecret = localStorage.getItem("googleClientSecret");
+          const googleRedirectUri = localStorage.getItem("googleRedirectUri");
+
+          if (googleClientId || googleClientSecret || googleRedirectUri) {
+            setGoogleCalendarSync(true);
+          }
+
+          // Load WhatsApp settings from localStorage
+          const whatsappConfig = localStorage.getItem("whatsappConfig");
+          if (whatsappConfig) {
+            const config = JSON.parse(whatsappConfig);
+            setWhatsappIntegration(true);
+
+            if (config.browserPath) {
+              localStorage.setItem("whatsappBrowserPath", config.browserPath);
+            }
+
+            if (config.dataPath) {
+              localStorage.setItem("whatsappDataPath", config.dataPath);
+            }
           }
         } catch (localStorageError) {
           console.error(
@@ -754,6 +855,39 @@ const Settings = () => {
                               clientSecret,
                               redirectUri,
                             );
+
+                          // Salva la configurazione nel database
+                          try {
+                            const { default: Database } = await import(
+                              "@/models/database"
+                            );
+                            const db = Database.getInstance();
+
+                            await db.query(
+                              `INSERT INTO configurations (key, value) 
+                               VALUES ($1, $2) 
+                               ON CONFLICT (key) DO UPDATE SET value = $2`,
+                              [
+                                "google_calendar_config",
+                                JSON.stringify({
+                                  enabled: true,
+                                  clientId,
+                                  clientSecret,
+                                  redirectUri,
+                                  authenticated: result ? true : false,
+                                }),
+                              ],
+                            );
+
+                            console.log(
+                              "Configurazione Google Calendar salvata nel database",
+                            );
+                          } catch (dbError) {
+                            console.error(
+                              "Errore nel salvataggio della configurazione Google Calendar nel database:",
+                              dbError,
+                            );
+                          }
 
                           if (result) {
                             alert(

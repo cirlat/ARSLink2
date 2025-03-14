@@ -266,10 +266,23 @@ L'integrazione con WhatsApp è gestita dal servizio WhatsAppService.
 2. L'utente configura il percorso del browser Chrome/Chromium e il percorso dei dati
 3. L'applicazione avvia WhatsApp Web e l'utente scansiona il codice QR
 
+**Percorso Dati WhatsApp**:
+Il percorso dati WhatsApp è una directory dove vengono salvati i dati di sessione di WhatsApp Web, come i cookie e le informazioni di autenticazione. Questo permette all'applicazione di mantenere la sessione WhatsApp attiva tra un riavvio e l'altro, senza dover scansionare nuovamente il codice QR. In un'implementazione reale, questa directory conterrebbe:
+
+- File di sessione di WhatsApp Web
+- Cookie del browser
+- Dati di autenticazione
+- Preferenze dell'utente per WhatsApp Web
+
+L'applicazione crea automaticamente questa directory se non esiste già. È importante che l'utente abbia i permessi di scrittura per questa directory.
+
 **Notifiche**:
 - Conferme di appuntamento: inviate quando viene creato un nuovo appuntamento
 - Promemoria: inviati il giorno prima dell'appuntamento
 - Notifiche manuali: l'utente può inviare notifiche personalizzate
+
+**Implementazione Tecnica**:
+L'implementazione attuale è una simulazione. In un'implementazione reale, il servizio utilizzerebbe Selenium WebDriver per controllare un'istanza di Chrome/Chromium e interagire con WhatsApp Web. Il browser verrebbe avviato in modalità headless (senza interfaccia grafica) per le operazioni automatiche, ma con interfaccia grafica per la scansione iniziale del codice QR.
 
 ## Setup Wizard
 
