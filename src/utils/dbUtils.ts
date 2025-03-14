@@ -768,8 +768,15 @@ export async function backupDatabase(path: string): Promise<boolean> {
           localStorage.setItem("nextBackup", nextBackupDate.toISOString());
 
           return true;
-        } else {
-          throw new Error(result.error || "Unknown error during backup");
+        } catch (execError) {
+          console.error(`Error executing pg_dump: ${execError.message}`);
+          
+          // Check if pg_dump is not in PATH
+          if (execError.message.includes("non è riconosciuto") || execError.message.includes("not recognized")) {
+            alert("Il comando pg_dump non è disponibile. Assicurati che PostgreSQL sia installato e che la directory bin sia nel PATH di sistema.");
+          }
+          
+          throw execError;
         }
       } catch (error) {
         console.error("Error during backup operation:", error);
