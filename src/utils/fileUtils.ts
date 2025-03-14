@@ -145,12 +145,13 @@ export async function saveFile(
       if (result.success && result.path) {
         patientDir = result.path;
       } else {
-        patientDir = `${documentsPath}/patient_${patientId}`;
+        patientDir = `${documentsPath}\\patient_${patientId}`;
       }
     } else {
       // Simple string concatenation for browser
-      patientDir = `${documentsPath}/patient_${patientId}`;
+      patientDir = `${documentsPath}\\patient_${patientId}`;
     }
+
     const success = await createDirectoryIfNotExists(patientDir);
 
     if (!success) {
@@ -167,11 +168,11 @@ export async function saveFile(
       if (result.success && result.path) {
         filePath = result.path;
       } else {
-        filePath = `${patientDir}/${uniqueFilename}`;
+        filePath = `${patientDir}\\${uniqueFilename}`;
       }
     } else {
       // Simple string concatenation for browser
-      filePath = `${patientDir}/${uniqueFilename}`;
+      filePath = `${patientDir}\\${uniqueFilename}`;
     }
 
     if (isRunningInElectron()) {

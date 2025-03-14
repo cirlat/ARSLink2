@@ -728,7 +728,7 @@ export async function backupDatabase(path: string): Promise<boolean> {
 
           await db.query(
             "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-            ["last_backup_path", `${path}/${backupFileName}`],
+            ["last_backup_path", `${path}\\${backupFileName}`],
           );
 
           await db.query(
@@ -771,7 +771,7 @@ export async function backupDatabase(path: string): Promise<boolean> {
     // Simulate backup file creation
     const timestamp = now.toISOString().replace(/[:.]/g, "-");
     const backupFileName = `patient_appointment_system_backup_${timestamp}.sql`;
-    console.log(`Simulated backup file created: ${path}/${backupFileName}`);
+    console.log(`Simulated backup file created: ${path}\\${backupFileName}`);
 
     return true;
   } catch (error) {

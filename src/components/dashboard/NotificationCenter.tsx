@@ -291,7 +291,340 @@ const NotificationCenter = ({
                   <button id="send-notification" class="px-4 py-2 bg-blue-600 text-white rounded-md">Invia</button>
                 </div>
               </div>`;
-              document.body.appendChild(modal);
+                document.body.appendChild(modal);
+
+                // Gestisci la chiusura del modale
+                document
+                  .getElementById("cancel-notification")
+                  ?.addEventListener("click", () => {
+                    document.body.removeChild(modal);
+                  });
+
+                // Gestisci il caricamento dei pazienti dal database
+                document
+                  .getElementById("load-patients")
+                  ?.addEventListener("click", async () => {
+                    try {
+                      // Disabilita il pulsante durante il caricamento
+                      const loadButton =
+                        document.getElementById("load-patients");
+                      if (loadButton) {
+                        loadButton.textContent = "Caricamento...";
+                        loadButton.setAttribute("disabled", "true");
+                      }
+
+                      // Carica i pazienti dal database
+                      const { PatientModel } = await import("@/models/patient");
+                      const patientModel = new PatientModel();
+                      const result = await patientModel.findAll();
+
+                      if (
+                        result &&
+                        result.patients &&
+                        result.patients.length > 0
+                      ) {
+                        // Aggiorna il select con i pazienti dal database
+                        const patientSelect = document.getElementById(
+                          "notification-patient",
+                        );
+                        if (patientSelect) {
+                          // Rimuovi tutte le opzioni tranne la prima (placeholder)
+                          while (patientSelect.options.length > 1) {
+                            patientSelect.remove(1);
+                          }
+
+                          // Aggiungi i pazienti dal database
+                          result.patients.forEach((patient) => {
+                            const option = document.createElement("option");
+                            option.value = patient.id.toString();
+                            option.text = patient.name;
+                            patientSelect.add(option);
+                          });
+
+                          if (loadButton) {
+                            loadButton.textContent = "Pazienti caricati!";
+                            setTimeout(() => {
+                              if (loadButton)
+                                loadButton.textContent = "Aggiorna pazienti";
+                              loadButton.removeAttribute("disabled");
+                            }, 2000);
+                          }
+                        }
+                      } else {
+                        if (loadButton) {
+                          loadButton.textContent = "Nessun paziente trovato";
+                          setTimeout(() => {
+                            if (loadButton) loadButton.textContent = "Riprova";
+                            loadButton.removeAttribute("disabled");
+                          }, 2000);
+                        }
+                      }
+                    } catch (error) {
+                      console.error(
+                        "Errore nel caricamento dei pazienti:",
+                        error,
+                      );
+                      const loadButton =
+                        document.getElementById("load-patients");
+                      if (loadButton) {
+                        loadButton.textContent = "Errore nel caricamento";
+                        setTimeout(() => {
+                          if (loadButton) loadButton.textContent = "Riprova";
+                          loadButton.removeAttribute("disabled");
+                        }, 2000);
+                      }
+                    }
+                  });
+
+                // Gestisci l'invio della notifica
+                document
+                  .getElementById("send-notification")
+                  ?.addEventListener("click", async () => {
+                    const patientSelect = document.getElementById(
+                      "notification-patient",
+                    ) as HTMLSelectElement;
+                    const patientId = patientSelect.value;
+                    const notificationType = (
+                      document.getElementById(
+                        "notification-type",
+                      ) as HTMLSelectElement
+                    ).value;
+                    const message = (
+                      document.getElementById(
+                        "notification-message",
+                      ) as HTMLTextAreaElement
+                    ).value;
+
+                    if (!patientId) {
+                      alert("Seleziona un paziente");
+                      return;
+                    }
+
+                    if (!message) {
+                      alert("Inserisci un messaggio");
+                      return;
+                    }
+
+                    try {
+                      // Cambia lo stato del pulsante
+                      const sendButton = document.getElementById(
+                        "send-notification",
+                      ) as HTMLButtonElement;
+                      sendButton.textContent = "Invio in corso...";
+                      sendButton.disabled = true;
+
+                      // Ottieni il numero di telefono del paziente
+                      const selectedOption =
+                        patientSelect.options[patientSelect.selectedIndex];
+                      const patientPhone =
+                        selectedOption.getAttribute("data-phone");
+                      const patientName = selectedOption.text;
+
+                      if (!patientPhone) {
+                        throw new Error(
+                          "Numero di telefono del paziente non disponibile",
+                        );
+                      }
+
+                      // Crea la notifica nel database
+                      const { NotificationModel } = await import(
+                        "@/models/notification"
+                      );
+                      const notificationModel = new NotificationModel();
+
+                      const notificationData = {
+                        patient_id: parseInt(patientId),
+                        patient_name: patientName,
+                        message: message,
+                        status: "pending" as "pending" | "sent" | "failed",
+                        type: notificationType as
+                          | "confirmation"
+                          | "reminder"
+                          | "custom",
+                        appointment_date: new Date(),
+                        appointment_time: new Date()
+                          .toTimeString()
+                          .substring(0, 5),
+                      };
+
+                      // Salva la notifica nel database
+                      const savedNotification =
+                        await notificationModel.create(notificationData);
+
+                      if (!savedNotification || !savedNotification.id) {
+                        throw new Error(
+                          "Errore nel salvataggio della notifica",
+                        );
+                      }
+
+                      // Invia la notifica tramite WhatsApp
+                      const { WhatsAppService } = await import(
+                        "@/services/whatsapp.service"
+                      );
+                      const whatsAppService = WhatsAppService.getInstance();
+
+                      // Verifica se il servizio è abilitato e autenticato
+                      const isEnabled =
+                        await whatsAppService.isServiceEnabled();
+                      const isAuthenticated =
+                        await whatsAppService.isServiceAuthenticated();
+
+                      if (!isEnabled || !isAuthenticated) {
+                        // Mostra un popup di errore con opzione per aprire WhatsApp
+                        if (!isEnabled) {
+                          throw new Error(
+                            "Il servizio WhatsApp non è abilitato. Verifica la tua licenza.",
+                          );
+                        } else {
+                          const confirmAuth = confirm(
+                            "WhatsApp Web non è autenticato. Vuoi aprire WhatsApp Web per autenticarti?",
+                          );
+
+                          if (confirmAuth) {
+                            const authResult =
+                              await whatsAppService.authenticate();
+                            if (!authResult) {
+                              throw new Error(
+                                "Errore durante l'autenticazione di WhatsApp Web.",
+                              );
+                            }
+
+                            alert(
+                              "WhatsApp Web autenticato con successo! Riprova a inviare la notifica.",
+                            );
+                            sendButton.textContent = "Invia";
+                            sendButton.disabled = false;
+                            return;
+                          } else {
+                            throw new Error(
+                              "WhatsApp Web non è autenticato. La notifica è stata salvata ma non inviata.",
+                            );
+                          }
+                        }
+                      }
+
+                      // Crea un oggetto appuntamento fittizio per la funzione sendNotification
+                      const dummyAppointment = {
+                        id: savedNotification.id,
+                        patient_id: parseInt(patientId),
+                        date: new Date(),
+                        time: new Date().toTimeString().substring(0, 5),
+                        duration: 30,
+                        appointment_type: "custom",
+                        notes: "",
+                      };
+
+                      // Invia la notifica
+                      const sent = await whatsAppService.sendNotification(
+                        dummyAppointment,
+                        patientPhone,
+                        message,
+                        notificationType as
+                          | "confirmation"
+                          | "reminder"
+                          | "custom",
+                      );
+
+                      // Aggiorna lo stato della notifica nel database
+                      if (sent) {
+                        await notificationModel.updateStatus(
+                          savedNotification.id,
+                          "sent",
+                          new Date(),
+                        );
+
+                        // Chiudi il modale
+                        document.body.removeChild(modal);
+
+                        // Mostra un messaggio di successo
+                        alert("Notifica inviata con successo!");
+
+                        // Ricarica le notifiche
+                        const result = await notificationModel.findAll(10, 0);
+
+                        if (result && result.notifications) {
+                          // Formatta le notifiche per l'uso nel componente
+                          const formattedNotifications =
+                            result.notifications.map((n) => ({
+                              id: n.id?.toString() || "",
+                              patientName: n.patient_name || "",
+                              appointmentDate: n.appointment_date
+                                ? new Date(n.appointment_date)
+                                    .toISOString()
+                                    .split("T")[0]
+                                : "",
+                              appointmentTime: n.appointment_time || "",
+                              status: n.status as "sent" | "failed" | "pending",
+                              type: n.type as "confirmation" | "reminder",
+                              message: n.message || "",
+                              sentAt: n.sent_at
+                                ? new Date(n.sent_at).toISOString()
+                                : undefined,
+                            }));
+
+                          setNotifications(formattedNotifications);
+                        }
+                      } else {
+                        await notificationModel.updateStatus(
+                          savedNotification.id,
+                          "failed",
+                        );
+                        throw new Error(
+                          "Errore nell'invio della notifica WhatsApp",
+                        );
+                      }
+                    } catch (error) {
+                      console.error(
+                        "Errore durante l'invio della notifica:",
+                        error,
+                      );
+                      alert(
+                        `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                      );
+
+                      const sendButton = document.getElementById(
+                        "send-notification",
+                      ) as HTMLButtonElement;
+                      if (sendButton) {
+                        sendButton.textContent = "Invia";
+                        sendButton.disabled = false;
+                      }
+                    }
+                  });
+
+                // Aggiorna il messaggio in base al tipo di notifica selezionato
+                document
+                  .getElementById("notification-type")
+                  ?.addEventListener("change", (e) => {
+                    const type = (e.target as HTMLSelectElement).value;
+                    const messageField = document.getElementById(
+                      "notification-message",
+                    ) as HTMLTextAreaElement;
+                    const patientSelect = document.getElementById(
+                      "notification-patient",
+                    ) as HTMLSelectElement;
+                    const patientName =
+                      patientSelect.options[patientSelect.selectedIndex]
+                        ?.text || "paziente";
+
+                    if (type === "confirmation") {
+                      messageField.value = `Gentile ${patientName}, confermiamo il suo appuntamento per il ${new Date().toLocaleDateString("it-IT")} alle ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, "0")}. Risponda "OK" per confermare.`;
+                    } else if (type === "reminder") {
+                      messageField.value = `Gentile ${patientName}, le ricordiamo il suo appuntamento per domani ${new Date(Date.now() + 86400000).toLocaleDateString("it-IT")} alle ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, "0")}. A presto!`;
+                    } else {
+                      messageField.value = "";
+                    }
+                  });
+
+                // Aggiorna il messaggio quando cambia il paziente selezionato
+                document
+                  .getElementById("notification-patient")
+                  ?.addEventListener("change", () => {
+                    const typeSelect = document.getElementById(
+                      "notification-type",
+                    ) as HTMLSelectElement;
+                    typeSelect.dispatchEvent(new Event("change"));
+                  });
               } catch (error) {
                 console.error("Errore nel caricamento dei pazienti:", error);
                 // Fallback con modale senza pazienti reali
@@ -336,335 +669,265 @@ const NotificationCenter = ({
               </div>
             `;
                 document.body.appendChild(modal);
-              }
 
-              // Gestisci la chiusura del modale
-              document
-                .getElementById("cancel-notification")
-                .addEventListener("click", () => {
-                  document.body.removeChild(modal);
-                });
+                // Gestisci la chiusura del modale
+                let modalElement = modal;
+                document
+                  .getElementById("cancel-notification")
+                  ?.addEventListener("click", () => {
+                    document.body.removeChild(modalElement);
+                  });
 
-              // Gestisci il caricamento dei pazienti dal database
-              document
-                .getElementById("load-patients")
-                ?.addEventListener("click", async () => {
-                  try {
-                    // Disabilita il pulsante durante il caricamento
-                    const loadButton = document.getElementById("load-patients");
-                    if (loadButton) {
-                      loadButton.textContent = "Caricamento...";
-                      loadButton.setAttribute("disabled", "true");
+                // Gestisci l'invio della notifica
+                document
+                  .getElementById("send-notification")
+                  ?.addEventListener("click", async () => {
+                    const patientSelect = document.getElementById(
+                      "notification-patient",
+                    ) as HTMLSelectElement;
+                    const patientId = patientSelect.value;
+                    const notificationType = (
+                      document.getElementById(
+                        "notification-type",
+                      ) as HTMLSelectElement
+                    ).value;
+                    const message = (
+                      document.getElementById(
+                        "notification-message",
+                      ) as HTMLTextAreaElement
+                    ).value;
+
+                    if (!patientId) {
+                      alert("Seleziona un paziente");
+                      return;
                     }
 
-                    // Carica i pazienti dal database
-                    const { PatientModel } = await import("@/models/patient");
-                    const patientModel = new PatientModel();
-                    const result = await patientModel.findAll();
-
-                    if (
-                      result &&
-                      result.patients &&
-                      result.patients.length > 0
-                    ) {
-                      // Aggiorna il select con i pazienti dal database
-                      const patientSelect = document.getElementById(
-                        "notification-patient",
-                      );
-                      if (patientSelect) {
-                        // Rimuovi tutte le opzioni tranne la prima (placeholder)
-                        while (patientSelect.options.length > 1) {
-                          patientSelect.remove(1);
-                        }
-
-                        // Aggiungi i pazienti dal database
-                        result.patients.forEach((patient) => {
-                          const option = document.createElement("option");
-                          option.value = patient.id.toString();
-                          option.text = patient.name;
-                          patientSelect.add(option);
-                        });
-
-                        if (loadButton) {
-                          loadButton.textContent = "Pazienti caricati!";
-                          setTimeout(() => {
-                            if (loadButton)
-                              loadButton.textContent = "Aggiorna pazienti";
-                            loadButton.removeAttribute("disabled");
-                          }, 2000);
-                        }
-                      }
-                    } else {
-                      if (loadButton) {
-                        loadButton.textContent = "Nessun paziente trovato";
-                        setTimeout(() => {
-                          if (loadButton) loadButton.textContent = "Riprova";
-                          loadButton.removeAttribute("disabled");
-                        }, 2000);
-                      }
-                    }
-                  } catch (error) {
-                    console.error(
-                      "Errore nel caricamento dei pazienti:",
-                      error,
-                    );
-                    const loadButton = document.getElementById("load-patients");
-                    if (loadButton) {
-                      loadButton.textContent = "Errore nel caricamento";
-                      setTimeout(() => {
-                        if (loadButton) loadButton.textContent = "Riprova";
-                        loadButton.removeAttribute("disabled");
-                      }, 2000);
-                    }
-                  }
-                });
-
-              // Gestisci l'invio della notifica
-              document
-                .getElementById("send-notification")
-                .addEventListener("click", async () => {
-                  const patientSelect = document.getElementById(
-                    "notification-patient",
-                  ) as HTMLSelectElement;
-                  const patientId = patientSelect.value;
-                  const notificationType = (
-                    document.getElementById(
-                      "notification-type",
-                    ) as HTMLSelectElement
-                  ).value;
-                  const message = (
-                    document.getElementById(
-                      "notification-message",
-                    ) as HTMLTextAreaElement
-                  ).value;
-
-                  if (!patientId) {
-                    alert("Seleziona un paziente");
-                    return;
-                  }
-
-                  if (!message) {
-                    alert("Inserisci un messaggio");
-                    return;
-                  }
-
-                  try {
-                    // Cambia lo stato del pulsante
-                    const sendButton = document.getElementById(
-                      "send-notification",
-                    ) as HTMLButtonElement;
-                    sendButton.textContent = "Invio in corso...";
-                    sendButton.disabled = true;
-
-                    // Ottieni il numero di telefono del paziente
-                    const selectedOption =
-                      patientSelect.options[patientSelect.selectedIndex];
-                    const patientPhone =
-                      selectedOption.getAttribute("data-phone");
-                    const patientName = selectedOption.text;
-
-                    if (!patientPhone) {
-                      throw new Error(
-                        "Numero di telefono del paziente non disponibile",
-                      );
+                    if (!message) {
+                      alert("Inserisci un messaggio");
+                      return;
                     }
 
-                    // Crea la notifica nel database
-                    const { NotificationModel } = await import(
-                      "@/models/notification"
-                    );
-                    const notificationModel = new NotificationModel();
+                    try {
+                      // Cambia lo stato del pulsante
+                      const sendButton = document.getElementById(
+                        "send-notification",
+                      ) as HTMLButtonElement;
+                      sendButton.textContent = "Invio in corso...";
+                      sendButton.disabled = true;
 
-                    const notificationData = {
-                      patient_id: parseInt(patientId),
-                      patient_name: patientName,
-                      message: message,
-                      status: "pending" as "pending" | "sent" | "failed",
-                      type: notificationType as
-                        | "confirmation"
-                        | "reminder"
-                        | "custom",
-                      appointment_date: new Date(),
-                      appointment_time: new Date()
-                        .toTimeString()
-                        .substring(0, 5),
-                    };
+                      // Ottieni il numero di telefono del paziente
+                      const selectedOption =
+                        patientSelect.options[patientSelect.selectedIndex];
+                      const patientPhone =
+                        selectedOption.getAttribute("data-phone");
+                      const patientName = selectedOption.text;
 
-                    // Salva la notifica nel database
-                    const savedNotification =
-                      await notificationModel.create(notificationData);
-
-                    if (!savedNotification || !savedNotification.id) {
-                      throw new Error("Errore nel salvataggio della notifica");
-                    }
-
-                    // Invia la notifica tramite WhatsApp
-                    const { WhatsAppService } = await import(
-                      "@/services/whatsapp.service"
-                    );
-                    const whatsAppService = WhatsAppService.getInstance();
-
-                    // Verifica se il servizio è abilitato e autenticato
-                    const isEnabled = await whatsAppService.isServiceEnabled();
-                    const isAuthenticated =
-                      await whatsAppService.isServiceAuthenticated();
-
-                    if (!isEnabled || !isAuthenticated) {
-                      // Mostra un popup di errore con opzione per aprire WhatsApp
-                      if (!isEnabled) {
+                      if (!patientPhone) {
                         throw new Error(
-                          "Il servizio WhatsApp non è abilitato. Verifica la tua licenza.",
+                          "Numero di telefono del paziente non disponibile",
                         );
-                      } else {
-                        const confirmAuth = confirm(
-                          "WhatsApp Web non è autenticato. Vuoi aprire WhatsApp Web per autenticarti?",
-                        );
+                      }
 
-                        if (confirmAuth) {
-                          const authResult =
-                            await whatsAppService.authenticate();
-                          if (!authResult) {
+                      // Crea la notifica nel database
+                      const { NotificationModel } = await import(
+                        "@/models/notification"
+                      );
+                      const notificationModel = new NotificationModel();
+
+                      const notificationData = {
+                        patient_id: parseInt(patientId),
+                        patient_name: patientName,
+                        message: message,
+                        status: "pending" as "pending" | "sent" | "failed",
+                        type: notificationType as
+                          | "confirmation"
+                          | "reminder"
+                          | "custom",
+                        appointment_date: new Date(),
+                        appointment_time: new Date()
+                          .toTimeString()
+                          .substring(0, 5),
+                      };
+
+                      // Salva la notifica nel database
+                      const savedNotification =
+                        await notificationModel.create(notificationData);
+
+                      if (!savedNotification || !savedNotification.id) {
+                        throw new Error(
+                          "Errore nel salvataggio della notifica",
+                        );
+                      }
+
+                      // Invia la notifica tramite WhatsApp
+                      const { WhatsAppService } = await import(
+                        "@/services/whatsapp.service"
+                      );
+                      const whatsAppService = WhatsAppService.getInstance();
+
+                      // Verifica se il servizio è abilitato e autenticato
+                      const isEnabled =
+                        await whatsAppService.isServiceEnabled();
+                      const isAuthenticated =
+                        await whatsAppService.isServiceAuthenticated();
+
+                      if (!isEnabled || !isAuthenticated) {
+                        // Mostra un popup di errore con opzione per aprire WhatsApp
+                        if (!isEnabled) {
+                          throw new Error(
+                            "Il servizio WhatsApp non è abilitato. Verifica la tua licenza.",
+                          );
+                        } else {
+                          const confirmAuth = confirm(
+                            "WhatsApp Web non è autenticato. Vuoi aprire WhatsApp Web per autenticarti?",
+                          );
+
+                          if (confirmAuth) {
+                            const authResult =
+                              await whatsAppService.authenticate();
+                            if (!authResult) {
+                              throw new Error(
+                                "Errore durante l'autenticazione di WhatsApp Web.",
+                              );
+                            }
+
+                            alert(
+                              "WhatsApp Web autenticato con successo! Riprova a inviare la notifica.",
+                            );
+                            sendButton.textContent = "Invia";
+                            sendButton.disabled = false;
+                            return;
+                          } else {
                             throw new Error(
-                              "Errore durante l'autenticazione di WhatsApp Web.",
+                              "WhatsApp Web non è autenticato. La notifica è stata salvata ma non inviata.",
                             );
                           }
-
-                          alert(
-                            "WhatsApp Web autenticato con successo! Riprova a inviare la notifica.",
-                          );
-                          sendButton.textContent = "Invia";
-                          sendButton.disabled = false;
-                          return;
-                        } else {
-                          throw new Error(
-                            "WhatsApp Web non è autenticato. La notifica è stata salvata ma non inviata.",
-                          );
                         }
                       }
-                    }
 
-                    // Crea un oggetto appuntamento fittizio per la funzione sendNotification
-                    const dummyAppointment = {
-                      id: savedNotification.id,
-                      patient_id: parseInt(patientId),
-                      date: new Date(),
-                      time: new Date().toTimeString().substring(0, 5),
-                      duration: 30,
-                      appointment_type: "custom",
-                      notes: "",
-                    };
+                      // Crea un oggetto appuntamento fittizio per la funzione sendNotification
+                      const dummyAppointment = {
+                        id: savedNotification.id,
+                        patient_id: parseInt(patientId),
+                        date: new Date(),
+                        time: new Date().toTimeString().substring(0, 5),
+                        duration: 30,
+                        appointment_type: "custom",
+                        notes: "",
+                      };
 
-                    // Invia la notifica
-                    const sent = await whatsAppService.sendNotification(
-                      dummyAppointment,
-                      patientPhone,
-                      message,
-                      notificationType as
-                        | "confirmation"
-                        | "reminder"
-                        | "custom",
-                    );
-
-                    // Aggiorna lo stato della notifica nel database
-                    if (sent) {
-                      await notificationModel.updateStatus(
-                        savedNotification.id,
-                        "sent",
-                        new Date(),
+                      // Invia la notifica
+                      const sent = await whatsAppService.sendNotification(
+                        dummyAppointment,
+                        patientPhone,
+                        message,
+                        notificationType as
+                          | "confirmation"
+                          | "reminder"
+                          | "custom",
                       );
 
-                      // Chiudi il modale
-                      document.body.removeChild(modal);
-
-                      // Mostra un messaggio di successo
-                      alert("Notifica inviata con successo!");
-
-                      // Ricarica le notifiche
-                      const result = await notificationModel.findAll(10, 0);
-
-                      if (result && result.notifications) {
-                        // Formatta le notifiche per l'uso nel componente
-                        const formattedNotifications = result.notifications.map(
-                          (n) => ({
-                            id: n.id?.toString() || "",
-                            patientName: n.patient_name || "",
-                            appointmentDate: n.appointment_date
-                              ? new Date(n.appointment_date)
-                                  .toISOString()
-                                  .split("T")[0]
-                              : "",
-                            appointmentTime: n.appointment_time || "",
-                            status: n.status as "sent" | "failed" | "pending",
-                            type: n.type as "confirmation" | "reminder",
-                            message: n.message || "",
-                            sentAt: n.sent_at
-                              ? new Date(n.sent_at).toISOString()
-                              : undefined,
-                          }),
+                      // Aggiorna lo stato della notifica nel database
+                      if (sent) {
+                        await notificationModel.updateStatus(
+                          savedNotification.id,
+                          "sent",
+                          new Date(),
                         );
 
-                        setNotifications(formattedNotifications);
+                        // Chiudi il modale
+                        document.body.removeChild(modal);
+
+                        // Mostra un messaggio di successo
+                        alert("Notifica inviata con successo!");
+
+                        // Ricarica le notifiche
+                        const result = await notificationModel.findAll(10, 0);
+
+                        if (result && result.notifications) {
+                          // Formatta le notifiche per l'uso nel componente
+                          const formattedNotifications =
+                            result.notifications.map((n) => ({
+                              id: n.id?.toString() || "",
+                              patientName: n.patient_name || "",
+                              appointmentDate: n.appointment_date
+                                ? new Date(n.appointment_date)
+                                    .toISOString()
+                                    .split("T")[0]
+                                : "",
+                              appointmentTime: n.appointment_time || "",
+                              status: n.status as "sent" | "failed" | "pending",
+                              type: n.type as "confirmation" | "reminder",
+                              message: n.message || "",
+                              sentAt: n.sent_at
+                                ? new Date(n.sent_at).toISOString()
+                                : undefined,
+                            }));
+
+                          setNotifications(formattedNotifications);
+                        }
+                      } else {
+                        await notificationModel.updateStatus(
+                          savedNotification.id,
+                          "failed",
+                        );
+                        throw new Error(
+                          "Errore nell'invio della notifica WhatsApp",
+                        );
                       }
+                    } catch (error) {
+                      console.error(
+                        "Errore durante l'invio della notifica:",
+                        error,
+                      );
+                      alert(
+                        `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                      );
+
+                      const sendButton = document.getElementById(
+                        "send-notification",
+                      ) as HTMLButtonElement;
+                      if (sendButton) {
+                        sendButton.textContent = "Invia";
+                        sendButton.disabled = false;
+                      }
+                    }
+                  });
+
+                // Aggiorna il messaggio in base al tipo di notifica selezionato
+                document
+                  .getElementById("notification-type")
+                  ?.addEventListener("change", (e) => {
+                    const type = (e.target as HTMLSelectElement).value;
+                    const messageField = document.getElementById(
+                      "notification-message",
+                    ) as HTMLTextAreaElement;
+                    const patientSelect = document.getElementById(
+                      "notification-patient",
+                    ) as HTMLSelectElement;
+                    const patientName =
+                      patientSelect.options[patientSelect.selectedIndex]
+                        ?.text || "paziente";
+
+                    if (type === "confirmation") {
+                      messageField.value = `Gentile ${patientName}, confermiamo il suo appuntamento per il ${new Date().toLocaleDateString("it-IT")} alle ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, "0")}. Risponda "OK" per confermare.`;
+                    } else if (type === "reminder") {
+                      messageField.value = `Gentile ${patientName}, le ricordiamo il suo appuntamento per domani ${new Date(Date.now() + 86400000).toLocaleDateString("it-IT")} alle ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, "0")}. A presto!`;
                     } else {
-                      await notificationModel.updateStatus(
-                        savedNotification.id,
-                        "failed",
-                      );
-                      throw new Error(
-                        "Errore nell'invio della notifica WhatsApp",
-                      );
+                      messageField.value = "";
                     }
-                  } catch (error) {
-                    console.error(
-                      "Errore durante l'invio della notifica:",
-                      error,
-                    );
-                    alert(
-                      `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
-                    );
+                  });
 
-                    const sendButton = document.getElementById(
-                      "send-notification",
-                    ) as HTMLButtonElement;
-                    if (sendButton) {
-                      sendButton.textContent = "Invia";
-                      sendButton.disabled = false;
-                    }
-                  }
-                });
-
-              // Aggiorna il messaggio in base al tipo di notifica selezionato
-              document
-                .getElementById("notification-type")
-                .addEventListener("change", (e) => {
-                  const type = e.target.value;
-                  const messageField = document.getElementById(
-                    "notification-message",
-                  );
-                  const patientSelect = document.getElementById(
-                    "notification-patient",
-                  );
-                  const patientName =
-                    patientSelect.options[patientSelect.selectedIndex].text ||
-                    "paziente";
-
-                  if (type === "confirmation") {
-                    messageField.value = `Gentile ${patientName}, confermiamo il suo appuntamento per il ${new Date().toLocaleDateString("it-IT")} alle ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, "0")}. Risponda "OK" per confermare.`;
-                  } else if (type === "reminder") {
-                    messageField.value = `Gentile ${patientName}, le ricordiamo il suo appuntamento per domani ${new Date(Date.now() + 86400000).toLocaleDateString("it-IT")} alle ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, "0")}. A presto!`;
-                  } else {
-                    messageField.value = "";
-                  }
-                });
-
-              // Aggiorna il messaggio quando cambia il paziente selezionato
-              document
-                .getElementById("notification-patient")
-                .addEventListener("change", () => {
-                  const typeSelect =
-                    document.getElementById("notification-type");
-                  typeSelect.dispatchEvent(new Event("change"));
-                });
+                // Aggiorna il messaggio quando cambia il paziente selezionato
+                document
+                  .getElementById("notification-patient")
+                  ?.addEventListener("change", () => {
+                    const typeSelect = document.getElementById(
+                      "notification-type",
+                    ) as HTMLSelectElement;
+                    typeSelect.dispatchEvent(new Event("change"));
+                  });
+              }
             }}
           >
             <Send className="h-4 w-4 mr-2" />
@@ -805,4 +1068,275 @@ const NotificationCenter = ({
           </TabsTrigger>
           <TabsTrigger value="failed">
             Fallite (
-            {filteredNotifications.filter((n)
+            {filteredNotifications.filter((n) => n.status === "failed").length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="all" className="space-y-4">
+          {getTabNotifications("all").length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Stato</TableHead>
+                  <TableHead>Paziente</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Messaggio</TableHead>
+                  <TableHead>Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {getTabNotifications("all").map((notification) => (
+                  <TableRow key={notification.id}>
+                    <TableCell>
+                      <div className="flex items-center">
+                        {getStatusIcon(notification.status)}
+                        <span className="ml-2">
+                          {notification.status === "sent"
+                            ? "Inviato"
+                            : notification.status === "pending"
+                              ? "In attesa"
+                              : "Fallito"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{notification.patientName}</TableCell>
+                    <TableCell>
+                      {notification.appointmentDate
+                        ? `${notification.appointmentDate} ${notification.appointmentTime}`
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      {notification.type === "confirmation"
+                        ? "Conferma"
+                        : notification.type === "reminder"
+                          ? "Promemoria"
+                          : "Personalizzato"}
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      {notification.message}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          // Mostra i dettagli della notifica
+                          alert(
+                            `Dettagli Notifica:\n\nID: ${notification.id}\nPaziente: ${notification.patientName}\nStato: ${notification.status}\nTipo: ${notification.type}\nData: ${notification.appointmentDate || "N/A"}\nOra: ${notification.appointmentTime || "N/A"}\nMessaggio: ${notification.message}\nInviato il: ${notification.sentAt ? new Date(notification.sentAt).toLocaleString() : "Non inviato"}`,
+                          );
+                        }}
+                      >
+                        Dettagli
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-10">
+              <p className="text-muted-foreground">
+                Nessuna notifica trovata. Usa il pulsante "Invia Notifica" per
+                creare una nuova notifica.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="pending" className="space-y-4">
+          {getTabNotifications("pending").length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Stato</TableHead>
+                  <TableHead>Paziente</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Messaggio</TableHead>
+                  <TableHead>Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {getTabNotifications("pending").map((notification) => (
+                  <TableRow key={notification.id}>
+                    <TableCell>
+                      <div className="flex items-center">
+                        <Clock className="h-4 w-4 text-amber-600" />
+                        <span className="ml-2">In attesa</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{notification.patientName}</TableCell>
+                    <TableCell>
+                      {notification.appointmentDate
+                        ? `${notification.appointmentDate} ${notification.appointmentTime}`
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      {notification.type === "confirmation"
+                        ? "Conferma"
+                        : notification.type === "reminder"
+                          ? "Promemoria"
+                          : "Personalizzato"}
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      {notification.message}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          // Mostra i dettagli della notifica
+                          alert(
+                            `Dettagli Notifica:\n\nID: ${notification.id}\nPaziente: ${notification.patientName}\nStato: ${notification.status}\nTipo: ${notification.type}\nData: ${notification.appointmentDate || "N/A"}\nOra: ${notification.appointmentTime || "N/A"}\nMessaggio: ${notification.message}\nInviato il: ${notification.sentAt ? new Date(notification.sentAt).toLocaleString() : "Non inviato"}`,
+                          );
+                        }}
+                      >
+                        Dettagli
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-10">
+              <p className="text-muted-foreground">
+                Nessuna notifica in attesa.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="sent" className="space-y-4">
+          {getTabNotifications("sent").length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Stato</TableHead>
+                  <TableHead>Paziente</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Messaggio</TableHead>
+                  <TableHead>Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {getTabNotifications("sent").map((notification) => (
+                  <TableRow key={notification.id}>
+                    <TableCell>
+                      <div className="flex items-center">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span className="ml-2">Inviato</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{notification.patientName}</TableCell>
+                    <TableCell>
+                      {notification.appointmentDate
+                        ? `${notification.appointmentDate} ${notification.appointmentTime}`
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      {notification.type === "confirmation"
+                        ? "Conferma"
+                        : notification.type === "reminder"
+                          ? "Promemoria"
+                          : "Personalizzato"}
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      {notification.message}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          // Mostra i dettagli della notifica
+                          alert(
+                            `Dettagli Notifica:\n\nID: ${notification.id}\nPaziente: ${notification.patientName}\nStato: ${notification.status}\nTipo: ${notification.type}\nData: ${notification.appointmentDate || "N/A"}\nOra: ${notification.appointmentTime || "N/A"}\nMessaggio: ${notification.message}\nInviato il: ${notification.sentAt ? new Date(notification.sentAt).toLocaleString() : "Non inviato"}`,
+                          );
+                        }}
+                      >
+                        Dettagli
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-10">
+              <p className="text-muted-foreground">Nessuna notifica inviata.</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="failed" className="space-y-4">
+          {getTabNotifications("failed").length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Stato</TableHead>
+                  <TableHead>Paziente</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Messaggio</TableHead>
+                  <TableHead>Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {getTabNotifications("failed").map((notification) => (
+                  <TableRow key={notification.id}>
+                    <TableCell>
+                      <div className="flex items-center">
+                        <XCircle className="h-4 w-4 text-red-600" />
+                        <span className="ml-2">Fallito</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{notification.patientName}</TableCell>
+                    <TableCell>
+                      {notification.appointmentDate
+                        ? `${notification.appointmentDate} ${notification.appointmentTime}`
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      {notification.type === "confirmation"
+                        ? "Conferma"
+                        : notification.type === "reminder"
+                          ? "Promemoria"
+                          : "Personalizzato"}
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      {notification.message}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          // Mostra i dettagli della notifica
+                          alert(
+                            `Dettagli Notifica:\n\nID: ${notification.id}\nPaziente: ${notification.patientName}\nStato: ${notification.status}\nTipo: ${notification.type}\nData: ${notification.appointmentDate || "N/A"}\nOra: ${notification.appointmentTime || "N/A"}\nMessaggio: ${notification.message}\nInviato il: ${notification.sentAt ? new Date(notification.sentAt).toLocaleString() : "Non inviato"}`,
+                          );
+                        }}
+                      >
+                        Dettagli
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-10">
+              <p className="text-muted-foreground">Nessuna notifica fallita.</p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default NotificationCenter;
