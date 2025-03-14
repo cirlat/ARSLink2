@@ -33,6 +33,7 @@ import {
   Lock,
   Key,
 } from "lucide-react";
+import ResetSetupButton from "../ResetSetupButton";
 import BackupStatus from "../system/BackupStatus";
 import LicenseAlert from "../system/LicenseAlert";
 import LicenseSettings from "./LicenseSettings";
@@ -389,6 +390,14 @@ const Settings = () => {
                 <Lock className="h-4 w-4 mr-2" />
                 Gestione Account
               </Button>
+              <Button
+                variant={activeTab === "system" ? "default" : "ghost"}
+                className="w-full justify-start px-2 py-1.5 h-9"
+                onClick={() => setActiveTab("system")}
+              >
+                <Shield className="h-4 w-4 mr-2" />
+                Sistema
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -738,6 +747,36 @@ const Settings = () => {
           {activeTab === "security" && (
             <div className="space-y-6 mt-0">
               <SecuritySettings />
+            </div>
+          )}
+
+          {activeTab === "system" && (
+            <div className="space-y-6 mt-0">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Impostazioni di Sistema</CardTitle>
+                  <CardDescription>
+                    Gestisci le impostazioni di sistema dell'applicazione
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-medium">
+                        Reset Configurazione
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Reimposta l'applicazione allo stato iniziale. Questa
+                        operazione farà ripartire la procedura guidata di
+                        configurazione.
+                      </p>
+                      <div className="pt-2">
+                        <ResetSetupButton />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
