@@ -206,6 +206,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
           throw new Error(
             "Impossibile aggiornare l'appuntamento. Verifica che l'ID sia valido.",
           );
+        }
       } else {
         savedAppointment = await appointmentModel.create(appointmentData);
       }
