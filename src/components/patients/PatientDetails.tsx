@@ -228,14 +228,15 @@ const PatientDetails = (props: PatientDetailsProps) => {
 
     loadPatientData();
   }, [id]);
+
   if (isLoading) {
     return (
       <div className="w-full h-full bg-background p-6 flex items-center justify-center">
         <div className="text-center">
           <div className="spinner mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">
+          <div className="mt-4 text-muted-foreground">
             Caricamento dati paziente...
-          </p>
+          </div>
         </div>
       </div>
     );
@@ -246,9 +247,9 @@ const PatientDetails = (props: PatientDetailsProps) => {
       <div className="w-full h-full bg-background p-6 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-bold mb-2">Paziente non trovato</h2>
-          <p className="text-muted-foreground">
+          <div className="text-muted-foreground">
             Il paziente richiesto non è stato trovato nel database.
-          </p>
+          </div>
         </div>
       </div>
     );
@@ -719,14 +720,40 @@ const PatientDetails = (props: PatientDetailsProps) => {
                             const files = fileInput?.files;
 
                             try {
+                              // Assicurati che la directory esista
+                              const { createDirectoryIfNotExists } =
+                                await import("@/utils/fileUtils");
+
+                              // Create patient directory
+                              const documentsPath =
+                                localStorage.getItem("documentsPath") ||
+                                "C:\\ProgramData\\PatientAppointmentSystem\\Documents";
+                              const patientDir = `${documentsPath}/patient_${parseInt(patient.id)}`;
+                              await createDirectoryIfNotExists(patientDir);
+
                               // Salva i file su disco
                               const { saveFiles } = await import(
                                 "@/utils/fileUtils"
                               );
-                              const filePaths =
-                                files && files.length > 0
-                                  ? await saveFiles(files, parseInt(patient.id))
-                                  : [];
+
+                              let filePaths = [];
+                              if (files && files.length > 0) {
+                                try {
+                                  filePaths = await saveFiles(
+                                    files,
+                                    parseInt(patient.id),
+                                  );
+                                } catch (fileError) {
+                                  console.error(
+                                    "Error saving files:",
+                                    fileError,
+                                  );
+                                  alert(
+                                    `Errore nel salvataggio dei file: ${fileError.message}. I file non saranno allegati al documento.`,
+                                  );
+                                  filePaths = [];
+                                }
+                              }
 
                               // Salva il documento nel database
                               const { MedicalRecordModel } = await import(
@@ -858,7 +885,7 @@ const PatientDetails = (props: PatientDetailsProps) => {
                                 <p class="text-sm text-gray-500 mb-2">Data: ${new Date(record.date).toLocaleDateString()}</p>
                                 <p class="text-sm text-gray-500 mb-4">Medico: ${record.doctor}</p>
                                 <div class="bg-gray-50 p-4 rounded-md">
-                                  <span>${documentContent}</span>
+                                  ${documentContent}
                                 </div>
                                 ${
                                   record.files && record.files.length > 0
@@ -1211,28 +1238,15 @@ const PatientDetails = (props: PatientDetailsProps) => {
                       <div class="space-y-4">
                         <h2 class="text-xl font-bold">Invia Messaggio</h2>
                         <div class="space-y-2">
-                          <label class="text-sm font-medium">Tipo di Comunicazione</label>
-                          <select id="msg-type" class="w-full p-2 border rounded-md">
-                            <option value="whatsapp">WhatsApp</option>
-                            <option value="email">Email</option>
-                            <option value="phone">Telefonata</option>
-                          </select>
-                        </div>
-                        <div class="space-y-2">
-                          <label class="text-sm font-medium">Destinatario</label>
-                          <input id="msg-recipient" type="text" class="w-full p-2 border rounded-md" value="${patient?.phone || ""}" readonly />
-                          <p class="text-xs text-gray-500">Numero di telefono del paziente</p>
-                        </div>
-                        <div class="space-y-2">
                           <label class="text-sm font-medium">Messaggio</label>
-                          <textarea id="msg-content" class="w-full p-2 border rounded-md h-32" placeholder="Scrivi il tuo messaggio qui"></textarea>
+                          <textarea id="message-text" class="w-full p-2 border rounded-md h-32" placeholder="Scrivi il messaggio da inviare"></textarea>
                         </div>
                         <div class="flex justify-end space-x-2 pt-4">
-                          <button id="cancel-msg" class="px-4 py-2 border border-gray-300 rounded-md">Annulla</button>
-                          <button id="send-msg" class="px-4 py-2 bg-blue-600 text-white rounded-md">Invia Messaggio</button>
+                          <button id="cancel-message" class="px-4 py-2 border border-gray-300 rounded-md">Annulla</button>
+                          <button id="send-message" class="px-4 py-2 bg-blue-600 text-white rounded-md">Invia</button>
                         </div>
                       </div>
-                    `;
+                      `;
 
                       const formContainer = document.getElementById(
                         "message-form-container",
@@ -1243,210 +1257,93 @@ const PatientDetails = (props: PatientDetailsProps) => {
 
                       // Gestisci la chiusura del form
                       document
-                        .getElementById("cancel-msg")
+                        .getElementById("cancel-message")
                         ?.addEventListener("click", () => {
                           document.body.removeChild(dialog);
                         });
 
                       // Gestisci l'invio del messaggio
                       document
-                        .getElementById("send-msg")
+                        .getElementById("send-message")
                         ?.addEventListener("click", async () => {
-                          const type = (
+                          const messageText = (
                             document.getElementById(
-                              "msg-type",
-                            ) as HTMLSelectElement
-                          )?.value as "whatsapp" | "email" | "phone";
-                          const recipient = (
-                            document.getElementById(
-                              "msg-recipient",
-                            ) as HTMLInputElement
-                          )?.value;
-                          const content = (
-                            document.getElementById(
-                              "msg-content",
+                              "message-text",
                             ) as HTMLTextAreaElement
                           )?.value;
 
-                          if (!type || !recipient || !content) {
-                            alert("Compila tutti i campi obbligatori");
+                          if (!messageText) {
+                            alert("Inserisci un messaggio da inviare");
                             return;
                           }
 
                           try {
-                            // Invia il messaggio tramite il servizio appropriato
-                            if (type === "whatsapp") {
-                              // Invia messaggio WhatsApp
-                              const { WhatsAppService } = await import(
-                                "@/services/whatsapp.service"
+                            // Invia il messaggio WhatsApp
+                            const { WhatsAppService } = await import(
+                              "@/services/whatsapp.service"
+                            );
+                            const whatsAppService =
+                              WhatsAppService.getInstance();
+
+                            // Verifica se il servizio è abilitato e autenticato
+                            const isEnabled =
+                              await whatsAppService.isServiceEnabled();
+                            const isAuthenticated =
+                              await whatsAppService.isServiceAuthenticated();
+
+                            if (!isEnabled || !isAuthenticated) {
+                              alert(
+                                "Il servizio WhatsApp non è abilitato o autenticato. Verifica le impostazioni.",
                               );
-                              const whatsAppService =
-                                WhatsAppService.getInstance();
-
-                              // Verifica se il servizio è abilitato e autenticato
-                              const isEnabled =
-                                await whatsAppService.isServiceEnabled();
-                              const isAuthenticated =
-                                await whatsAppService.isServiceAuthenticated();
-
-                              if (!isEnabled || !isAuthenticated) {
-                                // Mostra un popup di errore con opzione per aprire WhatsApp
-                                if (
-                                  confirm(
-                                    "Il servizio WhatsApp non è abilitato o autenticato. Vuoi aprire WhatsApp Web per configurare l'integrazione?",
-                                  )
-                                ) {
-                                  try {
-                                    await whatsAppService.authenticate();
-                                    alert(
-                                      "Ora che WhatsApp Web è configurato, puoi riprovare a inviare il messaggio.",
-                                    );
-                                    return;
-                                  } catch (authError) {
-                                    throw new Error(
-                                      `Errore durante l'autenticazione di WhatsApp: ${authError.message}`,
-                                    );
-                                  }
-                                } else {
-                                  throw new Error(
-                                    "Il servizio WhatsApp non è abilitato o autenticato. Verifica le impostazioni.",
-                                  );
-                                }
-                              }
-
-                              // Crea un oggetto notifica per il database
-                              const { NotificationModel } = await import(
-                                "@/models/notification"
-                              );
-                              const notificationModel = new NotificationModel();
-
-                              const notificationData = {
-                                patient_id: parseInt(patient?.id || "0"),
-                                patient_name: patient?.name || "Paziente",
-                                message: content,
-                                status: "pending" as
-                                  | "pending"
-                                  | "sent"
-                                  | "failed",
-                                type: "custom" as
-                                  | "confirmation"
-                                  | "reminder"
-                                  | "custom",
-                              };
-
-                              // Salva la notifica nel database
-                              const savedNotification =
-                                await notificationModel.create(
-                                  notificationData,
-                                );
-
-                              if (!savedNotification) {
-                                throw new Error(
-                                  "Errore nel salvataggio della notifica",
-                                );
-                              }
-
-                              // Invia il messaggio WhatsApp
-                              const dummyAppointment = {
-                                id: savedNotification.id || 0,
-                                patient_id: parseInt(patient?.id || "0"),
-                                date: new Date(),
-                                time: "00:00",
-                                duration: 0,
-                                appointment_type: "custom",
-                                notes: "",
-                              };
-
-                              const sent =
-                                await whatsAppService.sendNotification(
-                                  dummyAppointment,
-                                  recipient,
-                                  content,
-                                  "custom",
-                                );
-
-                              // Aggiorna lo stato della notifica nel database
-                              if (sent && savedNotification.id) {
-                                await notificationModel.updateStatus(
-                                  savedNotification.id,
-                                  "sent",
-                                  new Date(),
-                                );
-                              } else if (savedNotification.id) {
-                                await notificationModel.updateStatus(
-                                  savedNotification.id,
-                                  "failed",
-                                );
-                              }
-                            } else if (type === "email") {
-                              // Implementazione reale per email
-                              // Per ora, registriamo solo la notifica
-                              const { NotificationModel } = await import(
-                                "@/models/notification"
-                              );
-                              const notificationModel = new NotificationModel();
-
-                              const notificationData = {
-                                patient_id: parseInt(patient?.id || "0"),
-                                patient_name: patient?.name || "Paziente",
-                                message: content,
-                                status: "sent" as "pending" | "sent" | "failed",
-                                type: "custom" as
-                                  | "confirmation"
-                                  | "reminder"
-                                  | "custom",
-                                sent_at: new Date(),
-                              };
-
-                              await notificationModel.create(notificationData);
-                              console.log(
-                                `Email inviata a ${recipient}: ${content}`,
-                              );
-                            } else if (type === "phone") {
-                              // Implementazione reale per telefono
-                              // Per ora, registriamo solo la notifica
-                              const { NotificationModel } = await import(
-                                "@/models/notification"
-                              );
-                              const notificationModel = new NotificationModel();
-
-                              const notificationData = {
-                                patient_id: parseInt(patient?.id || "0"),
-                                patient_name: patient?.name || "Paziente",
-                                message: content,
-                                status: "sent" as "pending" | "sent" | "failed",
-                                type: "custom" as
-                                  | "confirmation"
-                                  | "reminder"
-                                  | "custom",
-                                sent_at: new Date(),
-                              };
-
-                              await notificationModel.create(notificationData);
-                              console.log(
-                                `Telefonata registrata a ${recipient}: ${content}`,
-                              );
+                              document.body.removeChild(dialog);
+                              return;
                             }
 
-                            // Aggiungi la comunicazione alla lista locale
-                            const newCommunication = {
-                              id: `comm${Date.now()}`,
-                              date: new Date().toISOString(),
-                              type,
-                              message: content,
-                              status: "sent",
+                            // Crea un appuntamento fittizio per l'invio del messaggio
+                            const dummyAppointment = {
+                              id: 0,
+                              patient_id: parseInt(patient.id),
+                              date: new Date(),
+                              time: "00:00",
+                              duration: 0,
+                              appointment_type: "custom",
+                              notes: "Messaggio manuale",
                             };
 
-                            setCommunications([
-                              newCommunication,
-                              ...communications,
-                            ]);
+                            // Invia il messaggio
+                            const result =
+                              await whatsAppService.sendNotification(
+                                dummyAppointment,
+                                patient.phone,
+                                messageText,
+                                "custom",
+                              );
 
-                            // Chiudi il form
-                            document.body.removeChild(dialog);
+                            if (result) {
+                              // Aggiorna la lista delle comunicazioni
+                              const newCommunication = {
+                                id: `comm${Date.now()}`,
+                                date: new Date().toISOString(),
+                                type: "whatsapp",
+                                message: messageText,
+                                status: "sent",
+                              };
 
-                            // Mostra un messaggio di successo
-                            alert("Messaggio inviato con successo!");
+                              setCommunications([
+                                newCommunication,
+                                ...communications,
+                              ]);
+
+                              // Chiudi il form
+                              document.body.removeChild(dialog);
+
+                              // Mostra un messaggio di successo
+                              alert("Messaggio inviato con successo!");
+                            } else {
+                              throw new Error(
+                                "Errore nell'invio del messaggio",
+                              );
+                            }
                           } catch (error) {
                             console.error(
                               "Errore durante l'invio del messaggio:",
@@ -1474,241 +1371,52 @@ const PatientDetails = (props: PatientDetailsProps) => {
               </div>
 
               <div className="space-y-4">
-                {communications.map((comm) => (
-                  <Card key={comm.id}>
-                    <CardHeader className="pb-2">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center">
-                          {comm.type === "whatsapp" && (
-                            <MessageSquare className="h-4 w-4 mr-2 text-green-500" />
-                          )}
-                          {comm.type === "email" && (
-                            <Mail className="h-4 w-4 mr-2 text-blue-500" />
-                          )}
-                          {comm.type === "phone" && (
-                            <Phone className="h-4 w-4 mr-2 text-orange-500" />
-                          )}
-                          <CardTitle className="text-base capitalize">
+                {communications.length > 0 ? (
+                  communications.map((comm) => (
+                    <Card key={comm.id}>
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-center">
+                          <CardTitle className="text-base">
                             {comm.type === "whatsapp"
-                              ? "WhatsApp"
+                              ? "Messaggio WhatsApp"
                               : comm.type === "email"
                                 ? "Email"
-                                : "Telefono"}
+                                : "Telefonata"}
                           </CardTitle>
-                        </div>
-                        <Badge
-                          variant={
-                            comm.status === "sent"
-                              ? "secondary"
-                              : comm.status === "pending"
-                                ? "outline"
-                                : "destructive"
-                          }
-                        >
-                          {comm.status === "sent"
-                            ? "Inviato"
-                            : comm.status === "pending"
-                              ? "In attesa"
-                              : "Fallito"}
-                        </Badge>
-                      </div>
-                      <CardDescription>
-                        <div className="flex items-center">
-                          <Calendar className="h-4 w-4 mr-1" />
-                          {new Date(comm.date).toLocaleDateString()}
-                        </div>
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm">{comm.message}</p>
-                    </CardContent>
-                    <CardFooter className="pt-2">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={async () => {
-                            try {
-                              // Reinvia il messaggio
-                              if (comm.type === "whatsapp") {
-                                const { WhatsAppService } = await import(
-                                  "@/services/whatsapp.service"
-                                );
-                                const whatsAppService =
-                                  WhatsAppService.getInstance();
-
-                                // Verifica se il servizio è abilitato e autenticato
-                                const isEnabled =
-                                  await whatsAppService.isServiceEnabled();
-                                const isAuthenticated =
-                                  await whatsAppService.isServiceAuthenticated();
-
-                                if (!isEnabled || !isAuthenticated) {
-                                  if (
-                                    confirm(
-                                      "Il servizio WhatsApp non è abilitato o autenticato. Vuoi aprire WhatsApp Web per configurare l'integrazione?",
-                                    )
-                                  ) {
-                                    try {
-                                      await whatsAppService.authenticate();
-                                      alert(
-                                        "Ora che WhatsApp Web è configurato, puoi riprovare a inviare il messaggio.",
-                                      );
-                                      return;
-                                    } catch (authError) {
-                                      throw new Error(
-                                        `Errore durante l'autenticazione di WhatsApp: ${authError.message}`,
-                                      );
-                                    }
-                                  } else {
-                                    throw new Error(
-                                      "Il servizio WhatsApp non è abilitato o autenticato. Verifica le impostazioni.",
-                                    );
-                                  }
-                                }
-
-                                // Crea un oggetto appuntamento fittizio per la funzione sendNotification
-                                const dummyAppointment = {
-                                  id:
-                                    parseInt(comm.id.replace("comm", "")) || 0,
-                                  patient_id: parseInt(patient?.id || "0"),
-                                  date: new Date(comm.date),
-                                  time: "00:00",
-                                  duration: 0,
-                                  appointment_type: "custom",
-                                  notes: "",
-                                };
-
-                                // Invia il messaggio
-                                const sent =
-                                  await whatsAppService.sendNotification(
-                                    dummyAppointment,
-                                    patient.phone,
-                                    comm.message,
-                                    "custom",
-                                  );
-
-                                // Aggiorna lo stato della comunicazione
-                                if (sent) {
-                                  // Aggiorna la lista locale
-                                  const updatedComm = {
-                                    ...comm,
-                                    status: "sent",
-                                    date: new Date().toISOString(),
-                                  };
-
-                                  const updatedCommunications =
-                                    communications.map((c) =>
-                                      c.id === comm.id ? updatedComm : c,
-                                    );
-
-                                  setCommunications(updatedCommunications);
-
-                                  // Mostra un messaggio di successo
-                                  alert("Messaggio reinviato con successo!");
-                                } else {
-                                  throw new Error(
-                                    "Errore nell'invio del messaggio WhatsApp",
-                                  );
-                                }
-                              } else if (comm.type === "email") {
-                                // Implementazione per email
-                                alert(
-                                  "Funzionalità di reinvio email non ancora implementata",
-                                );
-                              } else if (comm.type === "phone") {
-                                // Implementazione per telefono
-                                alert(
-                                  "Funzionalità di reinvio telefonata non ancora implementata",
-                                );
-                              }
-                            } catch (error) {
-                              console.error(
-                                "Errore durante il reinvio del messaggio:",
-                                error,
-                              );
-                              alert(
-                                `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
-                              );
+                          <Badge
+                            variant={
+                              comm.status === "sent"
+                                ? "default"
+                                : comm.status === "pending"
+                                  ? "secondary"
+                                  : "destructive"
                             }
-                          }}
-                        >
-                          Reinvia
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            // Mostra i dettagli della comunicazione
-                            const modal = document.createElement("div");
-                            modal.className =
-                              "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
-                            modal.innerHTML = `
-                              <div class="bg-white rounded-lg p-6 w-full max-w-lg">
-                                <div class="flex justify-between items-center mb-4">
-                                  <h3 class="text-xl font-medium">Dettagli Comunicazione</h3>
-                                  <button id="close-comm-modal" class="p-1 rounded-full hover:bg-gray-200">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                  </button>
-                                </div>
-                                
-                                <div class="space-y-4">
-                                  <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <p class="text-sm font-medium text-gray-500">Tipo</p>
-                                      <p class="font-medium capitalize">${comm.type === "whatsapp" ? "WhatsApp" : comm.type === "email" ? "Email" : "Telefono"}</p>
-                                    </div>
-                                    <div>
-                                      <p class="text-sm font-medium text-gray-500">Data e Ora</p>
-                                      <p class="font-medium">${new Date(comm.date).toLocaleString()}</p>
-                                    </div>
-                                  </div>
-                                  
-                                  <div>
-                                    <p class="text-sm font-medium text-gray-500">Destinatario</p>
-                                    <p class="font-medium">${patient.name} (${patient.phone})</p>
-                                  </div>
-                                  
-                                  <div>
-                                    <p class="text-sm font-medium text-gray-500">Stato</p>
-                                    <p class="font-medium">${comm.status === "sent" ? "Inviato" : comm.status === "pending" ? "In attesa" : "Fallito"}</p>
-                                  </div>
-                                  
-                                  <div>
-                                    <p class="text-sm font-medium text-gray-500">Messaggio</p>
-                                    <div class="mt-1 p-3 bg-gray-50 rounded-md">
-                                      <p>${comm.message}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                <div class="flex justify-end mt-6">
-                                  <button id="close-details" class="px-4 py-2 border border-gray-300 rounded-md">Chiudi</button>
-                                </div>
-                              </div>
-                            `;
-                            document.body.appendChild(modal);
-
-                            // Gestisci la chiusura del modale
-                            document
-                              .getElementById("close-comm-modal")
-                              ?.addEventListener("click", () => {
-                                document.body.removeChild(modal);
-                              });
-
-                            document
-                              .getElementById("close-details")
-                              ?.addEventListener("click", () => {
-                                document.body.removeChild(modal);
-                              });
-                          }}
-                        >
-                          Dettagli
-                        </Button>
-                      </div>
-                    </CardFooter>
-                  </Card>
-                ))}
+                          >
+                            {comm.status === "sent"
+                              ? "Inviato"
+                              : comm.status === "pending"
+                                ? "In attesa"
+                                : "Fallito"}
+                          </Badge>
+                        </div>
+                        <CardDescription>
+                          <div className="flex items-center">
+                            <Calendar className="h-4 w-4 mr-1" />
+                            {new Date(comm.date).toLocaleDateString()}{" "}
+                            {new Date(comm.date).toLocaleTimeString()}
+                          </div>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm">{comm.message}</p>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nessuna comunicazione registrata per questo paziente.
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>

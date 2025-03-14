@@ -140,21 +140,40 @@ export async function saveFile(
     const filePath = `${patientDir}/${uniqueFilename}`;
 
     if (isRunningInElectron()) {
-      // Read file as array buffer
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      try {
+        // Read file as array buffer
+        const arrayBuffer = await file.arrayBuffer();
 
-      // Save file using Electron API
-      const result = await electronAPI.writeFile({
-        filePath,
-        data: buffer,
-      });
+        // In Electron environment, we need to handle the buffer differently
+        // than in a browser environment
+        let fileData;
+        if (
+          typeof window !== "undefined" &&
+          typeof window.require === "function"
+        ) {
+          // Node.js environment (Electron)
+          const Buffer = window.require("buffer").Buffer;
+          fileData = Buffer.from(arrayBuffer);
+        } else {
+          // Browser environment
+          fileData = new Uint8Array(arrayBuffer);
+        }
 
-      if (result.success) {
-        console.log(`File saved to: ${filePath}`);
-        return filePath;
-      } else {
-        console.error(`Error saving file: ${result.error}`);
+        // Save file using Electron API
+        const result = await electronAPI.writeFile({
+          filePath,
+          data: fileData,
+        });
+
+        if (result.success) {
+          console.log(`File saved to: ${filePath}`);
+          return filePath;
+        } else {
+          console.error(`Error saving file: ${result.error}`);
+          return null;
+        }
+      } catch (error) {
+        console.error("Error saving file:", error);
         return null;
       }
     } else {

@@ -698,37 +698,49 @@ export async function backupDatabase(path: string): Promise<boolean> {
 
         // Use the backupDatabase function from electronAPI if available
         if (typeof electronAPI.backupDatabase === "function") {
-          const backupResult = await electronAPI.backupDatabase(path);
+          try {
+            const backupResult = await electronAPI.backupDatabase(path);
 
-          if (!backupResult.success) {
-            throw new Error(backupResult.error || "Backup failed");
+            if (!backupResult.success) {
+              console.warn(
+                "Backup using electronAPI.backupDatabase failed, falling back to manual export",
+              );
+              throw new Error(backupResult.error || "Backup failed");
+            }
+
+            console.log(
+              `Backup completed successfully to: ${backupResult.path || fullBackupPath}`,
+            );
+
+            // Use the actual path returned by the API if available
+            const actualBackupPath = backupResult.path || fullBackupPath;
+
+            // Save backup information to database
+            const db = Database.getInstance();
+            const now = new Date();
+
+            await db.query(
+              "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+              ["last_backup", now.toISOString()],
+            );
+
+            await db.query(
+              "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+              ["last_backup_path", actualBackupPath],
+            );
+
+            await db.query(
+              "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+              ["last_backup_status", "success"],
+            );
+          } catch (backupError) {
+            console.warn(
+              "Backup using pg_dump failed, falling back to manual export",
+              backupError,
+            );
+            // Continue to the fallback method below
+            throw backupError;
           }
-
-          console.log(
-            `Backup completed successfully to: ${backupResult.path || fullBackupPath}`,
-          );
-
-          // Use the actual path returned by the API if available
-          const actualBackupPath = backupResult.path || fullBackupPath;
-
-          // Save backup information to database
-          const db = Database.getInstance();
-          const now = new Date();
-
-          await db.query(
-            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-            ["last_backup", now.toISOString()],
-          );
-
-          await db.query(
-            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-            ["last_backup_path", actualBackupPath],
-          );
-
-          await db.query(
-            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-            ["last_backup_status", "success"],
-          );
         } else {
           // Fallback to direct pg_dump execution if electronAPI.backupDatabase is not available
           console.log(

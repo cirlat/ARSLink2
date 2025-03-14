@@ -181,11 +181,39 @@ export class WhatsAppService {
           const command = `"${this.browserPath}" ${args.join(" ")}`;
           console.log(`Esecuzione comando: ${command}`);
 
-          // In un'implementazione reale, qui utilizzeremmo l'API Electron per eseguire il comando
-          // Per ora, mostriamo solo un messaggio all'utente
-          alert(
-            "Browser aperto con WhatsApp Web. Scansiona il codice QR con il tuo telefono per autenticarti. Conferma quando hai completato l'autenticazione.",
-          );
+          // Try to open the browser using different methods
+          try {
+            if (
+              isRunningInElectron() &&
+              typeof window !== "undefined" &&
+              typeof window.require === "function"
+            ) {
+              // Use Node.js child_process in Electron environment
+              const childProcess = window.require("child_process");
+              childProcess.exec(command, (error, stdout, stderr) => {
+                if (error) {
+                  console.error(`Error executing command: ${error.message}`);
+                  alert(
+                    `Errore nell'apertura del browser: ${error.message}. Prova ad aprire manualmente WhatsApp Web.`,
+                  );
+                  return;
+                }
+                console.log(`Command output: ${stdout}`);
+              });
+            } else {
+              // Fallback for browser environment - try to open in a new window
+              window.open("https://web.whatsapp.com", "_blank");
+            }
+
+            alert(
+              "Browser aperto con WhatsApp Web. Scansiona il codice QR con il tuo telefono per autenticarti. Conferma quando hai completato l'autenticazione.",
+            );
+          } catch (execError) {
+            console.error("Error executing browser command:", execError);
+            alert(
+              `Errore nell'apertura del browser: ${execError.message}. Prova ad aprire manualmente WhatsApp Web.`,
+            );
+          }
 
           // Chiedi all'utente di confermare l'autenticazione
           const isConfirmed = confirm(

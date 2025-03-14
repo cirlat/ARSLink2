@@ -21,6 +21,11 @@ export async function createAppDirectories(): Promise<boolean> {
       `${baseDir}\\Logs`,
     ];
 
+    // Also create patient-specific directories that might be needed
+    directories.push(`${baseDir}\\Documents\\patient_1`);
+    directories.push(`${baseDir}\\Documents\\patient_2`);
+    directories.push(`${baseDir}\\Documents\\patient_3`);
+
     // Create all directories in parallel
     const results = await Promise.all(
       directories.map(async (dir) => {
@@ -36,7 +41,10 @@ export async function createAppDirectories(): Promise<boolean> {
           // Try alternative method if available
           if (isRunningInElectron()) {
             try {
-              if (typeof electronAPI.createDirectory === "function") {
+              if (
+                typeof electronAPI !== "undefined" &&
+                typeof electronAPI.createDirectory === "function"
+              ) {
                 await electronAPI.createDirectory(dir);
                 console.log(
                   `Created directory using alternative method: ${dir}`,

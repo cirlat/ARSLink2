@@ -453,30 +453,44 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
 
   // Aggiorna il codice fiscale quando cambiano i campi rilevanti
   useEffect(() => {
-    const values = form.getValues();
-    if (
-      values.firstName &&
-      values.lastName &&
-      values.dateOfBirth &&
-      values.gender &&
-      values.birthPlace
-    ) {
-      const fiscalCode = generateFiscalCode(
-        values.firstName,
-        values.lastName,
-        values.dateOfBirth,
-        values.gender,
-        values.birthPlace,
-      );
-      form.setValue("fiscalCode", fiscalCode);
-    }
+    // Delay the execution slightly to ensure all form values are updated
+    const timer = setTimeout(() => {
+      const values = form.getValues();
+      if (
+        values.firstName &&
+        values.lastName &&
+        values.dateOfBirth &&
+        values.gender &&
+        values.birthPlace
+      ) {
+        console.log("Regenerating fiscal code with values:", {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          dateOfBirth: values.dateOfBirth,
+          gender: values.gender,
+          birthPlace: values.birthPlace,
+        });
+
+        const fiscalCode = generateFiscalCode(
+          values.firstName,
+          values.lastName,
+          values.dateOfBirth,
+          values.gender,
+          values.birthPlace,
+        );
+
+        console.log("Generated fiscal code:", fiscalCode);
+        form.setValue("fiscalCode", fiscalCode, { shouldDirty: true });
+      }
+    }, 100); // Small delay to ensure form values are updated
+
+    return () => clearTimeout(timer);
   }, [
     form.watch("firstName"),
     form.watch("lastName"),
     form.watch("dateOfBirth"),
     form.watch("gender"),
     form.watch("birthPlace"),
-    form,
   ]);
 
   const handleSubmit = async (data: PatientFormValues) => {
