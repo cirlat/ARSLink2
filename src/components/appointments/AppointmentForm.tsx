@@ -186,7 +186,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         whatsapp_notification_sent: false,
       };
 
-      // Salva l'appuntamento
+      // Aggiorna l'appuntamento
       let savedAppointment;
       if (isEditing && appointment?.id) {
         console.log(
@@ -197,10 +197,27 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         );
         // Crea una copia dei dati senza updated_at che verrà gestito dal database
         const updateData = { ...appointmentData };
-        savedAppointment = await appointmentModel.update(
-          parseInt(appointment.id),
-          updateData,
-        );
+
+        try {
+          // Prima elimina l'appuntamento esistente
+          await appointmentModel.delete(parseInt(appointment.id));
+          console.log("Deleted old appointment with ID:", appointment.id);
+
+          // Poi crea un nuovo appuntamento con i dati aggiornati
+          savedAppointment = await appointmentModel.create(updateData);
+          console.log(
+            "Created new appointment with updated data:",
+            savedAppointment,
+          );
+        } catch (updateError) {
+          console.error(
+            "Error during appointment update process:",
+            updateError,
+          );
+          throw new Error(
+            "Impossibile aggiornare l'appuntamento: " + updateError.message,
+          );
+        }
 
         if (!savedAppointment) {
           throw new Error(

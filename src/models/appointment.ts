@@ -108,11 +108,16 @@ export class AppointmentModel {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
+      // Converti la data in formato ISO per la query SQL
+      const todayStr = today.toISOString().split("T")[0];
+      console.log("Today's date for query:", todayStr);
+
       const result = await this.db.query(
-        "SELECT a.*, p.name as patient_name, p.phone FROM appointments a LEFT JOIN patients p ON a.patient_id = p.id WHERE a.date >= $1 ORDER BY a.date ASC, a.time ASC LIMIT $2",
-        [today.toISOString().split("T")[0], limit],
+        "SELECT a.*, p.name as patient_name, p.phone FROM appointments a LEFT JOIN patients p ON a.patient_id = p.id WHERE a.date > $1 ORDER BY a.date ASC, a.time ASC LIMIT $2",
+        [todayStr, limit],
       );
 
+      console.log("Upcoming appointments query result:", result);
       return result;
     } catch (error) {
       console.error("Error finding upcoming appointments:", error);

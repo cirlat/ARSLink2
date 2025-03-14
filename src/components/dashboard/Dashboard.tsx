@@ -97,6 +97,10 @@ const Dashboard = () => {
         // Prossimi appuntamenti (escluso oggi)
         const upcomingAppointmentsResult =
           await appointmentModel.findUpcoming(6);
+        console.log(
+          "Upcoming appointments result:",
+          upcomingAppointmentsResult,
+        );
 
         if (
           upcomingAppointmentsResult &&

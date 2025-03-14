@@ -2,7 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -38,6 +43,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import AppointmentForm from "../appointments/AppointmentForm";
+import { AppointmentCard } from "../appointments/AppointmentCard";
 
 interface Appointment {
   id: string;
@@ -447,142 +453,59 @@ const CalendarView = () => {
             </Button>
           </div>
         </div>
-        <div className="flex items-center space-x-4">
-          <Select
+        <div className="flex items-center space-x-2">
+          <Tabs
             value={view}
-            onValueChange={(value: "day" | "week" | "month") => setView(value)}
+            onValueChange={(v) => setView(v as "day" | "week" | "month")}
           >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Seleziona vista" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="day">Giornaliera</SelectItem>
-              <SelectItem value="week">Settimanale</SelectItem>
-              <SelectItem value="month">Mensile</SelectItem>
-            </SelectContent>
-          </Select>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={handleNewAppointment}>
-                <Plus className="h-4 w-4 mr-2" /> Nuovo Appuntamento
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <AppointmentForm
-                appointment={selectedAppointment}
-                onClose={() => {
-                  setIsDialogOpen(false);
-                  reloadAppointments(); // Ricarica gli appuntamenti dopo la chiusura del form
-                }}
-                onSubmit={() => {
-                  reloadAppointments(); // Ricarica gli appuntamenti dopo il salvataggio
-                }}
-              />
-            </DialogContent>
-          </Dialog>
+            <TabsList>
+              <TabsTrigger value="day">Giorno</TabsTrigger>
+              <TabsTrigger value="week">Settimana</TabsTrigger>
+              <TabsTrigger value="month">Mese</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Button onClick={handleNewAppointment}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuovo Appuntamento
+          </Button>
         </div>
       </div>
 
-      <Tabs
-        value={view}
-        onValueChange={(value: "day" | "week" | "month") => setView(value)}
-      >
-        <TabsList className="mb-4">
-          <TabsTrigger value="day">Giornaliera</TabsTrigger>
-          <TabsTrigger value="week">Settimanale</TabsTrigger>
-          <TabsTrigger value="month">Mensile</TabsTrigger>
-        </TabsList>
-        <TabsContent value="day">{renderDayView()}</TabsContent>
-        <TabsContent value="week">{renderWeekView()}</TabsContent>
-        <TabsContent value="month">{renderMonthView()}</TabsContent>
-      </Tabs>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogTitle>Appuntamento</DialogTitle>
+          <AppointmentForm
+            onSubmit={() => {
+              setIsDialogOpen(false);
+              reloadAppointments();
+            }}
+            onCancel={() => setIsDialogOpen(false)}
+            initialData={
+              selectedAppointment
+                ? {
+                    patientId: "1", // This would need to be set correctly
+                    date: selectedAppointment.date,
+                    time: selectedAppointment.time,
+                    duration: selectedAppointment.duration.toString(),
+                    appointmentType: selectedAppointment.type,
+                    notes: "",
+                    sendWhatsAppNotification: selectedAppointment.notified,
+                    googleCalendarSync: selectedAppointment.synced,
+                  }
+                : undefined
+            }
+            isEditing={!!selectedAppointment}
+            appointment={
+              selectedAppointment ? { id: selectedAppointment.id } : null
+            }
+          />
+        </DialogContent>
+      </Dialog>
+
+      {view === "day" && renderDayView()}
+      {view === "week" && renderWeekView()}
+      {view === "month" && renderMonthView()}
     </div>
-  );
-};
-
-interface AppointmentCardProps {
-  appointment: Appointment;
-  onEdit: (appointment: Appointment) => void;
-  onDelete: (id: string) => void;
-}
-
-const AppointmentCard = ({
-  appointment,
-  onEdit,
-  onDelete,
-}: AppointmentCardProps) => {
-  return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start">
-          <div>
-            <div className="flex items-center space-x-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{appointment.time}</span>
-              <span className="text-muted-foreground">
-                ({appointment.duration} min)
-              </span>
-            </div>
-            <div className="flex items-center space-x-2 mt-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{appointment.patientName}</span>
-            </div>
-            <div className="mt-2">
-              <Badge variant="secondary">{appointment.type}</Badge>
-            </div>
-          </div>
-          <div className="flex space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onEdit(appointment)}
-            >
-              Modifica
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive"
-              onClick={() => onDelete(appointment.id)}
-            >
-              Elimina
-            </Button>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2 mt-4">
-          {appointment.synced ? (
-            <Badge
-              variant="outline"
-              className="bg-green-50 text-green-700 border-green-200"
-            >
-              <Check className="h-3 w-3 mr-1" /> Sincronizzato
-            </Badge>
-          ) : (
-            <Badge
-              variant="outline"
-              className="bg-amber-50 text-amber-700 border-amber-200"
-            >
-              <AlertCircle className="h-3 w-3 mr-1" /> Non sincronizzato
-            </Badge>
-          )}
-          {appointment.notified ? (
-            <Badge
-              variant="outline"
-              className="bg-blue-50 text-blue-700 border-blue-200"
-            >
-              <Check className="h-3 w-3 mr-1" /> Notifica inviata
-            </Badge>
-          ) : (
-            <Badge
-              variant="outline"
-              className="bg-slate-50 text-slate-700 border-slate-200"
-            >
-              <AlertCircle className="h-3 w-3 mr-1" /> Notifica non inviata
-            </Badge>
-          )}
-        </div>
-      </CardContent>
-    </Card>
   );
 };
 

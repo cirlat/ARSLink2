@@ -304,7 +304,7 @@ const PatientDetails = (props: PatientDetailsProps) => {
               </div>
               <div className="flex items-start">
                 <User className="h-4 w-4 mr-2 mt-1 text-muted-foreground" />
-                <span className="text-sm">{patient.address}</span>
+                <div className="text-sm">{patient.address}</div>
               </div>
             </div>
           </CardContent>
@@ -628,8 +628,8 @@ const PatientDetails = (props: PatientDetailsProps) => {
                       <div class="space-y-4">
                         <h2 class="text-xl font-bold">Aggiungi Documento Medico</h2>
                         <div class="space-y-2">
-                          <label class="text-sm font-medium">Titolo</label>
-                          <input id="doc-title" type="text" class="w-full p-2 border rounded-md" placeholder="Titolo del documento" />
+                          <label className="text-sm font-medium">Titolo</label>
+                          <input id="doc-title" type="text" className="w-full p-2 border rounded-md" placeholder="Titolo del documento" />
                         </div>
                         <div class="space-y-2">
                           <label class="text-sm font-medium">Data</label>
@@ -766,11 +766,152 @@ const PatientDetails = (props: PatientDetailsProps) => {
                     </CardContent>
                     <CardFooter className="pt-2">
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // Implementazione della visualizzazione del documento
+                            const documentContent = record.description;
+                            const documentTitle = record.title;
+
+                            // Crea un modal per visualizzare il documento
+                            const modal = document.createElement("div");
+                            modal.className =
+                              "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+                            modal.innerHTML = `
+                            <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-auto">
+                              <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-xl font-bold">${documentTitle}</h2>
+                                <button id="close-doc-modal" class="p-1 rounded-full hover:bg-gray-200">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
+                              </div>
+                              <div class="border-t pt-4">
+                                <p class="text-sm text-gray-500 mb-2">Data: ${new Date(record.date).toLocaleDateString()}</p>
+                                <p class="text-sm text-gray-500 mb-4">Medico: ${record.doctor}</p>
+                                <div class="bg-gray-50 p-4 rounded-md">
+                                  <p>${documentContent}</p>
+                                </div>
+                              </div>
+                            </div>
+                          `;
+                            document.body.appendChild(modal);
+
+                            // Gestisci la chiusura del modal
+                            document
+                              .getElementById("close-doc-modal")
+                              ?.addEventListener("click", () => {
+                                document.body.removeChild(modal);
+                              });
+                          }}
+                        >
                           <FileText className="h-4 w-4 mr-1" />
                           Visualizza Documento
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // Implementazione della modifica del documento
+                            const modal = document.createElement("div");
+                            modal.className =
+                              "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+                            modal.innerHTML = `
+                            <div class="bg-white rounded-lg p-6 w-full max-w-2xl">
+                              <div class="space-y-4">
+                                <h2 class="text-xl font-bold">Modifica Documento Medico</h2>
+                                <div class="space-y-2">
+                                  <label class="text-sm font-medium">Titolo</label>
+                                  <input id="edit-doc-title" type="text" class="w-full p-2 border rounded-md" value="${record.title}" />
+                                </div>
+                                <div class="space-y-2">
+                                  <label class="text-sm font-medium">Data</label>
+                                  <input id="edit-doc-date" type="date" class="w-full p-2 border rounded-md" value="${record.date}" />
+                                </div>
+                                <div class="space-y-2">
+                                  <label class="text-sm font-medium">Medico</label>
+                                  <input id="edit-doc-doctor" type="text" class="w-full p-2 border rounded-md" value="${record.doctor}" />
+                                </div>
+                                <div class="space-y-2">
+                                  <label class="text-sm font-medium">Descrizione</label>
+                                  <textarea id="edit-doc-description" class="w-full p-2 border rounded-md h-32">${record.description}</textarea>
+                                </div>
+                                <div class="flex justify-end space-x-2 pt-4">
+                                  <button id="cancel-edit-doc" class="px-4 py-2 border border-gray-300 rounded-md">Annulla</button>
+                                  <button id="save-edit-doc" class="px-4 py-2 bg-blue-600 text-white rounded-md">Salva Modifiche</button>
+                                </div>
+                              </div>
+                            </div>
+                          `;
+                            document.body.appendChild(modal);
+
+                            // Gestisci la chiusura del form
+                            document
+                              .getElementById("cancel-edit-doc")
+                              ?.addEventListener("click", () => {
+                                document.body.removeChild(modal);
+                              });
+
+                            // Gestisci il salvataggio delle modifiche
+                            document
+                              .getElementById("save-edit-doc")
+                              ?.addEventListener("click", () => {
+                                const title = (
+                                  document.getElementById(
+                                    "edit-doc-title",
+                                  ) as HTMLInputElement
+                                )?.value;
+                                const date = (
+                                  document.getElementById(
+                                    "edit-doc-date",
+                                  ) as HTMLInputElement
+                                )?.value;
+                                const doctor = (
+                                  document.getElementById(
+                                    "edit-doc-doctor",
+                                  ) as HTMLInputElement
+                                )?.value;
+                                const description = (
+                                  document.getElementById(
+                                    "edit-doc-description",
+                                  ) as HTMLTextAreaElement
+                                )?.value;
+
+                                if (
+                                  !title ||
+                                  !date ||
+                                  !doctor ||
+                                  !description
+                                ) {
+                                  alert("Compila tutti i campi obbligatori");
+                                  return;
+                                }
+
+                                // Aggiorna il record nella lista locale
+                                const updatedRecord = {
+                                  ...record,
+                                  title,
+                                  date,
+                                  doctor,
+                                  description,
+                                };
+
+                                // Aggiorna la lista dei record medici
+                                const updatedRecords = medicalRecords.map(
+                                  (r) =>
+                                    r.id === record.id ? updatedRecord : r,
+                                );
+
+                                setMedicalRecords(updatedRecords);
+
+                                // Chiudi il form
+                                document.body.removeChild(modal);
+
+                                // Mostra un messaggio di successo
+                                alert("Documento aggiornato con successo!");
+                              });
+                          }}
+                        >
                           Modifica
                         </Button>
                       </div>
