@@ -364,46 +364,90 @@ Le configurazioni vengono salvate in diversi modi:
 
 In alcune situazioni potrebbe essere necessario resettare il setup dell'applicazione, ad esempio per problemi di configurazione o per reinstallare l'applicazione. Ecco i metodi disponibili per resettare il setup:
 
-#### Metodo 1: Utilizzo dello Script di Reset
-
-L'applicazione include uno script dedicato per il reset del setup:
+#### Metodo 1: Utilizzo dello Script di Reset (Con Output Visuale)
 
 1. Aprire un terminale o prompt dei comandi
 2. Navigare nella directory dell'applicazione
-3. Eseguire il comando: `electron electron/reset-setup.js`
-4. Confermare l'operazione quando richiesto
+3. Eseguire il comando con output visibile: `electron electron/reset-setup.js --verbose`
+   - Questo mostrerà messaggi dettagliati durante l'esecuzione
+   - Se lo script si blocca, premere Ctrl+C per interromperlo
+4. Verificare l'output nel terminale per eventuali errori
 5. Riavviare l'applicazione
+
+Se lo script si blocca o non funziona correttamente, è possibile eseguire una versione più semplice che mostra solo l'output nel terminale:
+
+```bash
+node electron/reset-setup.js --console-only
+```
 
 Questo script esegue le seguenti operazioni:
-- Elimina il file marker `setup-completed` dalla directory dei dati utente
+- Cerca e elimina il file marker `setup-completed` dalla directory dei dati utente
 - Elimina i file di configurazione (`dbConfig.json`, `user.json`, `license.json`)
 - Ripristina le impostazioni predefinite
+- Mostra nel terminale ogni operazione eseguita e il suo risultato
 
-#### Metodo 2: Eliminazione Manuale del File Marker
+#### Metodo 2: Eliminazione Manuale del File Marker e Pulizia della Cache
 
-È possibile resettare il setup eliminando manualmente il file che indica che il setup è stato completato:
+È possibile resettare il setup eliminando manualmente il file che indica che il setup è stato completato e pulendo la cache dell'applicazione:
 
-1. Chiudere completamente l'applicazione
-2. Navigare nella directory dei dati utente di Electron:
-   - Windows: `%APPDATA%\PatientAppointmentSystem`
+1. Chiudere completamente l'applicazione (assicurarsi che non ci siano processi attivi usando Task Manager/Activity Monitor)
+2. Trovare la directory dei dati utente di Electron:
+   - Windows: Eseguire `echo %APPDATA%` nel prompt dei comandi per vedere il percorso completo
+     - Tipicamente: `C:\Users\[NomeUtente]\AppData\Roaming\PatientAppointmentSystem`
    - macOS: `~/Library/Application Support/PatientAppointmentSystem`
    - Linux: `~/.config/PatientAppointmentSystem`
-3. Eliminare il file `setup-completed`
-4. Opzionalmente, eliminare anche i file di configurazione (`dbConfig.json`, `user.json`, `license.json`) per un reset completo
+3. Eliminare i seguenti file e directory:
+   - Il file `setup-completed`
+   - I file di configurazione (`dbConfig.json`, `user.json`, `license.json`)
+   - La directory `Cache` (per pulire la cache dell'applicazione)
+   - La directory `Local Storage` (per resettare lo storage locale)
+   - La directory `Session Storage` (per resettare la sessione)
+4. Se non si trovano questi file, cercare in:
+   - `%LOCALAPPDATA%\PatientAppointmentSystem` su Windows
+   - `~/Library/Caches/PatientAppointmentSystem` su macOS
 5. Riavviare l'applicazione
+
+Per verificare se il reset ha avuto successo, controllare i log dell'applicazione durante l'avvio:
+
+1. Avviare l'applicazione con il flag di debug: `electron . --debug`
+2. Osservare l'output nel terminale per verificare se l'applicazione rileva l'assenza del file marker
 
 Al successivo avvio, l'applicazione rileverà l'assenza del file marker e avvierà automaticamente il Setup Wizard.
 
-#### Metodo 3: Reset Completo (Incluso Database)
+#### Metodo 3: Reset Completo (Incluso Database e Cache dell'Applicazione)
 
-Per un reset completo che include anche il database:
+Per un reset completo che include anche il database e tutta la cache dell'applicazione:
 
-1. Eseguire uno dei metodi precedenti per resettare il setup
-2. Accedere a PostgreSQL (tramite pgAdmin o riga di comando)
-3. Eliminare il database dell'applicazione: `DROP DATABASE nome_database;`
-4. Riavviare l'applicazione e completare nuovamente il setup
+1. Chiudere completamente l'applicazione
+2. Eseguire uno dei metodi precedenti per resettare il setup
+3. Eliminare completamente le directory dei dati dell'applicazione:
+   - Windows: `%APPDATA%\PatientAppointmentSystem` e `%LOCALAPPDATA%\PatientAppointmentSystem`
+   - macOS: `~/Library/Application Support/PatientAppointmentSystem` e `~/Library/Caches/PatientAppointmentSystem`
+   - Linux: `~/.config/PatientAppointmentSystem` e `~/.cache/PatientAppointmentSystem`
+4. Accedere a PostgreSQL (tramite pgAdmin o riga di comando)
+5. Eliminare il database dell'applicazione: `DROP DATABASE nome_database;`
+6. Riavviare l'applicazione e completare nuovamente il setup
 
 **Nota**: Questo metodo comporta la perdita di tutti i dati. Assicurarsi di eseguire un backup se necessario.
+
+#### Risoluzione dei Problemi Comuni
+
+1. **Lo script di reset si blocca**: 
+   - Utilizzare la versione `--console-only` come descritto sopra
+   - Verificare che non ci siano altre istanze dell'applicazione in esecuzione
+   - Controllare i permessi della directory dei dati utente
+
+2. **L'applicazione continua a rilevare che il setup è stato completato**:
+   - L'applicazione potrebbe utilizzare localStorage del browser oltre ai file su disco
+   - Aprire gli strumenti di sviluppo (F12 o Ctrl+Shift+I) e cancellare localStorage e sessionStorage
+   - Verificare che tutte le directory di cache siano state eliminate
+   - Provare a eseguire l'applicazione con il flag `--reset-cache`: `electron . --reset-cache`
+
+3. **File setup-completed non trovato**:
+   - L'applicazione potrebbe utilizzare un nome diverso o un altro meccanismo
+   - Cercare file con nomi simili come `setup.json`, `config.json` o `initialized`
+   - Eliminare tutti i file JSON nella directory dei dati utente
+   - Controllare anche in localStorage tramite gli strumenti di sviluppo
 
 ## Manutenzione e Modifiche
 
