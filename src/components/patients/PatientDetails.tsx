@@ -133,51 +133,63 @@ const PatientDetails = (props: PatientDetailsProps) => {
             setAppointments([]);
           }
 
-          // For medical records and communications, we'll use mock data for now
-          // as these features might be implemented in future versions
-          setMedicalRecords([
-            {
-              id: "rec1",
-              date: "2023-06-15",
-              title: "Annual Check-up Results",
-              doctor: "Dr. Bianchi",
-              description: "All tests normal. Recommended annual follow-up.",
-            },
-            {
-              id: "rec2",
-              date: "2023-09-22",
-              title: "Blood Test Results",
-              doctor: "Dr. Verdi",
-              description:
-                "Cholesterol slightly elevated. Dietary changes recommended.",
-            },
-          ]);
+          // Load medical records from database
+          try {
+            const { MedicalRecordModel } = await import(
+              "@/models/medicalRecord"
+            );
+            const medicalRecordModel = new MedicalRecordModel();
+            const patientRecords = await medicalRecordModel.findByPatientId(
+              parseInt(id || "0"),
+            );
 
-          setCommunications([
-            {
-              id: "comm1",
-              date: "2023-12-20",
-              type: "whatsapp",
-              message:
-                "Reminder for your appointment on January 10th at 11:15.",
-              status: "sent",
-            },
-            {
-              id: "comm2",
-              date: "2023-12-25",
-              type: "email",
-              message:
-                "Happy Holidays from our clinic! Our holiday hours are...",
-              status: "sent",
-            },
-            {
-              id: "comm3",
-              date: "2024-01-05",
-              type: "whatsapp",
-              message: "Your appointment is in 5 days. Please confirm.",
-              status: "pending",
-            },
-          ]);
+            if (patientRecords && patientRecords.length > 0) {
+              const formattedRecords = patientRecords.map((record) => ({
+                id: record.id?.toString() || "",
+                date: record.date
+                  ? new Date(record.date).toISOString().split("T")[0]
+                  : "",
+                title: record.title || "",
+                doctor: record.doctor || "",
+                description: record.description || "",
+                files: record.files || [],
+              }));
+              setMedicalRecords(formattedRecords);
+            } else {
+              setMedicalRecords([]);
+            }
+          } catch (recordsError) {
+            console.error("Error loading medical records:", recordsError);
+            setMedicalRecords([]);
+          }
+
+          // Load communications from database (notifications)
+          try {
+            const { NotificationModel } = await import("@/models/notification");
+            const notificationModel = new NotificationModel();
+            const patientNotifications =
+              await notificationModel.findByPatientId(parseInt(id || "0"));
+
+            if (patientNotifications && patientNotifications.length > 0) {
+              const formattedCommunications = patientNotifications.map(
+                (notification) => ({
+                  id: notification.id?.toString() || "",
+                  date: notification.created_at
+                    ? new Date(notification.created_at).toISOString()
+                    : new Date().toISOString(),
+                  type: "whatsapp", // Assuming all notifications are WhatsApp for now
+                  message: notification.message || "",
+                  status: notification.status || "sent",
+                }),
+              );
+              setCommunications(formattedCommunications);
+            } else {
+              setCommunications([]);
+            }
+          } catch (notificationsError) {
+            console.error("Error loading communications:", notificationsError);
+            setCommunications([]);
+          }
         } else {
           // If patient not found, use default values
           setPatient({

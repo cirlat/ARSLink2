@@ -66,36 +66,60 @@ export async function createDirectoryIfNotExists(
   dirPath: string,
 ): Promise<boolean> {
   try {
+    // Verifica se siamo in un ambiente Electron
     if (isRunningInElectron()) {
       try {
-        // Use Electron API to create directory
-        const result = await electronAPI.createDirectory(dirPath);
+        // Usa Node.js fs direttamente per creare la directory
+        // Questo è più affidabile dell'API Electron in alcuni casi
+        const fs = window.require("fs");
+        const path = window.require("path");
 
-        if (result.success) {
-          console.log(`Directory created: ${dirPath}`);
-          return true;
+        // Normalizza il percorso per gestire correttamente gli slash
+        const normalizedPath = path.normalize(dirPath);
+
+        if (!fs.existsSync(normalizedPath)) {
+          // Crea la directory in modo ricorsivo (crea anche le directory padre se necessario)
+          fs.mkdirSync(normalizedPath, { recursive: true });
+          console.log(`Directory creata: ${normalizedPath}`);
         } else {
-          // If directory already exists, this is not an error
-          if (result.error && result.error.includes("already exists")) {
-            console.log(`Directory already exists: ${dirPath}`);
-            return true;
+          console.log(`Directory già esistente: ${normalizedPath}`);
+        }
+        return true;
+      } catch (fsError) {
+        console.error(`Errore nell'accesso al filesystem: ${fsError.message}`);
+        // Fallback all'API Electron se disponibile
+        if (typeof electronAPI.createDirectory === "function") {
+          try {
+            const result = await electronAPI.createDirectory(dirPath);
+            if (result.success) {
+              console.log(`Directory creata tramite API Electron: ${dirPath}`);
+              return true;
+            } else {
+              // Se la directory esiste già, non è un errore
+              if (result.error && result.error.includes("already exists")) {
+                console.log(`Directory già esistente: ${dirPath}`);
+                return true;
+              }
+              console.error(
+                `Errore nella creazione della directory: ${result.error}`,
+              );
+              return false;
+            }
+          } catch (electronError) {
+            console.error(`Errore con API Electron: ${electronError.message}`);
+            return false;
           }
-          console.error(`Error creating directory: ${result.error}`);
+        } else {
           return false;
         }
-      } catch (error) {
-        console.error(`Error accessing filesystem: ${error.message}`);
-        // We can't use require("fs") in browser environment, so we'll just log the error
-        // and return false
-        return false;
       }
     } else {
-      // In browser environment, simulate directory creation for testing
-      console.log(`Simulating directory creation: ${dirPath}`);
+      // In ambiente browser, simula la creazione della directory
+      console.log(`Simulazione: Directory creata ${dirPath}`);
       return true;
     }
   } catch (error) {
-    console.error(`Error creating directory ${dirPath}:`, error);
+    console.error(`Errore nella creazione della directory ${dirPath}:`, error);
     return false;
   }
 }

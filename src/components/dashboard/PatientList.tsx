@@ -207,21 +207,8 @@ const PatientList: React.FC<PatientListProps> = ({
     if (onViewPatient) {
       onViewPatient(id);
     } else {
-      console.log(`Visualizzazione dettagli paziente ${id}`);
-      // Trova il paziente selezionato
-      const selectedPatient = patients.find((patient) => patient.id === id);
-      if (selectedPatient) {
-        // Salva i dettagli del paziente selezionato in localStorage
-        localStorage.setItem(
-          "selectedPatient",
-          JSON.stringify(selectedPatient),
-        );
-        localStorage.setItem("selectedPatientId", id);
-        // Naviga alla pagina dei dettagli del paziente
-        navigate(`/patients/${id}`);
-      } else {
-        alert("Paziente non trovato");
-      }
+      // Navigate to patient details page
+      window.location.href = `/patients/${id}`;
     }
   };
 
@@ -230,22 +217,8 @@ const PatientList: React.FC<PatientListProps> = ({
     if (onEditPatient) {
       onEditPatient(id);
     } else {
-      console.log(`Modifica paziente ${id}`);
-      // Trova il paziente selezionato
-      const selectedPatient = patients.find((patient) => patient.id === id);
-      if (selectedPatient) {
-        // Salva i dettagli del paziente selezionato in localStorage
-        localStorage.setItem(
-          "selectedPatient",
-          JSON.stringify(selectedPatient),
-        );
-        localStorage.setItem("selectedPatientId", id);
-        localStorage.setItem("editMode", "true");
-        // Naviga alla pagina di modifica del paziente
-        navigate(`/patients/${id}/edit`);
-      } else {
-        alert("Paziente non trovato");
-      }
+      // Navigate to patient edit page
+      window.location.href = `/patients/${id}/edit`;
     }
   };
 

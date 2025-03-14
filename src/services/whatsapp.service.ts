@@ -151,8 +151,6 @@ export class WhatsAppService {
           await createDirectoryIfNotExists(this.dataPath);
 
           // Usa l'API Electron per eseguire un comando di shell che apre Chrome con WhatsApp Web
-          const { electronAPI } = await import("@/lib/electronBridge");
-
           // Costruisci il comando per avviare Chrome con i parametri corretti
           // --user-data-dir: specifica la directory per i dati utente (per mantenere la sessione)
           // --no-first-run: salta la configurazione iniziale
@@ -164,35 +162,32 @@ export class WhatsAppService {
             "https://web.whatsapp.com",
           ];
 
-          // Esegui il comando per aprire Chrome con WhatsApp Web
-          const result = await electronAPI.executeQuery(
-            "SELECT 1", // Query fittizia per verificare che il database sia connesso
-            [],
-          );
-
-          if (!result.success) {
-            throw new Error("Errore nella connessione al database");
-          }
-
-          // Usa child_process tramite un comando di terminale
+          // Usa child_process tramite window.require per evitare errori
           const command = `"${this.browserPath}" ${args.join(" ")}`;
           console.log(`Esecuzione comando: ${command}`);
 
-          // Esegui il comando tramite l'API di Electron
-          const { exec } = require("child_process");
-          exec(command, (error, stdout, stderr) => {
-            if (error) {
-              console.error(
-                `Errore nell'esecuzione del comando: ${error.message}`,
-              );
-              return;
-            }
-            if (stderr) {
-              console.error(`Stderr: ${stderr}`);
-              return;
-            }
-            console.log(`Stdout: ${stdout}`);
-          });
+          // Esegui il comando tramite child_process
+          try {
+            const childProcess = window.require("child_process");
+            childProcess.exec(command, (error, stdout, stderr) => {
+              if (error) {
+                console.error(
+                  `Errore nell'esecuzione del comando: ${error.message}`,
+                );
+                return;
+              }
+              if (stderr) {
+                console.error(`Stderr: ${stderr}`);
+                return;
+              }
+              console.log(`Stdout: ${stdout}`);
+            });
+          } catch (execError) {
+            console.error(
+              `Errore nell'esecuzione del comando: ${execError.message}`,
+            );
+            throw execError;
+          }
 
           // Mostra un messaggio all'utente
           alert(
