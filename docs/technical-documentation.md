@@ -267,14 +267,24 @@ L'integrazione con WhatsApp è gestita dal servizio WhatsAppService.
 3. L'applicazione avvia WhatsApp Web e l'utente scansiona il codice QR
 
 **Percorso Dati WhatsApp**:
-Il percorso dati WhatsApp è una directory dove vengono salvati i dati di sessione di WhatsApp Web, come i cookie e le informazioni di autenticazione. Questo permette all'applicazione di mantenere la sessione WhatsApp attiva tra un riavvio e l'altro, senza dover scansionare nuovamente il codice QR. In un'implementazione reale, questa directory conterrebbe:
+Il percorso dati WhatsApp è una directory dove vengono salvati i dati di sessione di WhatsApp Web, come i cookie e le informazioni di autenticazione. Questo permette all'applicazione di mantenere la sessione WhatsApp attiva tra un riavvio e l'altro, senza dover scansionare nuovamente il codice QR. Questa directory contiene:
 
 - File di sessione di WhatsApp Web
-- Cookie del browser
+- Cookie del browser Chrome/Chromium
 - Dati di autenticazione
 - Preferenze dell'utente per WhatsApp Web
 
 L'applicazione crea automaticamente questa directory se non esiste già. È importante che l'utente abbia i permessi di scrittura per questa directory.
+
+**Implementazione Tecnica**:
+L'integrazione WhatsApp utilizza il browser Chrome/Chromium per aprire WhatsApp Web. Quando l'utente clicca su "Autentica WhatsApp Web", l'applicazione avvia Chrome con il percorso dati specificato e apre web.whatsapp.com. L'utente deve quindi scansionare il codice QR con il proprio telefono per autenticarsi. Una volta autenticato, l'applicazione può inviare notifiche WhatsApp ai pazienti.
+
+Per il corretto funzionamento, è necessario:
+1. Installare Chrome/Chromium sul computer
+2. Specificare il percorso corretto dell'eseguibile Chrome nelle impostazioni
+3. Specificare una directory per i dati WhatsApp dove l'applicazione ha permessi di scrittura
+4. Avere una connessione Internet attiva
+5. Avere WhatsApp installato sul telefono e configurato con il numero che si intende utilizzare per l'invio delle notifiche
 
 **Notifiche**:
 - Conferme di appuntamento: inviate quando viene creato un nuovo appuntamento

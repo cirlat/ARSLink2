@@ -140,20 +140,53 @@ export class WhatsAppService {
     }
 
     try {
-      // In un'implementazione reale, qui avvieremmo il browser e autenticheremmo WhatsApp Web
-      // Per ora, simuliamo il successo e mostriamo un messaggio all'utente
+      // Implementazione reale per l'apertura di WhatsApp Web
+      if (isRunningInElectron()) {
+        try {
+          // Verifica che la directory dei dati WhatsApp esista
+          const { createDirectoryIfNotExists } = await import(
+            "@/utils/fileUtils"
+          );
+          await createDirectoryIfNotExists(this.dataPath);
 
-      alert(
-        "In un'implementazione reale, qui verrebbe aperto il browser Chrome all'indirizzo web.whatsapp.com per la scansione del codice QR. Per ora, l'autenticazione viene simulata.",
-      );
+          // Apri il browser Chrome con WhatsApp Web
+          const { exec } = require("child_process");
+          const util = require("util");
+          const execPromise = util.promisify(exec);
 
-      // Aggiorna lo stato di autenticazione in localStorage
-      const config = JSON.parse(localStorage.getItem("whatsappConfig") || "{}");
-      config.isAuthenticated = true;
-      localStorage.setItem("whatsappConfig", JSON.stringify(config));
+          // Comando per aprire Chrome con WhatsApp Web
+          const command = `"${this.browserPath}" --user-data-dir="${this.dataPath}" https://web.whatsapp.com/`;
 
-      this.isAuthenticated = true;
-      return true;
+          console.log(`Esecuzione comando: ${command}`);
+          await execPromise(command);
+
+          alert(
+            "Browser aperto con WhatsApp Web. Scansiona il codice QR con il tuo telefono per autenticarti.",
+          );
+
+          // Aggiorna lo stato di autenticazione in localStorage
+          const config = JSON.parse(
+            localStorage.getItem("whatsappConfig") || "{}",
+          );
+          config.isAuthenticated = true;
+          localStorage.setItem("whatsappConfig", JSON.stringify(config));
+
+          this.isAuthenticated = true;
+          return true;
+        } catch (error) {
+          console.error("Errore nell'apertura del browser:", error);
+          alert(
+            `Errore nell'apertura del browser: ${error.message || "Errore sconosciuto"}`,
+          );
+          return false;
+        }
+      } else {
+        // In ambiente browser, non possiamo aprire Chrome
+        alert(
+          "L'apertura di WhatsApp Web non è supportata in ambiente browser.",
+        );
+        return false;
+      }
     } catch (error) {
       console.error("Error authenticating WhatsApp:", error);
       alert(

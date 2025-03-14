@@ -83,53 +83,51 @@ export async function createDirectoryIfNotExists(
   try {
     if (isRunningInElectron()) {
       try {
-        // Check if electronAPI.createDirectory is available
-        if (typeof electronAPI.createDirectory === "function") {
-          // Use Electron API to create directory
-          const result = await electronAPI.createDirectory(dirPath);
+        // Use Electron API to create directory
+        const result = await electronAPI.createDirectory(dirPath);
 
-          if (result.success) {
-            console.log(`Directory created: ${dirPath}`);
-            return true;
-          } else {
-            // If directory already exists, this is not an error
-            if (result.error && result.error.includes("already exists")) {
-              console.log(`Directory already exists: ${dirPath}`);
-              return true;
-            }
-            console.error(`Error creating directory: ${result.error}`);
-            return false;
-          }
-        } else {
-          // Fallback if createDirectory is not available
-          console.log(
-            `Simulating directory creation for: ${dirPath} (createDirectory not available)`,
-          );
+        if (result.success) {
+          console.log(`Directory created: ${dirPath}`);
           return true;
+        } else {
+          // If directory already exists, this is not an error
+          if (result.error && result.error.includes("already exists")) {
+            console.log(`Directory already exists: ${dirPath}`);
+            return true;
+          }
+          console.error(`Error creating directory: ${result.error}`);
+          return false;
         }
       } catch (error) {
         console.error(`Error accessing filesystem: ${error.message}`);
-        console.log(
-          `Simulating directory creation for: ${dirPath} (after error)`,
-        );
-        return true;
+        // In case of error, try to use Node.js fs module directly via IPC
+        try {
+          // Use a direct command to create directory
+          const fs = require("fs");
+          if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+            console.log(`Directory created using Node.js fs: ${dirPath}`);
+          } else {
+            console.log(`Directory already exists (Node.js fs): ${dirPath}`);
+          }
+          return true;
+        } catch (fsError) {
+          console.error(
+            `Error creating directory with Node.js fs: ${fsError.message}`,
+          );
+          return false;
+        }
       }
     } else {
-      // In browser environment, we need to use the File System Access API
-      try {
-        // For browser testing, we'll just log and return true
-        console.log(`Creating directory: ${dirPath}`);
-        return true;
-      } catch (fsError) {
-        console.error(`Error creating directory: ${fsError.message}`);
-        return false;
-      }
+      // In browser environment, we can't create directories
+      console.log(
+        `Browser environment detected, cannot create directory: ${dirPath}`,
+      );
+      return false;
     }
   } catch (error) {
     console.error(`Error creating directory ${dirPath}:`, error);
-    // Fallback to simulation
-    console.log(`Simulating directory creation for: ${dirPath} (fallback)`);
-    return true;
+    return false;
   }
 }
 
@@ -148,22 +146,8 @@ export async function saveFile(
     const documentsPath = await getDocumentsPath();
 
     // Create patient-specific directory
-    let patientDir;
-    if (isRunningInElectron()) {
-      // Use Electron API to join paths
-      const result = await electronAPI.joinPaths([
-        documentsPath,
-        `patient_${patientId}`,
-      ]);
-      if (result.success && result.path) {
-        patientDir = result.path;
-      } else {
-        patientDir = `${documentsPath}\\patient_${patientId}`;
-      }
-    } else {
-      // Simple string concatenation for browser
-      patientDir = `${documentsPath}\\patient_${patientId}`;
-    }
+    // Use direct path joining instead of electronAPI.joinPaths
+    const patientDir = `${documentsPath}\\patient_${patientId}`;
 
     const success = await createDirectoryIfNotExists(patientDir);
 
@@ -174,37 +158,8 @@ export async function saveFile(
     // Generate unique filename
     const fileExtension = file.name.split(".").pop() || "";
     const uniqueFilename = `${uuidv4()}.${fileExtension}`;
-    let filePath;
-    if (isRunningInElectron()) {
-      try {
-        // Check if electronAPI.joinPaths is available
-        if (typeof electronAPI.joinPaths === "function") {
-          // Use Electron API to join paths
-          const result = await electronAPI.joinPaths([
-            patientDir,
-            uniqueFilename,
-          ]);
-          if (result.success && result.path) {
-            filePath = result.path;
-          } else {
-            filePath = `${patientDir}\\${uniqueFilename}`;
-          }
-        } else {
-          // Fallback if joinPaths is not available
-          filePath = `${patientDir}\\${uniqueFilename}`;
-          console.log(
-            `Using fallback path joining: ${filePath} (joinPaths not available)`,
-          );
-        }
-      } catch (error) {
-        // Fallback on error
-        filePath = `${patientDir}\\${uniqueFilename}`;
-        console.log(`Using fallback path joining after error: ${filePath}`);
-      }
-    } else {
-      // Simple string concatenation for browser
-      filePath = `${patientDir}\\${uniqueFilename}`;
-    }
+    // Use direct path joining
+    const filePath = `${patientDir}\\${uniqueFilename}`;
 
     if (isRunningInElectron()) {
       // Read file as array buffer

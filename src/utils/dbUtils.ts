@@ -679,79 +679,44 @@ export async function backupDatabase(path: string): Promise<boolean> {
 
     // Check if we're in Electron
     if (isRunningInElectron()) {
-      // Usa l'API Electron per il backup
       try {
-        if (typeof electronAPI.backupDatabase === "function") {
-          const result = await electronAPI.backupDatabase(path);
-          if (!result.success) {
-            throw new Error(result.error || "Error during backup");
-          }
+        // Get database configuration
+        const dbConfigStr = localStorage.getItem("dbConfig");
+        if (!dbConfigStr) {
+          throw new Error("Database configuration not found");
+        }
+
+        const dbConfig = JSON.parse(dbConfigStr);
+
+        // Create timestamp for backup file
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const backupFileName = `patient_appointment_system_backup_${timestamp}.sql`;
+        const fullBackupPath = `${path}\\${backupFileName}`;
+
+        // Use child_process to execute pg_dump directly
+        const { exec } = require("child_process");
+        const util = require("util");
+        const execPromise = util.promisify(exec);
+
+        // Build pg_dump command
+        const command = `pg_dump -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -F c -b -v -f "${fullBackupPath}" "${dbConfig.dbName}"`;
+
+        // Set PGPASSWORD environment variable
+        const env = {
+          ...process.env,
+          PGPASSWORD: dbConfig.password || "",
+        };
+
+        console.log(`Executing backup command: ${command}`);
+
+        try {
+          await execPromise(command, { env });
+          console.log(`Backup completed successfully to ${fullBackupPath}`);
 
           // Save backup information to database
           const db = Database.getInstance();
           const now = new Date();
 
-          try {
-            await db.query(
-              "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-              ["last_backup", now.toISOString()],
-            );
-
-            await db.query(
-              "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-              ["last_backup_path", path],
-            );
-
-            await db.query(
-              "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-              ["last_backup_status", "success"],
-            );
-
-            console.log("Backup information saved to database");
-          } catch (dbError) {
-            console.error(
-              "Error saving backup information to database:",
-              dbError,
-            );
-            // Fallback to localStorage
-            localStorage.setItem("lastBackup", now.toISOString());
-            localStorage.setItem("lastBackupPath", path);
-            localStorage.setItem("lastBackupStatus", "success");
-            console.log("Backup information saved to localStorage (fallback)");
-          }
-
-          return true;
-        } else {
-          console.log(
-            "backupDatabase function not available, using simulation",
-          );
-          // Simulate backup since the function is not available
-          const now = new Date();
-          const timestamp = now.toISOString().replace(/[:.]/g, "-");
-          const backupFileName = `patient_appointment_system_backup_${timestamp}.sql`;
-
-          // Save to localStorage
-          localStorage.setItem("lastBackup", now.toISOString());
-          localStorage.setItem("lastBackupPath", `${path}\\${backupFileName}`);
-          localStorage.setItem("lastBackupStatus", "success");
-
-          console.log(
-            `Simulated backup file created: ${path}\\${backupFileName}`,
-          );
-          return true;
-        }
-      } catch (backupError) {
-        console.error("Error during backup operation:", backupError);
-        // Fallback to simulation in case pg_dump is not available
-        console.log("Falling back to simulated backup");
-
-        // Save backup information to database
-        const db = Database.getInstance();
-        const now = new Date();
-        const timestamp = now.toISOString().replace(/[:.]/g, "-");
-        const backupFileName = `patient_appointment_system_backup_${timestamp}.sql`;
-
-        try {
           await db.query(
             "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
             ["last_backup", now.toISOString()],
@@ -759,7 +724,7 @@ export async function backupDatabase(path: string): Promise<boolean> {
 
           await db.query(
             "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-            ["last_backup_path", `${path}\\${backupFileName}`],
+            ["last_backup_path", fullBackupPath],
           );
 
           await db.query(
@@ -767,63 +732,73 @@ export async function backupDatabase(path: string): Promise<boolean> {
             ["last_backup_status", "success"],
           );
 
-          console.log("Backup information saved to database (simulated)");
+          // Calculate next backup time based on frequency
+          const backupFrequency =
+            localStorage.getItem("backupFrequency") || "daily";
+          let nextBackupDate = new Date(now);
+
+          if (backupFrequency === "daily") {
+            nextBackupDate.setDate(nextBackupDate.getDate() + 1);
+          } else if (backupFrequency === "weekly") {
+            nextBackupDate.setDate(nextBackupDate.getDate() + 7);
+          } else if (backupFrequency === "monthly") {
+            nextBackupDate.setMonth(nextBackupDate.getMonth() + 1);
+          }
+
+          localStorage.setItem("nextBackup", nextBackupDate.toISOString());
+
           return true;
-        } catch (dbError) {
-          console.error(
-            "Error saving backup information to database:",
-            dbError,
+        } catch (pgDumpError) {
+          console.error("Error executing pg_dump:", pgDumpError);
+
+          // Save failed backup information
+          const db = Database.getInstance();
+          const now = new Date();
+
+          await db.query(
+            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            ["last_backup", now.toISOString()],
           );
-          // Fallback to localStorage if database fails
-          localStorage.setItem("lastBackup", now.toISOString());
-          localStorage.setItem("lastBackupPath", `${path}\\${backupFileName}`);
-          localStorage.setItem("lastBackupStatus", "success");
-          console.log(
-            "Backup information saved to localStorage (fallback after DB error)",
+
+          await db.query(
+            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            ["last_backup_status", "failed"],
           );
-          return true;
+
+          await db.query(
+            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            ["backup_error_message", pgDumpError.message || "Unknown error"],
+          );
+
+          throw new Error(
+            `Errore nell'esecuzione di pg_dump: ${pgDumpError.message}`,
+          );
         }
+      } catch (error) {
+        console.error("Error during backup operation:", error);
+
+        // Save failed backup information to localStorage as fallback
+        const now = new Date();
+        localStorage.setItem("lastBackup", now.toISOString());
+        localStorage.setItem("lastBackupStatus", "failed");
+        localStorage.setItem(
+          "backupErrorMessage",
+          error.message || "Unknown error",
+        );
+
+        throw error;
       }
+    } else {
+      // In browser environment, we can't perform real backups
+      throw new Error(
+        "Il backup del database non è supportato in ambiente browser",
+      );
     }
-
-    // In browser environment, simulate a successful backup
-    const now = new Date();
-    localStorage.setItem("lastBackup", now.toISOString());
-    localStorage.setItem("lastBackupPath", path);
-    localStorage.setItem("lastBackupStatus", "success");
-
-    // Calculate next backup time based on frequency
-    const backupFrequency = localStorage.getItem("backupFrequency") || "daily";
-    let nextBackupDate = new Date(now);
-
-    if (backupFrequency === "daily") {
-      nextBackupDate.setDate(nextBackupDate.getDate() + 1);
-    } else if (backupFrequency === "weekly") {
-      nextBackupDate.setDate(nextBackupDate.getDate() + 7);
-    } else if (backupFrequency === "monthly") {
-      nextBackupDate.setMonth(nextBackupDate.getMonth() + 1);
-    }
-
-    localStorage.setItem("nextBackup", nextBackupDate.toISOString());
-
-    // Simulate backup file creation
-    const timestamp = now.toISOString().replace(/[:.]/g, "-");
-    const backupFileName = `patient_appointment_system_backup_${timestamp}.sql`;
-    console.log(`Simulated backup file created: ${path}\\${backupFileName}`);
-
-    return true;
   } catch (error) {
     console.error("Error during database backup:", error);
-
-    // Save failed backup information
-    const now = new Date();
-    localStorage.setItem("lastBackup", now.toISOString());
-    localStorage.setItem("lastBackupStatus", "failed");
-    localStorage.setItem(
-      "backupErrorMessage",
-      error.message || "Unknown error",
+    alert(
+      `Errore durante il backup del database: ${error.message || "Errore sconosciuto"}`,
     );
-
     return false;
   }
 }

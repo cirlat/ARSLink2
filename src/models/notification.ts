@@ -26,76 +26,24 @@ export class NotificationModel {
 
   private async ensureTableExists(): Promise<void> {
     try {
-      if (isRunningInElectron()) {
-        try {
-          // Check if electronAPI.ensureNotificationsTable is available
-          if (typeof electronAPI.ensureNotificationsTable === "function") {
-            // Use Electron API to ensure the table exists
-            await electronAPI.ensureNotificationsTable();
-          } else {
-            // Fallback to direct query if the API is not available
-            console.log(
-              "ensureNotificationsTable not available, using direct query",
-            );
-            await this.db.query(`
-              CREATE TABLE IF NOT EXISTS notifications (
-                id SERIAL PRIMARY KEY,
-                patient_id INTEGER NOT NULL,
-                patient_name VARCHAR(100) NOT NULL,
-                appointment_id INTEGER NULL,
-                appointment_date DATE NULL,
-                appointment_time TIME NULL,
-                message TEXT NOT NULL,
-                status VARCHAR(20) NOT NULL DEFAULT 'pending',
-                type VARCHAR(20) NOT NULL,
-                sent_at TIMESTAMP NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-              )
-            `);
-          }
-        } catch (error) {
-          console.error(
-            "Error with Electron API, falling back to direct query:",
-            error,
-          );
-          // Fallback to direct query on error
-          await this.db.query(`
-            CREATE TABLE IF NOT EXISTS notifications (
-              id SERIAL PRIMARY KEY,
-              patient_id INTEGER NOT NULL,
-              patient_name VARCHAR(100) NOT NULL,
-              appointment_id INTEGER NULL,
-              appointment_date DATE NULL,
-              appointment_time TIME NULL,
-              message TEXT NOT NULL,
-              status VARCHAR(20) NOT NULL DEFAULT 'pending',
-              type VARCHAR(20) NOT NULL,
-              sent_at TIMESTAMP NULL,
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-          `);
-        }
-      } else {
-        // In browser environment, create the table using the Database instance
-        await this.db.query(`
-          CREATE TABLE IF NOT EXISTS notifications (
-            id SERIAL PRIMARY KEY,
-            patient_id INTEGER NOT NULL,
-            patient_name VARCHAR(100) NOT NULL,
-            appointment_id INTEGER NULL,
-            appointment_date DATE NULL,
-            appointment_time TIME NULL,
-            message TEXT NOT NULL,
-            status VARCHAR(20) NOT NULL DEFAULT 'pending',
-            type VARCHAR(20) NOT NULL,
-            sent_at TIMESTAMP NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
-      }
+      // Always use direct query to create the table
+      // Remove foreign key constraint to avoid errors
+      await this.db.query(`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id SERIAL PRIMARY KEY,
+          patient_id INTEGER NOT NULL,
+          patient_name VARCHAR(100) NOT NULL,
+          appointment_id INTEGER NULL,
+          appointment_date DATE NULL,
+          appointment_time TIME NULL,
+          message TEXT NOT NULL,
+          status VARCHAR(20) NOT NULL DEFAULT 'pending',
+          type VARCHAR(20) NOT NULL,
+          sent_at TIMESTAMP NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
       console.log("Ensured notifications table exists");
     } catch (error) {
       console.error("Error ensuring notifications table exists:", error);

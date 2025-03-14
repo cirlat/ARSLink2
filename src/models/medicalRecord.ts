@@ -23,67 +23,20 @@ export class MedicalRecordModel {
 
   private async ensureTableExists(): Promise<void> {
     try {
-      if (isRunningInElectron()) {
-        try {
-          // Check if electronAPI.ensureMedicalRecordsTable is available
-          if (typeof electronAPI.ensureMedicalRecordsTable === "function") {
-            // Use Electron API to ensure the table exists
-            await electronAPI.ensureMedicalRecordsTable();
-          } else {
-            // Fallback to direct query if the API is not available
-            console.log(
-              "ensureMedicalRecordsTable not available, using direct query",
-            );
-            await this.db.query(`
-              CREATE TABLE IF NOT EXISTS medical_records (
-                id SERIAL PRIMARY KEY,
-                patient_id INTEGER NOT NULL,
-                title VARCHAR(255) NOT NULL,
-                date DATE NOT NULL,
-                doctor VARCHAR(100) NOT NULL,
-                description TEXT,
-                files TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-              )
-            `);
-          }
-        } catch (error) {
-          console.error(
-            "Error with Electron API, falling back to direct query:",
-            error,
-          );
-          // Fallback to direct query on error
-          await this.db.query(`
-            CREATE TABLE IF NOT EXISTS medical_records (
-              id SERIAL PRIMARY KEY,
-              patient_id INTEGER NOT NULL,
-              title VARCHAR(255) NOT NULL,
-              date DATE NOT NULL,
-              doctor VARCHAR(100) NOT NULL,
-              description TEXT,
-              files TEXT,
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-          `);
-        }
-      } else {
-        // In browser environment, create the table using the Database instance
-        await this.db.query(`
-          CREATE TABLE IF NOT EXISTS medical_records (
-            id SERIAL PRIMARY KEY,
-            patient_id INTEGER NOT NULL,
-            title VARCHAR(255) NOT NULL,
-            date DATE NOT NULL,
-            doctor VARCHAR(100) NOT NULL,
-            description TEXT,
-            files TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
-      }
+      // Always use direct query to create the table
+      await this.db.query(`
+        CREATE TABLE IF NOT EXISTS medical_records (
+          id SERIAL PRIMARY KEY,
+          patient_id INTEGER NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          date DATE NOT NULL,
+          doctor VARCHAR(100) NOT NULL,
+          description TEXT,
+          files TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
       console.log("Ensured medical_records table exists");
     } catch (error) {
       console.error("Error ensuring medical_records table exists:", error);

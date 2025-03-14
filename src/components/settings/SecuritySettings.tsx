@@ -123,10 +123,31 @@ const SecuritySettings = () => {
         return;
       }
 
-      // Aggiorna la password
-      const updated = await userModel.update(user.id!, {
-        password: newPassword,
-      });
+      // Aggiorna la password - correggi il parametro per updated_at
+      try {
+        // Usa una query diretta per aggiornare la password
+        const { default: Database } = await import("@/models/database");
+        const db = Database.getInstance();
+        const result = await db.query(
+          "UPDATE users SET password = $1, updated_at = $2 WHERE id = $3 RETURNING id, username, full_name, email, role, created_at, updated_at",
+          [newPassword, new Date(), user.id],
+        );
+
+        if (result && result.length > 0) {
+          setSuccess("Password aggiornata con successo");
+          setCurrentPassword("");
+          setNewPassword("");
+          setConfirmPassword("");
+        } else {
+          throw new Error("Impossibile aggiornare la password");
+        }
+      } catch (dbError) {
+        console.error(
+          "Errore nell'aggiornamento della password nel database:",
+          dbError,
+        );
+        throw new Error("Impossibile aggiornare la password nel database");
+      }
 
       if (updated) {
         setSuccess("Password aggiornata con successo");
