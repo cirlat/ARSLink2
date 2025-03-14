@@ -695,30 +695,30 @@ export async function backupDatabase(path: string): Promise<boolean> {
 
         // Use child_process directly to perform backup
         try {
-          const childProcess = window.require('child_process');
-          const fs = window.require('fs');
-          const path = window.require('path');
-          
+          const childProcess = window.require("child_process");
+          const fs = window.require("fs");
+          const path = window.require("path");
+
           // Normalize path
           const normalizedPath = path.normalize(fullBackupPath);
-          
+
           // Ensure directory exists
           const backupDir = path.dirname(normalizedPath);
           if (!fs.existsSync(backupDir)) {
             fs.mkdirSync(backupDir, { recursive: true });
           }
-          
+
           // Build pg_dump command
           const command = `pg_dump -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -F c -b -v -f "${normalizedPath}" "${dbConfig.dbName}"`;
-          
+
           console.log(`Executing backup command: ${command}`);
-          
+
           // Set environment variables for password
           const env = { ...process.env, PGPASSWORD: dbConfig.password || "" };
-          
+
           // Execute command
           childProcess.execSync(command, { env });
-          
+
           console.log(`Backup completed successfully to ${normalizedPath}`);
 
           // Save backup information to database
@@ -739,18 +739,6 @@ export async function backupDatabase(path: string): Promise<boolean> {
             "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
             ["last_backup_status", "success"],
           );
-          
-          return true;
-        } catch (execError) {
-          console.error(`Error executing pg_dump: ${execError.message}`);
-          
-          // Check if pg_dump is not in PATH
-          if (execError.message.includes("non è riconosciuto") || execError.message.includes("not recognized")) {
-            alert("Il comando pg_dump non è disponibile. Assicurati che PostgreSQL sia installato e che la directory bin sia nel PATH di sistema.");
-          }
-          
-          throw execError;
-        }
 
           // Calculate next backup time based on frequency
           const backupFrequency =
@@ -770,12 +758,17 @@ export async function backupDatabase(path: string): Promise<boolean> {
           return true;
         } catch (execError) {
           console.error(`Error executing pg_dump: ${execError.message}`);
-          
+
           // Check if pg_dump is not in PATH
-          if (execError.message.includes("non è riconosciuto") || execError.message.includes("not recognized")) {
-            alert("Il comando pg_dump non è disponibile. Assicurati che PostgreSQL sia installato e che la directory bin sia nel PATH di sistema.");
+          if (
+            execError.message.includes("non è riconosciuto") ||
+            execError.message.includes("not recognized")
+          ) {
+            alert(
+              "Il comando pg_dump non è disponibile. Assicurati che PostgreSQL sia installato e che la directory bin sia nel PATH di sistema.",
+            );
           }
-          
+
           throw execError;
         }
       } catch (error) {
