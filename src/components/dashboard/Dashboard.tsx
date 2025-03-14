@@ -269,11 +269,171 @@ const Dashboard = () => {
                         variant="ghost"
                         size="sm"
                         className="text-blue-600 hover:text-blue-800 p-0 h-auto"
-                        onClick={() => {
-                          // Implementare la visualizzazione dei dettagli dell'appuntamento
-                          console.log(
-                            `Visualizza dettagli appuntamento ${appointment.id}`,
-                          );
+                        onClick={async () => {
+                          try {
+                            // Carica i dettagli dell'appuntamento
+                            const { AppointmentModel } = await import(
+                              "@/models/appointment"
+                            );
+                            const appointmentModel = new AppointmentModel();
+                            const appointmentDetails =
+                              await appointmentModel.findById(
+                                parseInt(appointment.id),
+                              );
+
+                            if (!appointmentDetails) {
+                              alert(
+                                "Impossibile trovare i dettagli dell'appuntamento.",
+                              );
+                              return;
+                            }
+
+                            // Mostra i dettagli in un modale
+                            const modal = document.createElement("div");
+                            modal.className =
+                              "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+                            modal.innerHTML = `
+                              <div class="bg-white rounded-lg p-6 w-full max-w-lg">
+                                <h3 class="text-xl font-medium mb-4">Dettagli Appuntamento</h3>
+                                
+                                <div class="space-y-4">
+                                  <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <p class="text-sm font-medium text-gray-500">Paziente</p>
+                                      <p class="font-medium">${appointmentDetails.patient_name || appointment.patientName}</p>
+                                    </div>
+                                    <div>
+                                      <p class="text-sm font-medium text-gray-500">Data e Ora</p>
+                                      <p class="font-medium">${new Date(appointmentDetails.date).toLocaleDateString()} ${appointmentDetails.time}</p>
+                                    </div>
+                                  </div>
+                                  
+                                  <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <p class="text-sm font-medium text-gray-500">Tipo</p>
+                                      <p class="font-medium">${appointmentDetails.appointment_type}</p>
+                                    </div>
+                                    <div>
+                                      <p class="text-sm font-medium text-gray-500">Durata</p>
+                                      <p class="font-medium">${appointmentDetails.duration} minuti</p>
+                                    </div>
+                                  </div>
+                                  
+                                  <div>
+                                    <p class="text-sm font-medium text-gray-500">Note</p>
+                                    <p class="mt-1 p-2 bg-gray-50 rounded">${appointmentDetails.notes || "Nessuna nota"}</p>
+                                  </div>
+                                  
+                                  <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <p class="text-sm font-medium text-gray-500">Sincronizzato con Google Calendar</p>
+                                      <p class="font-medium">${appointmentDetails.google_calendar_synced ? "Sì" : "No"}</p>
+                                    </div>
+                                    <div>
+                                      <p class="text-sm font-medium text-gray-500">Notifica WhatsApp inviata</p>
+                                      <p class="font-medium">${appointmentDetails.whatsapp_notification_sent ? "Sì" : "No"}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div class="flex justify-between mt-6">
+                                  <div>
+                                    <button id="edit-appointment" class="px-4 py-2 bg-blue-600 text-white rounded-md mr-2">Modifica</button>
+                                    <button id="delete-appointment" class="px-4 py-2 bg-red-600 text-white rounded-md">Elimina</button>
+                                  </div>
+                                  <button id="close-modal" class="px-4 py-2 border border-gray-300 rounded-md">Chiudi</button>
+                                </div>
+                              </div>
+                            `;
+                            document.body.appendChild(modal);
+
+                            // Gestisci la chiusura del modale
+                            document
+                              .getElementById("close-modal")
+                              .addEventListener("click", () => {
+                                document.body.removeChild(modal);
+                              });
+
+                            // Gestisci la modifica dell'appuntamento
+                            document
+                              .getElementById("edit-appointment")
+                              .addEventListener("click", () => {
+                                document.body.removeChild(modal);
+                                // Apri il form di modifica dell'appuntamento
+                                const dialog = document.createElement("div");
+                                dialog.className =
+                                  "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+                                dialog.innerHTML = `<div id="appointment-form-container" class="bg-white rounded-lg p-6 w-full max-w-2xl"></div>`;
+                                document.body.appendChild(dialog);
+
+                                // Renderizza il form di modifica
+                                const {
+                                  createRoot,
+                                } = require("react-dom/client");
+                                const AppointmentForm =
+                                  require("@/components/appointments/AppointmentForm").default;
+                                const root = createRoot(
+                                  document.getElementById(
+                                    "appointment-form-container",
+                                  ),
+                                );
+                                root.render(
+                                  React.createElement(AppointmentForm, {
+                                    appointment: appointmentDetails,
+                                    isEditing: true,
+                                    onClose: () => {
+                                      document.body.removeChild(dialog);
+                                      window.location.reload();
+                                    },
+                                  }),
+                                );
+                              });
+
+                            // Gestisci l'eliminazione dell'appuntamento
+                            document
+                              .getElementById("delete-appointment")
+                              .addEventListener("click", async () => {
+                                if (
+                                  confirm(
+                                    "Sei sicuro di voler eliminare questo appuntamento?",
+                                  )
+                                ) {
+                                  try {
+                                    const result =
+                                      await appointmentModel.delete(
+                                        parseInt(appointment.id),
+                                      );
+                                    if (result) {
+                                      alert(
+                                        "Appuntamento eliminato con successo!",
+                                      );
+                                      document.body.removeChild(modal);
+                                      window.location.reload();
+                                    } else {
+                                      alert(
+                                        "Impossibile eliminare l'appuntamento.",
+                                      );
+                                    }
+                                  } catch (error) {
+                                    console.error(
+                                      "Errore durante l'eliminazione dell'appuntamento:",
+                                      error,
+                                    );
+                                    alert(
+                                      `Si è verificato un errore durante l'eliminazione: ${error.message || "Errore sconosciuto"}`,
+                                    );
+                                  }
+                                }
+                              });
+                          } catch (error) {
+                            console.error(
+                              "Errore durante il caricamento dei dettagli dell'appuntamento:",
+                              error,
+                            );
+                            alert(
+                              `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                            );
+                          }
                         }}
                       >
                         Dettagli
@@ -428,11 +588,171 @@ const Dashboard = () => {
                         variant="ghost"
                         size="sm"
                         className="text-blue-600 hover:text-blue-800"
-                        onClick={() => {
-                          // Implementare la visualizzazione dei dettagli dell'appuntamento
-                          console.log(
-                            `Visualizza dettagli appuntamento ${appointment.id}`,
-                          );
+                        onClick={async () => {
+                          try {
+                            // Carica i dettagli dell'appuntamento
+                            const { AppointmentModel } = await import(
+                              "@/models/appointment"
+                            );
+                            const appointmentModel = new AppointmentModel();
+                            const appointmentDetails =
+                              await appointmentModel.findById(
+                                parseInt(appointment.id),
+                              );
+
+                            if (!appointmentDetails) {
+                              alert(
+                                "Impossibile trovare i dettagli dell'appuntamento.",
+                              );
+                              return;
+                            }
+
+                            // Mostra i dettagli in un modale
+                            const modal = document.createElement("div");
+                            modal.className =
+                              "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+                            modal.innerHTML = `
+                              <div class="bg-white rounded-lg p-6 w-full max-w-lg">
+                                <h3 class="text-xl font-medium mb-4">Dettagli Appuntamento</h3>
+                                
+                                <div class="space-y-4">
+                                  <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <p class="text-sm font-medium text-gray-500">Paziente</p>
+                                      <p class="font-medium">${appointmentDetails.patient_name || appointment.patientName}</p>
+                                    </div>
+                                    <div>
+                                      <p class="text-sm font-medium text-gray-500">Data e Ora</p>
+                                      <p class="font-medium">${new Date(appointmentDetails.date).toLocaleDateString()} ${appointmentDetails.time}</p>
+                                    </div>
+                                  </div>
+                                  
+                                  <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <p class="text-sm font-medium text-gray-500">Tipo</p>
+                                      <p class="font-medium">${appointmentDetails.appointment_type}</p>
+                                    </div>
+                                    <div>
+                                      <p class="text-sm font-medium text-gray-500">Durata</p>
+                                      <p class="font-medium">${appointmentDetails.duration} minuti</p>
+                                    </div>
+                                  </div>
+                                  
+                                  <div>
+                                    <p class="text-sm font-medium text-gray-500">Note</p>
+                                    <p class="mt-1 p-2 bg-gray-50 rounded">${appointmentDetails.notes || "Nessuna nota"}</p>
+                                  </div>
+                                  
+                                  <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <p class="text-sm font-medium text-gray-500">Sincronizzato con Google Calendar</p>
+                                      <p class="font-medium">${appointmentDetails.google_calendar_synced ? "Sì" : "No"}</p>
+                                    </div>
+                                    <div>
+                                      <p class="text-sm font-medium text-gray-500">Notifica WhatsApp inviata</p>
+                                      <p class="font-medium">${appointmentDetails.whatsapp_notification_sent ? "Sì" : "No"}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div class="flex justify-between mt-6">
+                                  <div>
+                                    <button id="edit-appointment" class="px-4 py-2 bg-blue-600 text-white rounded-md mr-2">Modifica</button>
+                                    <button id="delete-appointment" class="px-4 py-2 bg-red-600 text-white rounded-md">Elimina</button>
+                                  </div>
+                                  <button id="close-modal" class="px-4 py-2 border border-gray-300 rounded-md">Chiudi</button>
+                                </div>
+                              </div>
+                            `;
+                            document.body.appendChild(modal);
+
+                            // Gestisci la chiusura del modale
+                            document
+                              .getElementById("close-modal")
+                              .addEventListener("click", () => {
+                                document.body.removeChild(modal);
+                              });
+
+                            // Gestisci la modifica dell'appuntamento
+                            document
+                              .getElementById("edit-appointment")
+                              .addEventListener("click", () => {
+                                document.body.removeChild(modal);
+                                // Apri il form di modifica dell'appuntamento
+                                const dialog = document.createElement("div");
+                                dialog.className =
+                                  "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+                                dialog.innerHTML = `<div id="appointment-form-container" class="bg-white rounded-lg p-6 w-full max-w-2xl"></div>`;
+                                document.body.appendChild(dialog);
+
+                                // Renderizza il form di modifica
+                                const {
+                                  createRoot,
+                                } = require("react-dom/client");
+                                const AppointmentForm =
+                                  require("@/components/appointments/AppointmentForm").default;
+                                const root = createRoot(
+                                  document.getElementById(
+                                    "appointment-form-container",
+                                  ),
+                                );
+                                root.render(
+                                  React.createElement(AppointmentForm, {
+                                    appointment: appointmentDetails,
+                                    isEditing: true,
+                                    onClose: () => {
+                                      document.body.removeChild(dialog);
+                                      window.location.reload();
+                                    },
+                                  }),
+                                );
+                              });
+
+                            // Gestisci l'eliminazione dell'appuntamento
+                            document
+                              .getElementById("delete-appointment")
+                              .addEventListener("click", async () => {
+                                if (
+                                  confirm(
+                                    "Sei sicuro di voler eliminare questo appuntamento?",
+                                  )
+                                ) {
+                                  try {
+                                    const result =
+                                      await appointmentModel.delete(
+                                        parseInt(appointment.id),
+                                      );
+                                    if (result) {
+                                      alert(
+                                        "Appuntamento eliminato con successo!",
+                                      );
+                                      document.body.removeChild(modal);
+                                      window.location.reload();
+                                    } else {
+                                      alert(
+                                        "Impossibile eliminare l'appuntamento.",
+                                      );
+                                    }
+                                  } catch (error) {
+                                    console.error(
+                                      "Errore durante l'eliminazione dell'appuntamento:",
+                                      error,
+                                    );
+                                    alert(
+                                      `Si è verificato un errore durante l'eliminazione: ${error.message || "Errore sconosciuto"}`,
+                                    );
+                                  }
+                                }
+                              });
+                          } catch (error) {
+                            console.error(
+                              "Errore durante il caricamento dei dettagli dell'appuntamento:",
+                              error,
+                            );
+                            alert(
+                              `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                            );
+                          }
                         }}
                       >
                         Dettagli

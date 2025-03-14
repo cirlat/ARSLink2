@@ -649,13 +649,13 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
             username: adminUser.username,
             fullName: adminUser.fullName,
             email: adminUser.email,
-            role: "Medico",
+            role: "Utente",
           }),
         );
 
         // Salva anche le credenziali per il login
         localStorage.setItem("userName", adminUser.fullName);
-        localStorage.setItem("userRole", "Medico");
+        localStorage.setItem("userRole", "Utente");
 
         // Prova a salvare nel database
         try {
@@ -666,7 +666,7 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
             adminUser.password, // In un'implementazione reale, qui useremmo bcrypt
             adminUser.fullName,
             adminUser.email,
-            "Medico",
+            "Utente",
           ];
 
           const result = await electronAPI.executeQuery(query, params);
@@ -1394,8 +1394,39 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
                             Utilizza Selenium per automatizzare WhatsApp Web
                           </li>
                           <li>Necessita di scansione QR code al primo avvio</li>
-                          <li>Non invia messaggi a numeri non salvati</li>
+                          <li>
+                            Invia messaggi utilizzando i numeri di telefono dei
+                            pazienti
+                          </li>
                         </ul>
+                        <div className="flex space-x-2 mt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              window.open(
+                                "https://www.google.com/chrome/",
+                                "_blank",
+                              )
+                            }
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Scarica Chrome
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              window.open(
+                                "https://www.selenium.dev/documentation/",
+                                "_blank",
+                              )
+                            }
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Documentazione Selenium
+                          </Button>
+                        </div>
                       </div>
                     </>
                   )}

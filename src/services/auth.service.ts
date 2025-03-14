@@ -23,53 +23,26 @@ export class AuthService {
     password: string,
   ): Promise<{ user: User | null; token: string | null; error?: string }> {
     try {
-      // Verifica se la licenza è valida
-      const isLicenseValid = await this.licenseModel.isLicenseValid();
-      if (!isLicenseValid) {
-        return {
-          user: null,
-          token: null,
-          error:
-            "La licenza è scaduta. Vai nelle impostazioni per aggiornare la licenza.",
-        };
+      // Verifica le credenziali nel database
+      const user = await this.userModel.findByUsername(username);
+
+      if (!user) {
+        return { user: null, token: null, error: "Utente non trovato." };
       }
 
-      // Tenta l'autenticazione dal database
-      const user = await this.userModel.authenticate(username, password);
-      if (user) {
-        // Autenticazione riuscita
-        const token = this.generateToken(user);
+      // Verifica la password
+      const { compare } = await import("../lib/mockBcrypt");
+      const isMatch = await compare(password, user.password || "");
 
-        // Salva l'utente autenticato in localStorage
+      if (isMatch) {
+        // Salva i dati dell'utente in localStorage
         localStorage.setItem("currentUser", JSON.stringify(user));
-        localStorage.setItem("authToken", token);
+        localStorage.setItem("authToken", this.generateToken(user));
         localStorage.setItem("isAuthenticated", "true");
         localStorage.setItem("userName", user.full_name);
         localStorage.setItem("userRole", user.role);
 
-        return { user, token };
-      }
-
-      // Se non è stato trovato nel database, verifica se è l'utente admin predefinito
-      if (username === "admin" && password === "admin123") {
-        const adminUser: User = {
-          id: 0,
-          username: "admin",
-          full_name: "Amministratore",
-          email: "admin@arslink.it",
-          role: "Medico",
-          created_at: new Date(),
-          updated_at: new Date(),
-        };
-
-        // Salva l'utente autenticato in localStorage
-        localStorage.setItem("currentUser", JSON.stringify(adminUser));
-        localStorage.setItem("authToken", this.generateToken(adminUser));
-        localStorage.setItem("isAuthenticated", "true");
-        localStorage.setItem("userName", adminUser.full_name);
-        localStorage.setItem("userRole", adminUser.role);
-
-        return { user: adminUser, token: this.generateToken(adminUser) };
+        return { user: user, token: this.generateToken(user) };
       }
 
       // Nessun utente trovato

@@ -149,10 +149,17 @@ const PatientDetails = ({
         <Card className="w-full md:w-1/3">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle>Patient Profile</CardTitle>
-              <Button variant="outline" size="sm">
+              <CardTitle>Profilo Paziente</CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Naviga alla pagina di modifica del paziente
+                  window.location.href = `/patients/${patient.id}/edit`;
+                }}
+              >
                 <User className="h-4 w-4 mr-2" />
-                Edit
+                Modifica
               </Button>
             </div>
           </CardHeader>
@@ -174,12 +181,19 @@ const PatientDetails = ({
               <div className="flex items-center">
                 <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
                 <span className="text-sm">
-                  Born: {new Date(patient.dateOfBirth).toLocaleDateString()}
+                  Nato il: {new Date(patient.dateOfBirth).toLocaleDateString()}
                 </span>
               </div>
               <div className="flex items-center">
                 <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span className="text-sm">Gender: {patient.gender}</span>
+                <span className="text-sm">
+                  Genere:{" "}
+                  {patient.gender === "male"
+                    ? "Maschio"
+                    : patient.gender === "female"
+                      ? "Femmina"
+                      : patient.gender}
+                </span>
               </div>
               <div className="flex items-center">
                 <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -196,9 +210,68 @@ const PatientDetails = ({
             </div>
           </CardContent>
           <CardFooter>
-            <Button className="w-full">
+            <Button
+              className="w-full"
+              onClick={async () => {
+                try {
+                  // Apri il form per un nuovo appuntamento
+                  const dialog = document.createElement("div");
+                  dialog.className =
+                    "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+                  dialog.innerHTML = `<div id="appointment-form-container" class="bg-white rounded-lg p-6 w-full max-w-2xl"></div>`;
+                  document.body.appendChild(dialog);
+
+                  // Carica i dettagli del paziente
+                  const { PatientModel } = await import("@/models/patient");
+                  const patientModel = new PatientModel();
+                  const patientDetails = await patientModel.findById(
+                    parseInt(patient.id),
+                  );
+
+                  if (!patientDetails) {
+                    alert("Impossibile trovare i dettagli del paziente.");
+                    document.body.removeChild(dialog);
+                    return;
+                  }
+
+                  // Renderizza il form per un nuovo appuntamento
+                  const { createRoot } = require("react-dom/client");
+                  const AppointmentForm =
+                    require("@/components/appointments/AppointmentForm").default;
+                  const root = createRoot(
+                    document.getElementById("appointment-form-container"),
+                  );
+                  root.render(
+                    React.createElement(AppointmentForm, {
+                      initialData: {
+                        patientId: patient.id,
+                        date: new Date(),
+                        time: "09:00",
+                        duration: "30",
+                        appointmentType: "checkup",
+                        notes: "",
+                        sendWhatsAppNotification: true,
+                        googleCalendarSync: true,
+                      },
+                      onClose: () => {
+                        document.body.removeChild(dialog);
+                        window.location.reload();
+                      },
+                    }),
+                  );
+                } catch (error) {
+                  console.error(
+                    "Errore durante l'apertura del form per un nuovo appuntamento:",
+                    error,
+                  );
+                  alert(
+                    `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                  );
+                }
+              }}
+            >
               <Plus className="h-4 w-4 mr-2" />
-              New Appointment
+              Nuovo Appuntamento
             </Button>
           </CardFooter>
         </Card>
@@ -207,18 +280,78 @@ const PatientDetails = ({
         <div className="w-full md:w-2/3">
           <Tabs defaultValue="appointments" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="appointments">Appointments</TabsTrigger>
-              <TabsTrigger value="medical-records">Medical Records</TabsTrigger>
-              <TabsTrigger value="communications">Communications</TabsTrigger>
+              <TabsTrigger value="appointments">Appuntamenti</TabsTrigger>
+              <TabsTrigger value="medical-records">
+                Cartella Clinica
+              </TabsTrigger>
+              <TabsTrigger value="communications">Comunicazioni</TabsTrigger>
             </TabsList>
 
             {/* Appointments Tab */}
             <TabsContent value="appointments" className="border rounded-md p-4">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Appointment History</h3>
-                <Button>
+                <h3 className="text-lg font-semibold">Storico Appuntamenti</h3>
+                <Button
+                  onClick={async () => {
+                    try {
+                      // Apri il form per un nuovo appuntamento
+                      const dialog = document.createElement("div");
+                      dialog.className =
+                        "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+                      dialog.innerHTML = `<div id="appointment-form-container" class="bg-white rounded-lg p-6 w-full max-w-2xl"></div>`;
+                      document.body.appendChild(dialog);
+
+                      // Carica i dettagli del paziente
+                      const { PatientModel } = await import("@/models/patient");
+                      const patientModel = new PatientModel();
+                      const patientDetails = await patientModel.findById(
+                        parseInt(patient.id),
+                      );
+
+                      if (!patientDetails) {
+                        alert("Impossibile trovare i dettagli del paziente.");
+                        document.body.removeChild(dialog);
+                        return;
+                      }
+
+                      // Renderizza il form per un nuovo appuntamento
+                      const { createRoot } = require("react-dom/client");
+                      const AppointmentForm =
+                        require("@/components/appointments/AppointmentForm").default;
+                      const root = createRoot(
+                        document.getElementById("appointment-form-container"),
+                      );
+                      root.render(
+                        React.createElement(AppointmentForm, {
+                          initialData: {
+                            patientId: patient.id,
+                            date: new Date(),
+                            time: "09:00",
+                            duration: "30",
+                            appointmentType: "checkup",
+                            notes: "",
+                            sendWhatsAppNotification: true,
+                            googleCalendarSync: true,
+                          },
+                          onClose: () => {
+                            document.body.removeChild(dialog);
+                            window.location.reload();
+                          },
+                        }),
+                      );
+                    } catch (error) {
+                      console.error(
+                        "Errore durante l'apertura del form per un nuovo appuntamento:",
+                        error,
+                      );
+                      alert(
+                        `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                      );
+                    }
+                  }}
+                >
                   <Plus className="h-4 w-4 mr-2" />
-                  New Appointment
+                  Nuovo Appuntamento
                 </Button>
               </div>
 
@@ -258,11 +391,107 @@ const PatientDetails = ({
                     )}
                     <CardFooter className="pt-2">
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          Edit
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              // Carica i dettagli dell'appuntamento
+                              const { AppointmentModel } = await import(
+                                "@/models/appointment"
+                              );
+                              const appointmentModel = new AppointmentModel();
+                              const appointmentDetails =
+                                await appointmentModel.findById(
+                                  parseInt(appointment.id),
+                                );
+
+                              if (!appointmentDetails) {
+                                alert(
+                                  "Impossibile trovare i dettagli dell'appuntamento.",
+                                );
+                                return;
+                              }
+
+                              // Apri il form di modifica dell'appuntamento
+                              const dialog = document.createElement("div");
+                              dialog.className =
+                                "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+                              dialog.innerHTML = `<div id="appointment-form-container" class="bg-white rounded-lg p-6 w-full max-w-2xl"></div>`;
+                              document.body.appendChild(dialog);
+
+                              // Renderizza il form di modifica
+                              const {
+                                createRoot,
+                              } = require("react-dom/client");
+                              const AppointmentForm =
+                                require("@/components/appointments/AppointmentForm").default;
+                              const root = createRoot(
+                                document.getElementById(
+                                  "appointment-form-container",
+                                ),
+                              );
+                              root.render(
+                                React.createElement(AppointmentForm, {
+                                  appointment: appointmentDetails,
+                                  isEditing: true,
+                                  onClose: () => {
+                                    document.body.removeChild(dialog);
+                                    window.location.reload();
+                                  },
+                                }),
+                              );
+                            } catch (error) {
+                              console.error(
+                                "Errore durante il caricamento dei dettagli dell'appuntamento:",
+                                error,
+                              );
+                              alert(
+                                `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                              );
+                            }
+                          }}
+                        >
+                          Modifica
                         </Button>
-                        <Button variant="outline" size="sm">
-                          Reschedule
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            if (
+                              confirm(
+                                "Sei sicuro di voler eliminare questo appuntamento?",
+                              )
+                            ) {
+                              try {
+                                const { AppointmentModel } = await import(
+                                  "@/models/appointment"
+                                );
+                                const appointmentModel = new AppointmentModel();
+                                const result = await appointmentModel.delete(
+                                  parseInt(appointment.id),
+                                );
+                                if (result) {
+                                  alert("Appuntamento eliminato con successo!");
+                                  window.location.reload();
+                                } else {
+                                  alert(
+                                    "Impossibile eliminare l'appuntamento.",
+                                  );
+                                }
+                              } catch (error) {
+                                console.error(
+                                  "Errore durante l'eliminazione dell'appuntamento:",
+                                  error,
+                                );
+                                alert(
+                                  `Si è verificato un errore durante l'eliminazione: ${error.message || "Errore sconosciuto"}`,
+                                );
+                              }
+                            }
+                          }}
+                        >
+                          Elimina
                         </Button>
                       </div>
                     </CardFooter>
@@ -277,10 +506,10 @@ const PatientDetails = ({
               className="border rounded-md p-4"
             >
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Medical Records</h3>
+                <h3 className="text-lg font-semibold">Cartella Clinica</h3>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Record
+                  Aggiungi Documento
                 </Button>
               </div>
 
@@ -310,10 +539,10 @@ const PatientDetails = ({
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm">
                           <FileText className="h-4 w-4 mr-1" />
-                          View Full Report
+                          Visualizza Documento
                         </Button>
                         <Button variant="outline" size="sm">
-                          Edit
+                          Modifica
                         </Button>
                       </div>
                     </CardFooter>
@@ -328,10 +557,10 @@ const PatientDetails = ({
               className="border rounded-md p-4"
             >
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Communication History</h3>
+                <h3 className="text-lg font-semibold">Storico Comunicazioni</h3>
                 <Button>
                   <MessageSquare className="h-4 w-4 mr-2" />
-                  Send Message
+                  Invia Messaggio
                 </Button>
               </div>
 
@@ -351,7 +580,11 @@ const PatientDetails = ({
                             <Phone className="h-4 w-4 mr-2 text-orange-500" />
                           )}
                           <CardTitle className="text-base capitalize">
-                            {comm.type}
+                            {comm.type === "whatsapp"
+                              ? "WhatsApp"
+                              : comm.type === "email"
+                                ? "Email"
+                                : "Telefono"}
                           </CardTitle>
                         </div>
                         <Badge
@@ -363,7 +596,11 @@ const PatientDetails = ({
                                 : "destructive"
                           }
                         >
-                          {comm.status}
+                          {comm.status === "sent"
+                            ? "Inviato"
+                            : comm.status === "pending"
+                              ? "In attesa"
+                              : "Fallito"}
                         </Badge>
                       </div>
                       <CardDescription>
@@ -379,10 +616,10 @@ const PatientDetails = ({
                     <CardFooter className="pt-2">
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm">
-                          Resend
+                          Reinvia
                         </Button>
                         <Button variant="outline" size="sm">
-                          View Details
+                          Dettagli
                         </Button>
                       </div>
                     </CardFooter>

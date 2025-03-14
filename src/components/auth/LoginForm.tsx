@@ -34,13 +34,13 @@ class LoginFormClass extends React.Component<LoginFormProps> {
     showPassword: false,
     username: "admin",
     password: "admin123",
-    role: "Medico",
     localError: "",
+    role: "Utente",
   };
 
   handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { username, password, role } = this.state;
+    const { username, password } = this.state;
 
     if (!username || !password) {
       this.setState({ localError: "Username e password sono obbligatori" });
@@ -57,7 +57,7 @@ class LoginFormClass extends React.Component<LoginFormProps> {
       if (result.user) {
         // Login riuscito, passa i dati al componente padre
         if (this.props.onSubmit) {
-          this.props.onSubmit({ username, password, role });
+          this.props.onSubmit({ username, password, role: "Utente" });
         }
       } else {
         // Login fallito, mostra l'errore
@@ -78,10 +78,6 @@ class LoginFormClass extends React.Component<LoginFormProps> {
   handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     this.setState({ [name]: value, localError: "" });
-  };
-
-  handleRoleChange = (value: string) => {
-    this.setState({ role: value, localError: "" });
   };
 
   render() {
@@ -143,21 +139,6 @@ class LoginFormClass extends React.Component<LoginFormProps> {
                     readOnly={false}
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Ruolo
-                </label>
-                <Select value={role} onValueChange={this.handleRoleChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona il tuo ruolo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Medico">Medico</SelectItem>
-                    <SelectItem value="Assistente">Assistente</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
 
               <div className="flex items-center space-x-2">

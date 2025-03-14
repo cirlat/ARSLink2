@@ -23,13 +23,53 @@ interface BackupStatusProps {
 }
 
 const BackupStatus: React.FC<BackupStatusProps> = ({
-  lastBackupTime = "2023-06-10 14:30:00",
-  backupLocation = "C:\\ProgramData\\PatientAppointmentSystem\\Backups",
-  backupStatus = "success",
+  lastBackupTime = localStorage.getItem("lastBackup") ||
+    new Date().toISOString(),
+  backupLocation = localStorage.getItem("backupPath") ||
+    "C:\\ProgramData\\PatientAppointmentSystem\\Backups",
+  backupStatus = localStorage.getItem("lastBackupStatus") || "success",
   errorMessage = "",
   backupProgress = 100,
-  nextScheduledBackup = "2023-06-11 02:00:00",
-  onManualBackup = () => console.log("Manual backup triggered"),
+  nextScheduledBackup = (() => {
+    const lastBackup = localStorage.getItem("lastBackup");
+    if (!lastBackup)
+      return new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const backupFrequency = localStorage.getItem("backupFrequency") || "daily";
+    const lastBackupDate = new Date(lastBackup);
+    if (backupFrequency === "daily") {
+      return new Date(
+        lastBackupDate.getTime() + 24 * 60 * 60 * 1000,
+      ).toISOString();
+    } else if (backupFrequency === "weekly") {
+      return new Date(
+        lastBackupDate.getTime() + 7 * 24 * 60 * 60 * 1000,
+      ).toISOString();
+    } else {
+      return new Date(
+        lastBackupDate.getTime() + 30 * 24 * 60 * 60 * 1000,
+      ).toISOString();
+    }
+  })(),
+  onManualBackup = async () => {
+    try {
+      const { backupDatabase } = await import("@/utils/dbUtils");
+      const backupPath =
+        localStorage.getItem("backupPath") ||
+        "C:\\ProgramData\\PatientAppointmentSystem\\Backups";
+      const result = await backupDatabase(backupPath);
+      if (result) {
+        alert("Backup completato con successo!");
+        window.location.reload();
+      } else {
+        alert("Errore durante il backup. Controlla il percorso e riprova.");
+      }
+    } catch (error) {
+      console.error("Errore durante il backup:", error);
+      alert(
+        `Errore durante il backup: ${error.message || "Errore sconosciuto"}`,
+      );
+    }
+  },
 }) => {
   const [timeUntilNextBackup, setTimeUntilNextBackup] = useState<string>("");
 

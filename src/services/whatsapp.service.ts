@@ -104,6 +104,8 @@ export class WhatsAppService {
     phoneNumber: string,
     message: string,
   ): Promise<boolean> {
+    // Formatta il numero di telefono per WhatsApp
+    phoneNumber = this.formatPhoneNumber(phoneNumber);
     if (!this.isEnabled || !this.isAuthenticated) {
       return false;
     }
@@ -195,9 +197,33 @@ export class WhatsAppService {
 
   // Metodo helper per validare il formato del numero di telefono
   private isValidPhoneNumber(phoneNumber: string): boolean {
-    // Formato base: +39 123 456 7890 o varianti
-    const phoneRegex = /^\+?[0-9\s]{10,15}$/;
+    // Accetta qualsiasi numero con almeno 8 cifre, con o senza prefisso internazionale
+    const phoneRegex = /^\+?[0-9\s]{8,15}$/;
     return phoneRegex.test(phoneNumber.replace(/\s/g, ""));
+  }
+
+  // Metodo per formattare il numero di telefono per WhatsApp
+  private formatPhoneNumber(phoneNumber: string): string {
+    // Rimuove spazi e caratteri non numerici
+    let formattedNumber = phoneNumber
+      .replace(/\s+/g, "")
+      .replace(/[^0-9+]/g, "");
+
+    // Assicura che il numero inizi con +
+    if (!formattedNumber.startsWith("+")) {
+      // Se inizia con 00, sostituisci con +
+      if (formattedNumber.startsWith("00")) {
+        formattedNumber = "+" + formattedNumber.substring(2);
+      } else if (formattedNumber.startsWith("0")) {
+        // Se inizia con 0, assumiamo sia un numero italiano e aggiungiamo +39
+        formattedNumber = "+39" + formattedNumber;
+      } else {
+        // Altrimenti aggiungiamo semplicemente +
+        formattedNumber = "+" + formattedNumber;
+      }
+    }
+
+    return formattedNumber;
   }
 
   async sendAppointmentConfirmation(

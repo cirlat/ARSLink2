@@ -38,7 +38,7 @@ const Sidebar = ({
   onLogout = () => console.log("Logout clicked"),
 }: SidebarProps) => {
   // Use a class-based approach instead of hooks
-  const toggleCollapsed = (event) => {
+  const toggleCollapsed = (event: React.MouseEvent) => {
     const sidebar = event.currentTarget.closest(
       'div[class*="flex flex-col h-full"]',
     );
