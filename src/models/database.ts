@@ -214,6 +214,8 @@ class Database {
     appointments: [],
     license: [],
     configurations: [],
+    notifications: [],
+    medical_records: [],
   };
 
   private simulateQuery(
@@ -269,6 +271,8 @@ class Database {
       "appointments",
       "license",
       "configurations",
+      "notifications",
+      "medical_records",
     ];
     for (const table of tables) {
       if (query.toLowerCase().includes(table)) {
@@ -596,7 +600,8 @@ class Database {
         }
       } else if (isRunningInElectron()) {
         // If in Electron but couldn't use pg directly
-        const result = await electronAPI.executeQuery(
+        // Create users table
+        let result = await electronAPI.executeQuery(
           `CREATE TABLE IF NOT EXISTS "users" (
             id SERIAL PRIMARY KEY,
             username VARCHAR(50) UNIQUE NOT NULL,
@@ -611,10 +616,148 @@ class Database {
         );
 
         if (!result.success) {
-          throw new Error(result.error || "Error initializing database");
+          throw new Error(result.error || "Error initializing users table");
         }
 
-        // Continue with other tables...
+        // Create patients table
+        result = await electronAPI.executeQuery(
+          `CREATE TABLE IF NOT EXISTS "patients" (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            codice_fiscale VARCHAR(16) UNIQUE NOT NULL,
+            date_of_birth DATE NOT NULL,
+            gender VARCHAR(10) NOT NULL,
+            email VARCHAR(100),
+            phone VARCHAR(20) NOT NULL,
+            address TEXT,
+            city VARCHAR(50),
+            postal_code VARCHAR(10),
+            medical_history TEXT,
+            allergies TEXT,
+            medications TEXT,
+            notes TEXT,
+            privacy_consent BOOLEAN NOT NULL DEFAULT FALSE,
+            marketing_consent BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )`,
+          [],
+        );
+
+        if (!result.success) {
+          throw new Error(result.error || "Error initializing patients table");
+        }
+
+        // Create appointments table
+        result = await electronAPI.executeQuery(
+          `CREATE TABLE IF NOT EXISTS "appointments" (
+            id SERIAL PRIMARY KEY,
+            patient_id INTEGER NOT NULL REFERENCES "patients"(id) ON DELETE CASCADE,
+            date DATE NOT NULL,
+            time TIME NOT NULL,
+            duration INTEGER NOT NULL,
+            appointment_type VARCHAR(50) NOT NULL,
+            notes TEXT,
+            google_calendar_synced BOOLEAN NOT NULL DEFAULT FALSE,
+            google_event_id VARCHAR(100),
+            whatsapp_notification_sent BOOLEAN NOT NULL DEFAULT FALSE,
+            whatsapp_notification_time TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )`,
+          [],
+        );
+
+        if (!result.success) {
+          throw new Error(
+            result.error || "Error initializing appointments table",
+          );
+        }
+
+        // Create license table
+        result = await electronAPI.executeQuery(
+          `CREATE TABLE IF NOT EXISTS "license" (
+            id SERIAL PRIMARY KEY,
+            license_key VARCHAR(100) UNIQUE NOT NULL,
+            license_type VARCHAR(20) NOT NULL,
+            expiry_date DATE NOT NULL,
+            google_calendar_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+            whatsapp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )`,
+          [],
+        );
+
+        if (!result.success) {
+          throw new Error(result.error || "Error initializing license table");
+        }
+
+        // Create configurations table
+        result = await electronAPI.executeQuery(
+          `CREATE TABLE IF NOT EXISTS "configurations" (
+            id SERIAL PRIMARY KEY,
+            key VARCHAR(50) UNIQUE NOT NULL,
+            value TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )`,
+          [],
+        );
+
+        if (!result.success) {
+          throw new Error(
+            result.error || "Error initializing configurations table",
+          );
+        }
+
+        // Create notifications table
+        result = await electronAPI.executeQuery(
+          `CREATE TABLE IF NOT EXISTS "notifications" (
+            id SERIAL PRIMARY KEY,
+            patient_id INTEGER NOT NULL REFERENCES "patients"(id) ON DELETE CASCADE,
+            patient_name VARCHAR(100) NOT NULL,
+            appointment_id INTEGER REFERENCES "appointments"(id) ON DELETE SET NULL,
+            appointment_date DATE,
+            appointment_time TIME,
+            message TEXT NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            type VARCHAR(20) NOT NULL,
+            sent_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )`,
+          [],
+        );
+
+        if (!result.success) {
+          throw new Error(
+            result.error || "Error initializing notifications table",
+          );
+        }
+
+        // Create medical_records table
+        result = await electronAPI.executeQuery(
+          `CREATE TABLE IF NOT EXISTS "medical_records" (
+            id SERIAL PRIMARY KEY,
+            patient_id INTEGER NOT NULL REFERENCES "patients"(id) ON DELETE CASCADE,
+            record_date DATE NOT NULL,
+            diagnosis TEXT,
+            treatment TEXT,
+            notes TEXT,
+            attachments TEXT[],
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )`,
+          [],
+        );
+
+        if (!result.success) {
+          throw new Error(
+            result.error || "Error initializing medical_records table",
+          );
+        }
+
         console.log("Database initialized successfully via Electron API");
       } else {
         // Fallback to simulated client
@@ -623,7 +766,114 @@ class Database {
         try {
           await client.query("BEGIN");
 
-          // Implement table creation queries as above
+          // Create all tables in simulation mode
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS "users" (
+              id SERIAL PRIMARY KEY,
+              username VARCHAR(50) UNIQUE NOT NULL,
+              password VARCHAR(100) NOT NULL,
+              full_name VARCHAR(100) NOT NULL,
+              email VARCHAR(100) UNIQUE NOT NULL,
+              role VARCHAR(20) NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS "patients" (
+              id SERIAL PRIMARY KEY,
+              name VARCHAR(100) NOT NULL,
+              codice_fiscale VARCHAR(16) UNIQUE NOT NULL,
+              date_of_birth DATE NOT NULL,
+              gender VARCHAR(10) NOT NULL,
+              email VARCHAR(100),
+              phone VARCHAR(20) NOT NULL,
+              address TEXT,
+              city VARCHAR(50),
+              postal_code VARCHAR(10),
+              medical_history TEXT,
+              allergies TEXT,
+              medications TEXT,
+              notes TEXT,
+              privacy_consent BOOLEAN NOT NULL DEFAULT FALSE,
+              marketing_consent BOOLEAN NOT NULL DEFAULT FALSE,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS "appointments" (
+              id SERIAL PRIMARY KEY,
+              patient_id INTEGER NOT NULL REFERENCES "patients"(id) ON DELETE CASCADE,
+              date DATE NOT NULL,
+              time TIME NOT NULL,
+              duration INTEGER NOT NULL,
+              appointment_type VARCHAR(50) NOT NULL,
+              notes TEXT,
+              google_calendar_synced BOOLEAN NOT NULL DEFAULT FALSE,
+              google_event_id VARCHAR(100),
+              whatsapp_notification_sent BOOLEAN NOT NULL DEFAULT FALSE,
+              whatsapp_notification_time TIMESTAMP,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS "license" (
+              id SERIAL PRIMARY KEY,
+              license_key VARCHAR(100) UNIQUE NOT NULL,
+              license_type VARCHAR(20) NOT NULL,
+              expiry_date DATE NOT NULL,
+              google_calendar_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+              whatsapp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS "configurations" (
+              id SERIAL PRIMARY KEY,
+              key VARCHAR(50) UNIQUE NOT NULL,
+              value TEXT NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS "notifications" (
+              id SERIAL PRIMARY KEY,
+              patient_id INTEGER NOT NULL REFERENCES "patients"(id) ON DELETE CASCADE,
+              patient_name VARCHAR(100) NOT NULL,
+              appointment_id INTEGER REFERENCES "appointments"(id) ON DELETE SET NULL,
+              appointment_date DATE,
+              appointment_time TIME,
+              message TEXT NOT NULL,
+              status VARCHAR(20) NOT NULL DEFAULT 'pending',
+              type VARCHAR(20) NOT NULL,
+              sent_at TIMESTAMP,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS "medical_records" (
+              id SERIAL PRIMARY KEY,
+              patient_id INTEGER NOT NULL REFERENCES "patients"(id) ON DELETE CASCADE,
+              record_date DATE NOT NULL,
+              diagnosis TEXT,
+              treatment TEXT,
+              notes TEXT,
+              attachments TEXT[],
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
 
           console.log("Database initialized successfully (simulated)");
         } catch (error) {
