@@ -71,22 +71,27 @@ const SecuritySettings = () => {
         }
       }
 
-      // Ottieni l'utente corrente
-      const currentUser = JSON.parse(
+      // Ottieni l'utente corrente dal localStorage
+      const currentUserData = JSON.parse(
         localStorage.getItem("currentUser") || "{}",
       );
 
-      if (!currentUser || !currentUser.username) {
-        throw new Error("Utente non autenticato o dati utente incompleti");
-      }
-
-      // Verifica la password corrente
+      // Ottieni l'utente dal database
       const { UserModel } = await import("@/models/user");
       const userModel = new UserModel();
-      const user = await userModel.findByUsername(currentUser.username);
+
+      // Cerca l'utente per ID invece che per username
+      const user = await userModel.findById(currentUserData.id);
 
       if (!user) {
-        throw new Error("Utente non trovato");
+        // Se l'utente non è trovato per ID, prova con lo username come fallback
+        const userByUsername = await userModel.findByUsername(
+          currentUserData.username,
+        );
+        if (!userByUsername) {
+          throw new Error("Utente non trovato");
+        }
+        return userByUsername;
       }
 
       // Verifica la password corrente
@@ -126,30 +131,24 @@ const SecuritySettings = () => {
     <Card>
       <CardHeader>
         <CardTitle>Sicurezza Account</CardTitle>
-        <CardDescription>
-          Gestisci le impostazioni di sicurezza del tuo account
-        </CardDescription>
+        <CardDescription>Modifica la password del tuo account</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent>
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Errore</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {success && (
+          <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
+            <Check className="h-4 w-4" />
+            <AlertTitle>Successo</AlertTitle>
+            <AlertDescription>{success}</AlertDescription>
+          </Alert>
+        )}
         <form onSubmit={handleChangePassword} className="space-y-4">
-          <h3 className="text-lg font-medium">Cambio Password</h3>
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Errore</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {success && (
-            <Alert variant="default" className="bg-green-50 border-green-200">
-              <Check className="h-4 w-4 text-green-600" />
-              <AlertTitle>Operazione completata</AlertTitle>
-              <AlertDescription>{success}</AlertDescription>
-            </Alert>
-          )}
-
           <div className="space-y-2">
             <Label htmlFor="current-password">Password Attuale</Label>
             <Input
@@ -157,10 +156,8 @@ const SecuritySettings = () => {
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="Inserisci la password attuale"
             />
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="new-password">Nuova Password</Label>
             <Input
@@ -168,10 +165,8 @@ const SecuritySettings = () => {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Inserisci la nuova password"
             />
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="confirm-password">Conferma Nuova Password</Label>
             <Input
@@ -179,15 +174,11 @@ const SecuritySettings = () => {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Conferma la nuova password"
             />
           </div>
-
-          <CardFooter className="px-0 pt-4">
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Aggiornamento in corso..." : "Aggiorna Password"}
-            </Button>
-          </CardFooter>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? "Aggiornamento..." : "Aggiorna Password"}
+          </Button>
         </form>
       </CardContent>
     </Card>

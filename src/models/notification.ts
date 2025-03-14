@@ -1,4 +1,5 @@
 import Database from "./database";
+import { electronAPI, isRunningInElectron } from "../lib/electronBridge";
 
 export interface Notification {
   id?: number;
@@ -20,6 +21,37 @@ export class NotificationModel {
 
   constructor() {
     this.db = Database.getInstance();
+    this.ensureTableExists();
+  }
+
+  private async ensureTableExists(): Promise<void> {
+    try {
+      if (isRunningInElectron()) {
+        // Use Electron API to ensure the table exists
+        await electronAPI.executeQuery("ensure-notifications-table", []);
+      } else {
+        // In browser environment, create the table using the Database instance
+        await this.db.query(`
+          CREATE TABLE IF NOT EXISTS notifications (
+            id SERIAL PRIMARY KEY,
+            patient_id INTEGER NOT NULL,
+            patient_name VARCHAR(100) NOT NULL,
+            appointment_id INTEGER,
+            appointment_date DATE,
+            appointment_time TIME,
+            message TEXT NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            type VARCHAR(20) NOT NULL,
+            sent_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+      }
+      console.log("Ensured notifications table exists");
+    } catch (error) {
+      console.error("Error ensuring notifications table exists:", error);
+    }
   }
 
   async create(notification: Notification): Promise<Notification> {

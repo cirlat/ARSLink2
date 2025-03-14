@@ -629,7 +629,7 @@ export async function createDirectoryIfNotExists(
       try {
         // Usa l'API Electron per creare la directory
         const result = await electronAPI.executeQuery(
-          "CREATE_DIRECTORY", // Comando corretto per l'API Electron
+          "MKDIR", // Comando corretto per l'API Electron
           [dirPath],
         );
 

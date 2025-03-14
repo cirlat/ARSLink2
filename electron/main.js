@@ -289,3 +289,222 @@ ipcMain.handle("save-db-config", async (event, config) => {
     return { success: false, error: error.message };
   }
 });
+
+// File system handlers
+
+// Create directory handler
+ipcMain.handle("create-directory", async (event, dirPath) => {
+  try {
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+      console.log(`Directory created: ${dirPath}`);
+    } else {
+      console.log(`Directory already exists: ${dirPath}`);
+    }
+    return { success: true };
+  } catch (error) {
+    console.error(`Error creating directory: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+// Write file handler
+ipcMain.handle("write-file", async (event, { filePath, data }) => {
+  try {
+    fs.writeFileSync(filePath, data);
+    console.log(`File written: ${filePath}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`Error writing file: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+// Read file handler
+ipcMain.handle("read-file", async (event, filePath) => {
+  try {
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+    const data = fs.readFileSync(filePath);
+    console.log(`File read: ${filePath}`);
+    return { success: true, data };
+  } catch (error) {
+    console.error(`Error reading file: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+// Delete file handler
+ipcMain.handle("delete-file", async (event, filePath) => {
+  try {
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+    fs.unlinkSync(filePath);
+    console.log(`File deleted: ${filePath}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`Error deleting file: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get file info handler
+ipcMain.handle("get-file-info", async (event, filePath) => {
+  try {
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+    const stats = fs.statSync(filePath);
+    console.log(`File info retrieved: ${filePath}`);
+    return {
+      success: true,
+      info: {
+        size: stats.size,
+        created: stats.birthtime,
+        modified: stats.mtime,
+        isDirectory: stats.isDirectory(),
+        isFile: stats.isFile(),
+      },
+    };
+  } catch (error) {
+    console.error(`Error getting file info: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+// Open file with default application handler
+ipcMain.handle("open-file", async (event, filePath) => {
+  try {
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+    const { shell } = require("electron");
+    await shell.openPath(filePath);
+    console.log(`File opened: ${filePath}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`Error opening file: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+// Path operations handlers
+ipcMain.handle("join-paths", async (event, paths) => {
+  try {
+    const joinedPath = path.join(...paths);
+    return { success: true, path: joinedPath };
+  } catch (error) {
+    console.error(`Error joining paths: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get user data path handler
+ipcMain.handle("get-user-data-path", async (event) => {
+  try {
+    const userDataPath = app.getPath("userData");
+    return { success: true, path: userDataPath };
+  } catch (error) {
+    console.error(`Error getting user data path: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+// Create medical_records table if it doesn't exist
+ipcMain.handle("ensure-medical-records-table", async (event) => {
+  try {
+    // Get database configuration from app storage
+    const dbConfig = getDbConfig();
+    if (!dbConfig) {
+      throw new Error("Database configuration not found");
+    }
+
+    const client = new Client({
+      host: dbConfig.host,
+      port: parseInt(dbConfig.port),
+      user: dbConfig.username,
+      password: dbConfig.password || "",
+      database: dbConfig.dbName,
+      ssl: false,
+    });
+
+    await client.connect();
+    console.log("Connected to database for medical_records table creation");
+
+    // Create medical_records table if it doesn't exist
+    const createTableQuery = `
+      CREATE TABLE IF NOT EXISTS medical_records (
+        id SERIAL PRIMARY KEY,
+        patient_id INTEGER NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        date DATE NOT NULL,
+        doctor VARCHAR(100) NOT NULL,
+        description TEXT,
+        files TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    await client.query(createTableQuery);
+    console.log("medical_records table created or already exists");
+    await client.end();
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error creating medical_records table:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Create notifications table if it doesn't exist
+ipcMain.handle("ensure-notifications-table", async (event) => {
+  try {
+    // Get database configuration from app storage
+    const dbConfig = getDbConfig();
+    if (!dbConfig) {
+      throw new Error("Database configuration not found");
+    }
+
+    const client = new Client({
+      host: dbConfig.host,
+      port: parseInt(dbConfig.port),
+      user: dbConfig.username,
+      password: dbConfig.password || "",
+      database: dbConfig.dbName,
+      ssl: false,
+    });
+
+    await client.connect();
+    console.log("Connected to database for notifications table creation");
+
+    // Create notifications table if it doesn't exist
+    const createTableQuery = `
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        patient_id INTEGER NOT NULL,
+        patient_name VARCHAR(100) NOT NULL,
+        appointment_id INTEGER,
+        appointment_date DATE,
+        appointment_time TIME,
+        message TEXT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        type VARCHAR(20) NOT NULL,
+        sent_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    await client.query(createTableQuery);
+    console.log("notifications table created or already exists");
+    await client.end();
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error creating notifications table:", error);
+    return { success: false, error: error.message };
+  }
+});

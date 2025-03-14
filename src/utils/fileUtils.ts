@@ -1,6 +1,15 @@
 import { electronAPI, isRunningInElectron } from "../lib/electronBridge";
 import { v4 as uuidv4 } from "uuid";
-import path from "path";
+
+// Import path only in Electron environment to avoid browser compatibility issues
+let pathModule: any;
+if (
+  typeof window === "undefined" ||
+  (window as any).process?.type === "renderer"
+) {
+  // We're in Node.js or Electron renderer process
+  pathModule = require("path");
+}
 
 /**
  * Get the documents directory path
@@ -16,7 +25,21 @@ export async function getDocumentsPath(): Promise<string> {
         // Get user data path from Electron
         const result = await electronAPI.executeQuery("GET_USER_DATA_PATH", []);
         if (result.success && result.rows && result.rows.length > 0) {
-          documentsPath = path.join(result.rows[0], "Documents");
+          // Use Electron API to join paths instead of path module
+          documentsPath = await electronAPI.executeQuery("JOIN_PATHS", [
+            result.rows[0],
+            "Documents",
+          ]);
+          if (
+            documentsPath.success &&
+            documentsPath.rows &&
+            documentsPath.rows.length > 0
+          ) {
+            documentsPath = documentsPath.rows[0];
+          } else {
+            documentsPath =
+              "C:\\ProgramData\\PatientAppointmentSystem\\Documents";
+          }
         } else {
           // Fallback to default path
           documentsPath =
@@ -66,9 +89,7 @@ export async function createDirectoryIfNotExists(
       try {
         // Use Electron API to create directory
         // In Electron, we need to use a specific command for file system operations
-        const result = await electronAPI.executeQuery("CREATE_DIRECTORY", [
-          dirPath,
-        ]);
+        const result = await electronAPI.executeQuery("MKDIR", [dirPath]);
         if (result.success) {
           console.log(`Directory created: ${dirPath}`);
           return true;
@@ -117,7 +138,22 @@ export async function saveFile(
     const documentsPath = await getDocumentsPath();
 
     // Create patient-specific directory
-    const patientDir = path.join(documentsPath, `patient_${patientId}`);
+    let patientDir;
+    if (isRunningInElectron()) {
+      // Use Electron API to join paths
+      const result = await electronAPI.executeQuery("JOIN_PATHS", [
+        documentsPath,
+        `patient_${patientId}`,
+      ]);
+      if (result.success && result.rows && result.rows.length > 0) {
+        patientDir = result.rows[0];
+      } else {
+        patientDir = `${documentsPath}/patient_${patientId}`;
+      }
+    } else {
+      // Simple string concatenation for browser
+      patientDir = `${documentsPath}/patient_${patientId}`;
+    }
     const success = await createDirectoryIfNotExists(patientDir);
 
     if (!success) {
@@ -127,7 +163,22 @@ export async function saveFile(
     // Generate unique filename
     const fileExtension = file.name.split(".").pop() || "";
     const uniqueFilename = `${uuidv4()}.${fileExtension}`;
-    const filePath = path.join(patientDir, uniqueFilename);
+    let filePath;
+    if (isRunningInElectron()) {
+      // Use Electron API to join paths
+      const result = await electronAPI.executeQuery("JOIN_PATHS", [
+        patientDir,
+        uniqueFilename,
+      ]);
+      if (result.success && result.rows && result.rows.length > 0) {
+        filePath = result.rows[0];
+      } else {
+        filePath = `${patientDir}/${uniqueFilename}`;
+      }
+    } else {
+      // Simple string concatenation for browser
+      filePath = `${patientDir}/${uniqueFilename}`;
+    }
 
     if (isRunningInElectron()) {
       // Read file as array buffer
