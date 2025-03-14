@@ -38,6 +38,7 @@ interface MedicalRecord {
   title: string;
   doctor: string;
   description: string;
+  files?: string[];
 }
 
 interface Communication {
@@ -628,8 +629,8 @@ const PatientDetails = (props: PatientDetailsProps) => {
                       <div class="space-y-4">
                         <h2 class="text-xl font-bold">Aggiungi Documento Medico</h2>
                         <div class="space-y-2">
-                          <label className="text-sm font-medium">Titolo</label>
-                          <input id="doc-title" type="text" className="w-full p-2 border rounded-md" placeholder="Titolo del documento" />
+                          <label class="text-sm font-medium">Titolo</label>
+                          <input id="doc-title" type="text" class="w-full p-2 border rounded-md" placeholder="Titolo del documento" />
                         </div>
                         <div class="space-y-2">
                           <label class="text-sm font-medium">Data</label>
@@ -645,7 +646,7 @@ const PatientDetails = (props: PatientDetailsProps) => {
                         </div>
                         <div class="space-y-2">
                           <label class="text-sm font-medium">File (opzionale)</label>
-                          <input id="doc-file" type="file" class="w-full p-2 border rounded-md" />
+                          <input id="doc-file" type="file" class="w-full p-2 border rounded-md" multiple />
                         </div>
                         <div class="flex justify-end space-x-2 pt-4">
                           <button id="cancel-doc" class="px-4 py-2 border border-gray-300 rounded-md">Annulla</button>
@@ -699,23 +700,78 @@ const PatientDetails = (props: PatientDetailsProps) => {
                           }
 
                           try {
-                            // In un'implementazione reale, qui salveremmo il documento nel database
-                            // Per ora, aggiungiamo il documento alla lista locale
-                            const newRecord = {
-                              id: `rec${Date.now()}`,
-                              date,
-                              title,
-                              doctor,
-                              description,
-                            };
+                            // Ottieni i file selezionati
+                            const fileInput = document.getElementById(
+                              "doc-file",
+                            ) as HTMLInputElement;
+                            const files = fileInput?.files;
 
-                            setMedicalRecords([newRecord, ...medicalRecords]);
+                            try {
+                              // Salva i file su disco
+                              const { saveFiles } = await import(
+                                "@/utils/fileUtils"
+                              );
+                              const filePaths =
+                                files && files.length > 0
+                                  ? await saveFiles(files, parseInt(patient.id))
+                                  : [];
 
-                            // Chiudi il form
-                            document.body.removeChild(dialog);
+                              // Salva il documento nel database
+                              const { MedicalRecordModel } = await import(
+                                "@/models/medicalRecord"
+                              );
+                              const medicalRecordModel =
+                                new MedicalRecordModel();
 
-                            // Mostra un messaggio di successo
-                            alert("Documento aggiunto con successo!");
+                              const newRecordData = {
+                                patient_id: parseInt(patient.id),
+                                date: new Date(date),
+                                title,
+                                doctor,
+                                description,
+                                files: filePaths,
+                              };
+
+                              const savedRecord =
+                                await medicalRecordModel.create(newRecordData);
+
+                              if (savedRecord) {
+                                // Aggiorna la lista locale
+                                const newRecord = {
+                                  id:
+                                    savedRecord.id?.toString() ||
+                                    `rec${Date.now()}`,
+                                  date,
+                                  title,
+                                  doctor,
+                                  description,
+                                  files: filePaths,
+                                };
+
+                                setMedicalRecords([
+                                  newRecord,
+                                  ...medicalRecords,
+                                ]);
+
+                                // Chiudi il form
+                                document.body.removeChild(dialog);
+
+                                // Mostra un messaggio di successo
+                                alert("Documento aggiunto con successo!");
+                              } else {
+                                throw new Error(
+                                  "Errore nel salvataggio del documento",
+                                );
+                              }
+                            } catch (error) {
+                              console.error(
+                                "Errore durante il salvataggio del documento:",
+                                error,
+                              );
+                              alert(
+                                `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                              );
+                            }
                           } catch (error) {
                             console.error(
                               "Errore durante il salvataggio del documento:",
@@ -792,6 +848,31 @@ const PatientDetails = (props: PatientDetailsProps) => {
                                 <div class="bg-gray-50 p-4 rounded-md">
                                   <p>${documentContent}</p>
                                 </div>
+                                ${
+                                  record.files && record.files.length > 0
+                                    ? `
+                                <div class="mt-4">
+                                  <h3 class="text-sm font-medium text-gray-700 mb-2">File allegati:</h3>
+                                  <div class="space-y-2">
+                                    ${
+                                      Array.isArray(record.files)
+                                        ? record.files
+                                            .map(
+                                              (file, index) => `
+                                      <div class="flex items-center justify-between p-2 bg-blue-50 rounded border border-blue-200">
+                                        <span class="text-sm truncate max-w-[300px]">${file.split("/").pop() || file.split("\\").pop()}</span>
+                                        <button id="open-file-${index}" class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Apri</button>
+                                      </div>
+                                    `,
+                                            )
+                                            .join("")
+                                        : ""
+                                    }
+                                  </div>
+                                </div>
+                                `
+                                    : ""
+                                }
                               </div>
                             </div>
                           `;
@@ -803,6 +884,36 @@ const PatientDetails = (props: PatientDetailsProps) => {
                               ?.addEventListener("click", () => {
                                 document.body.removeChild(modal);
                               });
+
+                            // Add event listeners for file open buttons
+                            if (record.files && Array.isArray(record.files)) {
+                              record.files.forEach((file, index) => {
+                                document
+                                  .getElementById(`open-file-${index}`)
+                                  ?.addEventListener("click", async (e) => {
+                                    e.stopPropagation();
+                                    try {
+                                      const { openFile } = await import(
+                                        "@/utils/fileUtils"
+                                      );
+                                      const success = await openFile(file);
+                                      if (!success) {
+                                        alert(
+                                          "Impossibile aprire il file. Verificare che esista e che sia accessibile.",
+                                        );
+                                      }
+                                    } catch (error) {
+                                      console.error(
+                                        "Errore nell'apertura del file:",
+                                        error,
+                                      );
+                                      alert(
+                                        `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                                      );
+                                    }
+                                  });
+                              });
+                            }
                           }}
                         >
                           <FileText className="h-4 w-4 mr-1" />
@@ -836,6 +947,36 @@ const PatientDetails = (props: PatientDetailsProps) => {
                                   <label class="text-sm font-medium">Descrizione</label>
                                   <textarea id="edit-doc-description" class="w-full p-2 border rounded-md h-32">${record.description}</textarea>
                                 </div>
+                                <div class="space-y-2">
+                                  <label class="text-sm font-medium">File allegati</label>
+                                  ${
+                                    record.files &&
+                                    Array.isArray(record.files) &&
+                                    record.files.length > 0
+                                      ? `
+                                  <div class="mb-2">
+                                    <p class="text-sm text-gray-500">File esistenti:</p>
+                                    <div class="space-y-1 mt-1">
+                                      ${record.files
+                                        .map(
+                                          (file, index) => `
+                                        <div class="flex items-center justify-between p-2 bg-blue-50 rounded border border-blue-200">
+                                          <span class="text-sm truncate max-w-[300px]">${file.split("/").pop() || file.split("\\").pop()}</span>
+                                          <button id="remove-file-${index}" class="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700">Rimuovi</button>
+                                        </div>
+                                      `,
+                                        )
+                                        .join("")}
+                                    </div>
+                                  </div>
+                                  `
+                                      : ""
+                                  }
+                                  <div>
+                                    <p class="text-sm text-gray-500 mb-1">Aggiungi nuovi file:</p>
+                                    <input id="edit-doc-files" type="file" class="w-full p-2 border rounded-md" multiple />
+                                  </div>
+                                </div>
                                 <div class="flex justify-end space-x-2 pt-4">
                                   <button id="cancel-edit-doc" class="px-4 py-2 border border-gray-300 rounded-md">Annulla</button>
                                   <button id="save-edit-doc" class="px-4 py-2 bg-blue-600 text-white rounded-md">Salva Modifiche</button>
@@ -852,10 +993,33 @@ const PatientDetails = (props: PatientDetailsProps) => {
                                 document.body.removeChild(modal);
                               });
 
-                            // Gestisci il salvataggio delle modifiche
+                            // Add event listeners for file removal buttons
+                            if (record.files && Array.isArray(record.files)) {
+                              record.files.forEach((file, index) => {
+                                document
+                                  .getElementById(`remove-file-${index}`)
+                                  ?.addEventListener("click", (e) => {
+                                    e.stopPropagation();
+                                    // Mark file for removal by adding a class
+                                    const fileElement = document
+                                      .getElementById(`remove-file-${index}`)
+                                      ?.closest("div");
+                                    if (fileElement) {
+                                      fileElement.classList.add(
+                                        "to-be-removed",
+                                      );
+                                      fileElement.style.opacity = "0.5";
+                                      fileElement.querySelector(
+                                        "button",
+                                      ).textContent = "Annullato";
+                                    }
+                                  });
+                              });
+                            }
+
                             document
                               .getElementById("save-edit-doc")
-                              ?.addEventListener("click", () => {
+                              ?.addEventListener("click", async () => {
                                 const title = (
                                   document.getElementById(
                                     "edit-doc-title",
@@ -876,6 +1040,11 @@ const PatientDetails = (props: PatientDetailsProps) => {
                                     "edit-doc-description",
                                   ) as HTMLTextAreaElement
                                 )?.value;
+                                const newFiles = (
+                                  document.getElementById(
+                                    "edit-doc-files",
+                                  ) as HTMLInputElement
+                                )?.files;
 
                                 if (
                                   !title ||
@@ -887,28 +1056,115 @@ const PatientDetails = (props: PatientDetailsProps) => {
                                   return;
                                 }
 
-                                // Aggiorna il record nella lista locale
-                                const updatedRecord = {
-                                  ...record,
-                                  title,
-                                  date,
-                                  doctor,
-                                  description,
-                                };
+                                try {
+                                  // Get files to keep (not marked for removal)
+                                  const filesToKeep = [];
+                                  if (
+                                    record.files &&
+                                    Array.isArray(record.files)
+                                  ) {
+                                    for (
+                                      let i = 0;
+                                      i < record.files.length;
+                                      i++
+                                    ) {
+                                      const fileElement = document
+                                        .getElementById(`remove-file-${i}`)
+                                        ?.closest("div");
+                                      if (
+                                        fileElement &&
+                                        !fileElement.classList.contains(
+                                          "to-be-removed",
+                                        )
+                                      ) {
+                                        filesToKeep.push(record.files[i]);
+                                      }
+                                    }
+                                  }
 
-                                // Aggiorna la lista dei record medici
-                                const updatedRecords = medicalRecords.map(
-                                  (r) =>
-                                    r.id === record.id ? updatedRecord : r,
-                                );
+                                  // Save new files
+                                  let newFilePaths = [];
+                                  if (newFiles && newFiles.length > 0) {
+                                    const { saveFiles } = await import(
+                                      "@/utils/fileUtils"
+                                    );
+                                    newFilePaths = await saveFiles(
+                                      newFiles,
+                                      parseInt(patient.id),
+                                    );
+                                  }
 
-                                setMedicalRecords(updatedRecords);
+                                  // Combine existing and new files
+                                  const allFiles = [
+                                    ...filesToKeep,
+                                    ...newFilePaths,
+                                  ];
 
-                                // Chiudi il form
-                                document.body.removeChild(modal);
+                                  // Update record in database
+                                  const { MedicalRecordModel } = await import(
+                                    "@/models/medicalRecord"
+                                  );
+                                  const medicalRecordModel =
+                                    new MedicalRecordModel();
 
-                                // Mostra un messaggio di successo
-                                alert("Documento aggiornato con successo!");
+                                  const updatedRecordData = {
+                                    title,
+                                    date: new Date(date),
+                                    doctor,
+                                    description,
+                                    files: allFiles,
+                                  };
+
+                                  // If it's a real database record (has numeric ID)
+                                  if (
+                                    record.id &&
+                                    !isNaN(parseInt(record.id))
+                                  ) {
+                                    const savedRecord =
+                                      await medicalRecordModel.update(
+                                        parseInt(record.id),
+                                        updatedRecordData,
+                                      );
+
+                                    if (!savedRecord) {
+                                      throw new Error(
+                                        "Errore nell'aggiornamento del documento",
+                                      );
+                                    }
+                                  }
+
+                                  // Update local record
+                                  const updatedRecord = {
+                                    ...record,
+                                    title,
+                                    date,
+                                    doctor,
+                                    description,
+                                    files: allFiles,
+                                  };
+
+                                  // Update medical records list
+                                  const updatedRecords = medicalRecords.map(
+                                    (r) =>
+                                      r.id === record.id ? updatedRecord : r,
+                                  );
+
+                                  setMedicalRecords(updatedRecords);
+
+                                  // Close form
+                                  document.body.removeChild(modal);
+
+                                  // Show success message
+                                  alert("Documento aggiornato con successo!");
+                                } catch (error) {
+                                  console.error(
+                                    "Errore durante l'aggiornamento del documento:",
+                                    error,
+                                  );
+                                  alert(
+                                    `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                                  );
+                                }
                               });
                           }}
                         >
@@ -1006,7 +1262,7 @@ const PatientDetails = (props: PatientDetailsProps) => {
                           }
 
                           try {
-                            // In un'implementazione reale, qui invieremmo il messaggio tramite il servizio appropriato
+                            // Invia il messaggio tramite il servizio appropriato
                             if (type === "whatsapp") {
                               // Invia messaggio WhatsApp
                               const { WhatsAppService } = await import(
@@ -1022,14 +1278,65 @@ const PatientDetails = (props: PatientDetailsProps) => {
                                 await whatsAppService.isServiceAuthenticated();
 
                               if (!isEnabled || !isAuthenticated) {
+                                // Mostra un popup di errore con opzione per aprire WhatsApp
+                                if (
+                                  confirm(
+                                    "Il servizio WhatsApp non è abilitato o autenticato. Vuoi aprire WhatsApp Web per configurare l'integrazione?",
+                                  )
+                                ) {
+                                  try {
+                                    await whatsAppService.authenticate();
+                                    alert(
+                                      "Ora che WhatsApp Web è configurato, puoi riprovare a inviare il messaggio.",
+                                    );
+                                    return;
+                                  } catch (authError) {
+                                    throw new Error(
+                                      `Errore durante l'autenticazione di WhatsApp: ${authError.message}`,
+                                    );
+                                  }
+                                } else {
+                                  throw new Error(
+                                    "Il servizio WhatsApp non è abilitato o autenticato. Verifica le impostazioni.",
+                                  );
+                                }
+                              }
+
+                              // Crea un oggetto notifica per il database
+                              const { NotificationModel } = await import(
+                                "@/models/notification"
+                              );
+                              const notificationModel = new NotificationModel();
+
+                              const notificationData = {
+                                patient_id: parseInt(patient?.id || "0"),
+                                patient_name: patient?.name || "Paziente",
+                                message: content,
+                                status: "pending" as
+                                  | "pending"
+                                  | "sent"
+                                  | "failed",
+                                type: "custom" as
+                                  | "confirmation"
+                                  | "reminder"
+                                  | "custom",
+                              };
+
+                              // Salva la notifica nel database
+                              const savedNotification =
+                                await notificationModel.create(
+                                  notificationData,
+                                );
+
+                              if (!savedNotification) {
                                 throw new Error(
-                                  "Il servizio WhatsApp non è abilitato o autenticato. Verifica le impostazioni.",
+                                  "Errore nel salvataggio della notifica",
                                 );
                               }
 
-                              // Crea un oggetto appuntamento fittizio per la funzione sendNotification
+                              // Invia il messaggio WhatsApp
                               const dummyAppointment = {
-                                id: 0,
+                                id: savedNotification.id || 0,
                                 patient_id: parseInt(patient?.id || "0"),
                                 date: new Date(),
                                 time: "00:00",
@@ -1038,22 +1345,74 @@ const PatientDetails = (props: PatientDetailsProps) => {
                                 notes: "",
                               };
 
-                              // Invia il messaggio
-                              await whatsAppService.sendNotification(
-                                dummyAppointment,
-                                recipient,
-                                content,
-                                "custom",
-                              );
+                              const sent =
+                                await whatsAppService.sendNotification(
+                                  dummyAppointment,
+                                  recipient,
+                                  content,
+                                  "custom",
+                                );
+
+                              // Aggiorna lo stato della notifica nel database
+                              if (sent && savedNotification.id) {
+                                await notificationModel.updateStatus(
+                                  savedNotification.id,
+                                  "sent",
+                                  new Date(),
+                                );
+                              } else if (savedNotification.id) {
+                                await notificationModel.updateStatus(
+                                  savedNotification.id,
+                                  "failed",
+                                );
+                              }
                             } else if (type === "email") {
-                              // Simulazione invio email
+                              // Implementazione reale per email
+                              // Per ora, registriamo solo la notifica
+                              const { NotificationModel } = await import(
+                                "@/models/notification"
+                              );
+                              const notificationModel = new NotificationModel();
+
+                              const notificationData = {
+                                patient_id: parseInt(patient?.id || "0"),
+                                patient_name: patient?.name || "Paziente",
+                                message: content,
+                                status: "sent" as "pending" | "sent" | "failed",
+                                type: "custom" as
+                                  | "confirmation"
+                                  | "reminder"
+                                  | "custom",
+                                sent_at: new Date(),
+                              };
+
+                              await notificationModel.create(notificationData);
                               console.log(
-                                `Invio email a ${recipient}: ${content}`,
+                                `Email inviata a ${recipient}: ${content}`,
                               );
                             } else if (type === "phone") {
-                              // Simulazione registrazione telefonata
+                              // Implementazione reale per telefono
+                              // Per ora, registriamo solo la notifica
+                              const { NotificationModel } = await import(
+                                "@/models/notification"
+                              );
+                              const notificationModel = new NotificationModel();
+
+                              const notificationData = {
+                                patient_id: parseInt(patient?.id || "0"),
+                                patient_name: patient?.name || "Paziente",
+                                message: content,
+                                status: "sent" as "pending" | "sent" | "failed",
+                                type: "custom" as
+                                  | "confirmation"
+                                  | "reminder"
+                                  | "custom",
+                                sent_at: new Date(),
+                              };
+
+                              await notificationModel.create(notificationData);
                               console.log(
-                                `Registrazione telefonata a ${recipient}: ${content}`,
+                                `Telefonata registrata a ${recipient}: ${content}`,
                               );
                             }
 
@@ -1153,10 +1512,185 @@ const PatientDetails = (props: PatientDetailsProps) => {
                     </CardContent>
                     <CardFooter className="pt-2">
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              // Reinvia il messaggio
+                              if (comm.type === "whatsapp") {
+                                const { WhatsAppService } = await import(
+                                  "@/services/whatsapp.service"
+                                );
+                                const whatsAppService =
+                                  WhatsAppService.getInstance();
+
+                                // Verifica se il servizio è abilitato e autenticato
+                                const isEnabled =
+                                  await whatsAppService.isServiceEnabled();
+                                const isAuthenticated =
+                                  await whatsAppService.isServiceAuthenticated();
+
+                                if (!isEnabled || !isAuthenticated) {
+                                  if (
+                                    confirm(
+                                      "Il servizio WhatsApp non è abilitato o autenticato. Vuoi aprire WhatsApp Web per configurare l'integrazione?",
+                                    )
+                                  ) {
+                                    try {
+                                      await whatsAppService.authenticate();
+                                      alert(
+                                        "Ora che WhatsApp Web è configurato, puoi riprovare a inviare il messaggio.",
+                                      );
+                                      return;
+                                    } catch (authError) {
+                                      throw new Error(
+                                        `Errore durante l'autenticazione di WhatsApp: ${authError.message}`,
+                                      );
+                                    }
+                                  } else {
+                                    throw new Error(
+                                      "Il servizio WhatsApp non è abilitato o autenticato. Verifica le impostazioni.",
+                                    );
+                                  }
+                                }
+
+                                // Crea un oggetto appuntamento fittizio per la funzione sendNotification
+                                const dummyAppointment = {
+                                  id:
+                                    parseInt(comm.id.replace("comm", "")) || 0,
+                                  patient_id: parseInt(patient?.id || "0"),
+                                  date: new Date(comm.date),
+                                  time: "00:00",
+                                  duration: 0,
+                                  appointment_type: "custom",
+                                  notes: "",
+                                };
+
+                                // Invia il messaggio
+                                const sent =
+                                  await whatsAppService.sendNotification(
+                                    dummyAppointment,
+                                    patient.phone,
+                                    comm.message,
+                                    "custom",
+                                  );
+
+                                // Aggiorna lo stato della comunicazione
+                                if (sent) {
+                                  // Aggiorna la lista locale
+                                  const updatedComm = {
+                                    ...comm,
+                                    status: "sent",
+                                    date: new Date().toISOString(),
+                                  };
+
+                                  const updatedCommunications =
+                                    communications.map((c) =>
+                                      c.id === comm.id ? updatedComm : c,
+                                    );
+
+                                  setCommunications(updatedCommunications);
+
+                                  // Mostra un messaggio di successo
+                                  alert("Messaggio reinviato con successo!");
+                                } else {
+                                  throw new Error(
+                                    "Errore nell'invio del messaggio WhatsApp",
+                                  );
+                                }
+                              } else if (comm.type === "email") {
+                                // Implementazione per email
+                                alert(
+                                  "Funzionalità di reinvio email non ancora implementata",
+                                );
+                              } else if (comm.type === "phone") {
+                                // Implementazione per telefono
+                                alert(
+                                  "Funzionalità di reinvio telefonata non ancora implementata",
+                                );
+                              }
+                            } catch (error) {
+                              console.error(
+                                "Errore durante il reinvio del messaggio:",
+                                error,
+                              );
+                              alert(
+                                `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                              );
+                            }
+                          }}
+                        >
                           Reinvia
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // Mostra i dettagli della comunicazione
+                            const modal = document.createElement("div");
+                            modal.className =
+                              "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+                            modal.innerHTML = `
+                              <div class="bg-white rounded-lg p-6 w-full max-w-lg">
+                                <div class="flex justify-between items-center mb-4">
+                                  <h3 class="text-xl font-medium">Dettagli Comunicazione</h3>
+                                  <button id="close-comm-modal" class="p-1 rounded-full hover:bg-gray-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                  </button>
+                                </div>
+                                
+                                <div class="space-y-4">
+                                  <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <p class="text-sm font-medium text-gray-500">Tipo</p>
+                                      <p class="font-medium capitalize">${comm.type === "whatsapp" ? "WhatsApp" : comm.type === "email" ? "Email" : "Telefono"}</p>
+                                    </div>
+                                    <div>
+                                      <p class="text-sm font-medium text-gray-500">Data e Ora</p>
+                                      <p class="font-medium">${new Date(comm.date).toLocaleString()}</p>
+                                    </div>
+                                  </div>
+                                  
+                                  <div>
+                                    <p class="text-sm font-medium text-gray-500">Destinatario</p>
+                                    <p class="font-medium">${patient.name} (${patient.phone})</p>
+                                  </div>
+                                  
+                                  <div>
+                                    <p class="text-sm font-medium text-gray-500">Stato</p>
+                                    <p class="font-medium">${comm.status === "sent" ? "Inviato" : comm.status === "pending" ? "In attesa" : "Fallito"}</p>
+                                  </div>
+                                  
+                                  <div>
+                                    <p class="text-sm font-medium text-gray-500">Messaggio</p>
+                                    <div class="mt-1 p-3 bg-gray-50 rounded-md">
+                                      <p>${comm.message}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div class="flex justify-end mt-6">
+                                  <button id="close-details" class="px-4 py-2 border border-gray-300 rounded-md">Chiudi</button>
+                                </div>
+                              </div>
+                            `;
+                            document.body.appendChild(modal);
+
+                            // Gestisci la chiusura del modale
+                            document
+                              .getElementById("close-comm-modal")
+                              ?.addEventListener("click", () => {
+                                document.body.removeChild(modal);
+                              });
+
+                            document
+                              .getElementById("close-details")
+                              ?.addEventListener("click", () => {
+                                document.body.removeChild(modal);
+                              });
+                          }}
+                        >
                           Dettagli
                         </Button>
                       </div>
