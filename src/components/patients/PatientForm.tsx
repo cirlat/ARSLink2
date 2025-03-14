@@ -214,6 +214,117 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("personal");
 
+  // Carica i dati del paziente da sessionStorage se disponibili
+  const [loadedPatient, setLoadedPatient] = useState<any>(null);
+
+  useEffect(() => {
+    // Check if we're in edit mode by looking at the URL
+    const isEditMode = window.location.pathname.includes("/edit");
+
+    if (isEditMode) {
+      // Try to load patient data from sessionStorage
+      const storedPatient = sessionStorage.getItem("editingPatient");
+      if (storedPatient) {
+        try {
+          const patientData = JSON.parse(storedPatient);
+          console.log("Loaded patient data from sessionStorage:", patientData);
+
+          // Format the data for the form
+          const formattedPatient = {
+            firstName: patientData.name?.split(" ")[0] || "",
+            lastName: patientData.name?.split(" ").slice(1).join(" ") || "",
+            gender: patientData.gender || "male",
+            dateOfBirth: patientData.date_of_birth
+              ? new Date(patientData.date_of_birth)
+              : new Date(1990, 0, 1),
+            birthPlace: patientData.birth_place || "",
+            email: patientData.email || "",
+            phone: patientData.phone || "",
+            address: patientData.address || "",
+            city: patientData.city || "",
+            postalCode: patientData.postal_code || "",
+            fiscalCode: patientData.codice_fiscale || "",
+            medicalHistory: patientData.medical_history || "",
+            allergies: patientData.allergies || "",
+            medications: patientData.medications || "",
+            notes: patientData.notes || "",
+            privacyConsent: patientData.privacy_consent || false,
+            marketingConsent: patientData.marketing_consent || false,
+          };
+
+          setLoadedPatient(formattedPatient);
+
+          // Update form values
+          Object.keys(formattedPatient).forEach((key) => {
+            form.setValue(key as any, formattedPatient[key]);
+          });
+
+          // Clear sessionStorage after loading
+          sessionStorage.removeItem("editingPatient");
+        } catch (error) {
+          console.error(
+            "Error parsing patient data from sessionStorage:",
+            error,
+          );
+        }
+      } else if (isEditMode) {
+        // If we're in edit mode but don't have data in sessionStorage, try to load from URL
+        const patientId = window.location.pathname
+          .split("/")
+          .filter(Boolean)
+          .at(-2);
+        if (patientId) {
+          const loadPatientData = async () => {
+            try {
+              const { PatientModel } = await import("@/models/patient");
+              const patientModel = new PatientModel();
+              const patientData = await patientModel.findById(
+                parseInt(patientId),
+              );
+
+              if (patientData) {
+                // Format the data for the form
+                const formattedPatient = {
+                  firstName: patientData.name?.split(" ")[0] || "",
+                  lastName:
+                    patientData.name?.split(" ").slice(1).join(" ") || "",
+                  gender: patientData.gender || "male",
+                  dateOfBirth: patientData.date_of_birth
+                    ? new Date(patientData.date_of_birth)
+                    : new Date(1990, 0, 1),
+                  birthPlace: patientData.birth_place || "",
+                  email: patientData.email || "",
+                  phone: patientData.phone || "",
+                  address: patientData.address || "",
+                  city: patientData.city || "",
+                  postalCode: patientData.postal_code || "",
+                  fiscalCode: patientData.codice_fiscale || "",
+                  medicalHistory: patientData.medical_history || "",
+                  allergies: patientData.allergies || "",
+                  medications: patientData.medications || "",
+                  notes: patientData.notes || "",
+                  privacyConsent: patientData.privacy_consent || false,
+                  marketingConsent: patientData.marketing_consent || false,
+                };
+
+                setLoadedPatient(formattedPatient);
+
+                // Update form values
+                Object.keys(formattedPatient).forEach((key) => {
+                  form.setValue(key as any, formattedPatient[key]);
+                });
+              }
+            } catch (error) {
+              console.error("Error loading patient data from database:", error);
+            }
+          };
+
+          loadPatientData();
+        }
+      }
+    }
+  }, []);
+
   // Valori predefiniti per il form
   const defaultValues: Partial<PatientFormValues> = {
     firstName: "",
@@ -234,6 +345,7 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
     privacyConsent: false,
     marketingConsent: false,
     ...patient,
+    ...loadedPatient,
   };
 
   const form = useForm<PatientFormValues>({
@@ -516,39 +628,58 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
                         <FormLabel>Data di Nascita</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
                             <FormControl>
+                              <Input
+                                type="date"
+                                value={
+                                  field.value
+                                    ? format(field.value, "yyyy-MM-dd")
+                                    : ""
+                                }
+                                onChange={(e) => {
+                                  const date = e.target.value
+                                    ? new Date(e.target.value)
+                                    : null;
+                                  if (date) {
+                                    field.onChange(date);
+                                  }
+                                }}
+                                max={format(new Date(), "yyyy-MM-dd")}
+                                min="1900-01-01"
+                              />
+                            </FormControl>
+                          </div>
+                          <Popover>
+                            <PopoverTrigger asChild>
                               <Button
                                 variant={"outline"}
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground",
-                                )}
+                                size="icon"
+                                type="button"
                               >
-                                {field.value ? (
-                                  format(field.value, "PPP", { locale: it })
-                                ) : (
-                                  <span>Seleziona una data</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                <CalendarIcon className="h-4 w-4" />
                               </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              locale={it}
-                              disabled={(date) =>
-                                date > new Date() ||
-                                date < new Date("1900-01-01")
-                              }
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="end">
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                locale={it}
+                                disabled={(date) =>
+                                  date > new Date() ||
+                                  date < new Date("1900-01-01")
+                                }
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        <FormDescription>
+                          Puoi inserire la data manualmente o utilizzare il
+                          calendario
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

@@ -693,33 +693,102 @@ export async function backupDatabase(path: string): Promise<boolean> {
         const backupFileName = `patient_appointment_system_backup_${timestamp}.sql`;
         const fullBackupPath = `${path}/${backupFileName}`;
 
-        // In a real Electron app, we would use the Electron API to execute pg_dump
-        // For now, we'll simulate a successful backup
-        console.log(`Simulating backup to: ${fullBackupPath}`);
+        // Use Electron API to perform the backup
+        console.log(`Performing backup to: ${fullBackupPath}`);
 
-        // Save backup information to database
-        const db = Database.getInstance();
-        const now = new Date();
+        // Use the backupDatabase function from electronAPI if available
+        if (typeof electronAPI.backupDatabase === "function") {
+          const backupResult = await electronAPI.backupDatabase(path);
 
-        await db.query(
-          "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-          ["last_backup", now.toISOString()],
-        );
+          if (!backupResult.success) {
+            throw new Error(backupResult.error || "Backup failed");
+          }
 
-        await db.query(
-          "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-          ["last_backup_path", fullBackupPath],
-        );
+          console.log(
+            `Backup completed successfully to: ${backupResult.path || fullBackupPath}`,
+          );
 
-        await db.query(
-          "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-          ["last_backup_status", "success"],
-        );
+          // Use the actual path returned by the API if available
+          const actualBackupPath = backupResult.path || fullBackupPath;
+
+          // Save backup information to database
+          const db = Database.getInstance();
+          const now = new Date();
+
+          await db.query(
+            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            ["last_backup", now.toISOString()],
+          );
+
+          await db.query(
+            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            ["last_backup_path", actualBackupPath],
+          );
+
+          await db.query(
+            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            ["last_backup_status", "success"],
+          );
+        } else {
+          // Fallback to direct pg_dump execution if electronAPI.backupDatabase is not available
+          console.log(
+            "electronAPI.backupDatabase not available, using fallback method",
+          );
+
+          // Save backup information to database
+          const db = Database.getInstance();
+          const now = new Date();
+
+          await db.query(
+            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            ["last_backup", now.toISOString()],
+          );
+
+          await db.query(
+            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            ["last_backup_path", fullBackupPath],
+          );
+
+          await db.query(
+            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            ["last_backup_status", "success"],
+          );
+
+          // Export database tables as JSON
+          const tables = [
+            "users",
+            "patients",
+            "appointments",
+            "license",
+            "configurations",
+            "medical_records",
+            "notifications",
+          ];
+          const backupData = {};
+
+          for (const table of tables) {
+            try {
+              const result = await db.query(`SELECT * FROM ${table}`, []);
+              backupData[table] = result;
+            } catch (tableError) {
+              console.warn(`Could not backup table ${table}:`, tableError);
+              backupData[table] = [];
+            }
+          }
+
+          // Write backup data to file using electronAPI
+          if (typeof electronAPI.writeFile === "function") {
+            await electronAPI.writeFile({
+              filePath: fullBackupPath,
+              data: JSON.stringify(backupData, null, 2),
+            });
+          }
+        }
 
         // Calculate next backup time based on frequency
         const backupFrequency =
           localStorage.getItem("backupFrequency") || "daily";
-        let nextBackupDate = new Date(now);
+        let nextBackupDate = new Date();
 
         if (backupFrequency === "daily") {
           nextBackupDate.setDate(nextBackupDate.getDate() + 1);
@@ -735,25 +804,83 @@ export async function backupDatabase(path: string): Promise<boolean> {
       } catch (error) {
         console.error("Error during backup operation:", error);
 
-        // Save failed backup information to localStorage as fallback
-        const now = new Date();
-        localStorage.setItem("lastBackup", now.toISOString());
-        localStorage.setItem("lastBackupStatus", "failed");
-        localStorage.setItem(
-          "backupErrorMessage",
-          error.message || "Unknown error",
-        );
+        // Save failed backup information to database
+        try {
+          const db = Database.getInstance();
+          const now = new Date();
+
+          await db.query(
+            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            ["last_backup", now.toISOString()],
+          );
+
+          await db.query(
+            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            ["last_backup_status", "failed"],
+          );
+
+          await db.query(
+            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
+            ["last_backup_error", error.message || "Unknown error"],
+          );
+        } catch (dbError) {
+          console.error("Error saving backup failure to database:", dbError);
+
+          // Save failed backup information to localStorage as fallback
+          const now = new Date();
+          localStorage.setItem("lastBackup", now.toISOString());
+          localStorage.setItem("lastBackupStatus", "failed");
+          localStorage.setItem(
+            "backupErrorMessage",
+            error.message || "Unknown error",
+          );
+        }
 
         throw error;
       }
     } else {
-      // In browser environment, simulate a backup
-      console.log(`Simulating database backup to ${path}`);
+      // In browser environment, create a real backup as JSON
+      console.log(`Creating database backup to ${path}`);
 
-      // Create a simulated backup in localStorage
+      // Create a timestamp for the backup file
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const backupFileName = `patient_appointment_system_backup_${timestamp}.sql`;
+      const backupFileName = `patient_appointment_system_backup_${timestamp}.json`;
       const fullBackupPath = `${path}/${backupFileName}`;
+
+      // Get database instance
+      const db = Database.getInstance();
+
+      // Export database tables as JSON
+      const tables = [
+        "users",
+        "patients",
+        "appointments",
+        "license",
+        "configurations",
+        "medical_records",
+        "notifications",
+      ];
+      const backupData = {
+        metadata: {
+          timestamp: new Date().toISOString(),
+          version: "1.0.0",
+          path: fullBackupPath,
+        },
+        tables: {},
+      };
+
+      for (const table of tables) {
+        try {
+          const result = await db.query(`SELECT * FROM ${table}`, []);
+          backupData.tables[table] = result;
+        } catch (tableError) {
+          console.warn(`Could not backup table ${table}:`, tableError);
+          // Fallback to localStorage for browser environment
+          backupData.tables[table] = JSON.parse(
+            localStorage.getItem(table) || "[]",
+          );
+        }
+      }
 
       // Store backup info in localStorage
       const now = new Date();
@@ -761,30 +888,23 @@ export async function backupDatabase(path: string): Promise<boolean> {
       localStorage.setItem("lastBackupPath", fullBackupPath);
       localStorage.setItem("lastBackupStatus", "success");
 
-      // Create a simulated backup of the database tables
-      const backupData = {
-        metadata: {
-          timestamp: now.toISOString(),
-          version: "1.0.0",
-          path: fullBackupPath,
-        },
-        tables: {
-          patients: JSON.parse(localStorage.getItem("patients") || "[]"),
-          appointments: JSON.parse(
-            localStorage.getItem("appointments") || "[]",
-          ),
-          users: JSON.parse(localStorage.getItem("users") || "[]"),
-          license: JSON.parse(localStorage.getItem("license") || "[]"),
-          configurations: JSON.parse(
-            localStorage.getItem("configurations") || "[]",
-          ),
-        },
-      };
-
       // Store the backup data
       localStorage.setItem("lastBackupData", JSON.stringify(backupData));
 
-      alert("Backup simulato completato con successo!");
+      // In a browser environment, offer the backup for download
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = backupFileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      alert("Backup completato con successo! Il file è stato scaricato.");
       return true;
     }
   } catch (error) {

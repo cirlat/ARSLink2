@@ -212,12 +212,31 @@ const PatientList: React.FC<PatientListProps> = ({
   };
 
   // Gestione della modifica di un paziente
-  const handleEditPatient = (id: string) => {
+  const handleEditPatient = async (id: string) => {
     if (onEditPatient) {
       onEditPatient(id);
     } else {
-      // Navigate to patient edit page
-      navigate(`/patients/${id}/edit`);
+      try {
+        // Carica i dettagli del paziente prima di navigare
+        const { PatientModel } = await import("@/models/patient");
+        const patientModel = new PatientModel();
+        const patientData = await patientModel.findById(parseInt(id));
+
+        if (patientData) {
+          // Salva i dati del paziente in sessionStorage per recuperarli nel form di modifica
+          sessionStorage.setItem("editingPatient", JSON.stringify(patientData));
+        }
+
+        // Navigate to patient edit page
+        navigate(`/patients/${id}/edit`);
+      } catch (error) {
+        console.error(
+          "Errore nel caricamento dei dettagli del paziente:",
+          error,
+        );
+        // Navigate anyway
+        navigate(`/patients/${id}/edit`);
+      }
     }
   };
 

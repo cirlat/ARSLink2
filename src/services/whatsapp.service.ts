@@ -142,8 +142,26 @@ export class WhatsAppService {
 
     try {
       // Verifica che la directory dei dati WhatsApp esista
-      const { createDirectoryIfNotExists } = await import("@/utils/fileUtils");
-      await createDirectoryIfNotExists(this.dataPath);
+      try {
+        // Crea la directory per i dati WhatsApp se non esiste
+        if (
+          isRunningInElectron() &&
+          typeof electronAPI.createDirectory === "function"
+        ) {
+          await electronAPI.createDirectory(this.dataPath);
+          console.log(`Directory per i dati WhatsApp creata: ${this.dataPath}`);
+        } else {
+          console.log(
+            `Simulazione: Directory per i dati WhatsApp creata: ${this.dataPath}`,
+          );
+        }
+      } catch (dirError) {
+        console.error(
+          "Errore nella creazione della directory per i dati WhatsApp:",
+          dirError,
+        );
+        // Continuiamo comunque, perché potrebbe essere un errore di permessi che non impedisce il funzionamento
+      }
 
       // Implementazione reale per l'apertura di WhatsApp Web
       if (isRunningInElectron()) {

@@ -45,6 +45,29 @@ export class MedicalRecordModel {
 
   async create(record: MedicalRecord): Promise<MedicalRecord> {
     try {
+      // Ensure files is properly formatted as a JSON string if it exists
+      let filesJson = null;
+      if (record.files) {
+        if (Array.isArray(record.files)) {
+          filesJson = JSON.stringify(record.files);
+        } else if (typeof record.files === "string") {
+          // If it's already a string, make sure it's valid JSON
+          try {
+            // Try to parse and re-stringify to ensure valid JSON
+            const parsed = JSON.parse(record.files);
+            filesJson = JSON.stringify(parsed);
+          } catch (e) {
+            // If it's not valid JSON, treat it as a single file path
+            filesJson = JSON.stringify([record.files]);
+          }
+        } else {
+          // For any other type, convert to string and wrap in array
+          filesJson = JSON.stringify([String(record.files)]);
+        }
+      }
+
+      console.log("Saving medical record with files:", filesJson);
+
       const result = await this.db.query(
         `INSERT INTO medical_records (
           patient_id, title, date, doctor, description, files
@@ -56,7 +79,7 @@ export class MedicalRecordModel {
           record.date,
           record.doctor,
           record.description,
-          record.files ? JSON.stringify(record.files) : null,
+          filesJson,
         ],
       );
 
