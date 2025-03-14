@@ -528,6 +528,26 @@ const Settings = () => {
                     />
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="documents-path">Percorso Documenti</Label>
+                    <Input
+                      id="documents-path"
+                      placeholder="C:\\ProgramData\\PatientAppointmentSystem\\Documents"
+                      defaultValue={
+                        localStorage.getItem("documentsPath") ||
+                        "C:\\ProgramData\\PatientAppointmentSystem\\Documents"
+                      }
+                      onChange={(e) => {
+                        localStorage.setItem("documentsPath", e.target.value);
+                      }}
+                      className="flex-1"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Percorso dove verranno salvati i documenti allegati ai
+                      pazienti
+                    </p>
+                  </div>
+
                   <Separator />
 
                   <div className="flex justify-between">

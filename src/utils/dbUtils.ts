@@ -629,7 +629,7 @@ export async function createDirectoryIfNotExists(
       try {
         // Usa l'API Electron per creare la directory
         const result = await electronAPI.executeQuery(
-          "CREATE_DIRECTORY", // Comando speciale per l'API Electron
+          "CREATE_DIRECTORY", // Comando corretto per l'API Electron
           [dirPath],
         );
 
@@ -637,6 +637,11 @@ export async function createDirectoryIfNotExists(
           console.log(`Directory creata: ${dirPath}`);
           return true;
         } else {
+          // Se la directory esiste già, non è un errore
+          if (result.error && result.error.includes("already exists")) {
+            console.log(`Directory già esistente: ${dirPath}`);
+            return true;
+          }
           console.error(
             `Errore nella creazione della directory: ${result.error}`,
           );

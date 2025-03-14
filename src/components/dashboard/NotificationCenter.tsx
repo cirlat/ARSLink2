@@ -252,6 +252,7 @@ const NotificationCenter = ({
                         <option value="4">Sofia Neri</option>
                         <option value="5">Alessandro Gialli</option>
                       </select>
+                      <button id="load-patients" class="mt-1 text-xs text-blue-600 hover:underline">Carica pazienti dal database</button>
                     </div>
                     
                     <div>
@@ -284,6 +285,80 @@ const NotificationCenter = ({
                 .getElementById("cancel-notification")
                 .addEventListener("click", () => {
                   document.body.removeChild(modal);
+                });
+
+              // Gestisci il caricamento dei pazienti dal database
+              document
+                .getElementById("load-patients")
+                ?.addEventListener("click", async () => {
+                  try {
+                    // Disabilita il pulsante durante il caricamento
+                    const loadButton = document.getElementById("load-patients");
+                    if (loadButton) {
+                      loadButton.textContent = "Caricamento...";
+                      loadButton.setAttribute("disabled", "true");
+                    }
+
+                    // Carica i pazienti dal database
+                    const { PatientModel } = await import("@/models/patient");
+                    const patientModel = new PatientModel();
+                    const result = await patientModel.findAll();
+
+                    if (
+                      result &&
+                      result.patients &&
+                      result.patients.length > 0
+                    ) {
+                      // Aggiorna il select con i pazienti dal database
+                      const patientSelect = document.getElementById(
+                        "notification-patient",
+                      );
+                      if (patientSelect) {
+                        // Rimuovi tutte le opzioni tranne la prima (placeholder)
+                        while (patientSelect.options.length > 1) {
+                          patientSelect.remove(1);
+                        }
+
+                        // Aggiungi i pazienti dal database
+                        result.patients.forEach((patient) => {
+                          const option = document.createElement("option");
+                          option.value = patient.id.toString();
+                          option.text = patient.name;
+                          patientSelect.add(option);
+                        });
+
+                        if (loadButton) {
+                          loadButton.textContent = "Pazienti caricati!";
+                          setTimeout(() => {
+                            if (loadButton)
+                              loadButton.textContent = "Aggiorna pazienti";
+                            loadButton.removeAttribute("disabled");
+                          }, 2000);
+                        }
+                      }
+                    } else {
+                      if (loadButton) {
+                        loadButton.textContent = "Nessun paziente trovato";
+                        setTimeout(() => {
+                          if (loadButton) loadButton.textContent = "Riprova";
+                          loadButton.removeAttribute("disabled");
+                        }, 2000);
+                      }
+                    }
+                  } catch (error) {
+                    console.error(
+                      "Errore nel caricamento dei pazienti:",
+                      error,
+                    );
+                    const loadButton = document.getElementById("load-patients");
+                    if (loadButton) {
+                      loadButton.textContent = "Errore nel caricamento";
+                      setTimeout(() => {
+                        if (loadButton) loadButton.textContent = "Riprova";
+                        loadButton.removeAttribute("disabled");
+                      }, 2000);
+                    }
+                  }
                 });
 
               // Gestisci l'invio della notifica

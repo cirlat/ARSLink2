@@ -897,7 +897,7 @@ const PatientDetails = (props: PatientDetailsProps) => {
                                         "@/utils/fileUtils"
                                       );
                                       const success = await openFile(file);
-                                      if (!success) {
+                                      if (success) {
                                         alert(
                                           "Impossibile aprire il file. Verificare che esista e che sia accessibile.",
                                         );

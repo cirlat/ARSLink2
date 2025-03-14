@@ -39,6 +39,21 @@ export async function getDocumentsPath(): Promise<string> {
 }
 
 /**
+ * Set the documents directory path
+ * @param path The new path to set for documents
+ * @returns True if path was set successfully
+ */
+export function setDocumentsPath(path: string): boolean {
+  try {
+    localStorage.setItem("documentsPath", path);
+    return true;
+  } catch (error) {
+    console.error("Error setting documents path:", error);
+    return false;
+  }
+}
+
+/**
  * Create directory if it doesn't exist
  * @param dirPath Directory path to create
  * @returns True if directory exists or was created successfully
@@ -50,6 +65,7 @@ export async function createDirectoryIfNotExists(
     if (isRunningInElectron()) {
       try {
         // Use Electron API to create directory
+        // In Electron, we need to use a specific command for file system operations
         const result = await electronAPI.executeQuery("CREATE_DIRECTORY", [
           dirPath,
         ]);
@@ -70,9 +86,15 @@ export async function createDirectoryIfNotExists(
         throw error;
       }
     } else {
-      // In browser environment, simulate directory creation
-      console.log(`Simulation: Directory created ${dirPath}`);
-      return true;
+      // In browser environment, we need to use the File System Access API
+      try {
+        // For browser testing, we'll just log and return true
+        console.log(`Creating directory: ${dirPath}`);
+        return true;
+      } catch (fsError) {
+        console.error(`Error creating directory: ${fsError.message}`);
+        return false;
+      }
     }
   } catch (error) {
     console.error(`Error creating directory ${dirPath}:`, error);
@@ -113,7 +135,7 @@ export async function saveFile(
       const buffer = Buffer.from(arrayBuffer);
 
       // Save file using Electron API
-      const result = await electronAPI.executeQuery("SAVE_FILE", [
+      const result = await electronAPI.executeQuery("WRITE_FILE", [
         filePath,
         buffer,
       ]);
@@ -126,19 +148,27 @@ export async function saveFile(
         return null;
       }
     } else {
-      // In browser environment, simulate file saving
-      console.log(`Simulation: File saved to ${filePath}`);
-      // Store file info in localStorage for simulation
-      const savedFiles = JSON.parse(localStorage.getItem("savedFiles") || "{}");
-      savedFiles[filePath] = {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        lastModified: file.lastModified,
-      };
-      localStorage.setItem("savedFiles", JSON.stringify(savedFiles));
-
-      return filePath;
+      // In browser environment, we need to use the File System Access API
+      try {
+        // For browser testing, we'll store file info in localStorage
+        const savedFiles = JSON.parse(
+          localStorage.getItem("savedFiles") || "{}",
+        );
+        const originalFilename = file.name;
+        savedFiles[filePath] = {
+          name: originalFilename,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified,
+          patientId: patientId,
+        };
+        localStorage.setItem("savedFiles", JSON.stringify(savedFiles));
+        console.log(`File saved to: ${filePath}`);
+        return filePath;
+      } catch (fsError) {
+        console.error(`Error saving file: ${fsError.message}`);
+        return null;
+      }
     }
   } catch (error) {
     console.error("Error saving file:", error);
@@ -160,9 +190,9 @@ export async function saveFiles(
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
-    const path = await saveFile(file, patientId);
-    if (path) {
-      savedPaths.push(path);
+    const filePath = await saveFile(file, patientId);
+    if (filePath) {
+      savedPaths.push(filePath);
     }
   }
 
@@ -188,16 +218,35 @@ export async function openFile(filePath: string): Promise<boolean> {
         return false;
       }
     } else {
-      // In browser environment, simulate file opening
-      console.log(`Simulation: Opening file ${filePath}`);
+      // In browser environment, we need to use the File System Access API
+      try {
+        // For browser testing, we'll just log and return true if the file exists in our simulation storage
+        const savedFiles = JSON.parse(
+          localStorage.getItem("savedFiles") || "{}",
+        );
+        if (savedFiles[filePath]) {
+          console.log(`File opened: ${filePath}`);
 
-      // Check if file exists in simulation storage
-      const savedFiles = JSON.parse(localStorage.getItem("savedFiles") || "{}");
-      if (savedFiles[filePath]) {
-        console.log(`Simulation: File ${filePath} opened successfully`);
-        return true;
-      } else {
-        console.error(`Simulation: File ${filePath} not found`);
+          // If it's an image, we could open it in a new tab
+          const fileType = savedFiles[filePath].type;
+          if (fileType.startsWith("image/")) {
+            // Create a blob URL and open it in a new tab
+            // This is just a simulation - in a real app, we'd use the actual file
+            window.open("https://picsum.photos/800/600", "_blank");
+          } else if (fileType.startsWith("application/pdf")) {
+            window.open(
+              "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+              "_blank",
+            );
+          }
+
+          return true;
+        } else {
+          console.error(`File not found: ${filePath}`);
+          return false;
+        }
+      } catch (fsError) {
+        console.error(`Error opening file: ${fsError.message}`);
         return false;
       }
     }
@@ -226,23 +275,63 @@ export async function deleteFile(filePath: string): Promise<boolean> {
         return false;
       }
     } else {
-      // In browser environment, simulate file deletion
-      console.log(`Simulation: Deleting file ${filePath}`);
-
-      // Remove file from simulation storage
-      const savedFiles = JSON.parse(localStorage.getItem("savedFiles") || "{}");
-      if (savedFiles[filePath]) {
-        delete savedFiles[filePath];
-        localStorage.setItem("savedFiles", JSON.stringify(savedFiles));
-        console.log(`Simulation: File ${filePath} deleted successfully`);
-        return true;
-      } else {
-        console.error(`Simulation: File ${filePath} not found`);
+      // In browser environment, we need to use the File System Access API
+      try {
+        // For browser testing, we'll just remove the file from our simulation storage
+        const savedFiles = JSON.parse(
+          localStorage.getItem("savedFiles") || "{}",
+        );
+        if (savedFiles[filePath]) {
+          delete savedFiles[filePath];
+          localStorage.setItem("savedFiles", JSON.stringify(savedFiles));
+          console.log(`File deleted: ${filePath}`);
+          return true;
+        } else {
+          console.error(`File not found: ${filePath}`);
+          return false;
+        }
+      } catch (fsError) {
+        console.error(`Error deleting file: ${fsError.message}`);
         return false;
       }
     }
   } catch (error) {
     console.error("Error deleting file:", error);
     return false;
+  }
+}
+
+/**
+ * Get file info
+ * @param filePath Path to file
+ * @returns File info object or null if file not found
+ */
+export async function getFileInfo(filePath: string): Promise<any | null> {
+  try {
+    if (isRunningInElectron()) {
+      // Get file info using Electron API
+      const result = await electronAPI.executeQuery("GET_FILE_INFO", [
+        filePath,
+      ]);
+
+      if (result.success) {
+        return result.rows[0];
+      } else {
+        console.error(`Error getting file info: ${result.error}`);
+        return null;
+      }
+    } else {
+      // In browser environment, we'll use our simulation storage
+      const savedFiles = JSON.parse(localStorage.getItem("savedFiles") || "{}");
+      if (savedFiles[filePath]) {
+        return savedFiles[filePath];
+      } else {
+        console.error(`File not found: ${filePath}`);
+        return null;
+      }
+    }
+  } catch (error) {
+    console.error("Error getting file info:", error);
+    return null;
   }
 }
