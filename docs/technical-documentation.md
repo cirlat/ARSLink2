@@ -360,6 +360,51 @@ Le configurazioni vengono salvate in diversi modi:
    - `config/*.json`: Altre configurazioni specifiche
 3. **Marker di Completamento**: File `setup-completed` nella directory dei dati utente
 
+### Reset del Setup in Ambiente Standalone
+
+In alcune situazioni potrebbe essere necessario resettare il setup dell'applicazione, ad esempio per problemi di configurazione o per reinstallare l'applicazione. Ecco i metodi disponibili per resettare il setup:
+
+#### Metodo 1: Utilizzo dello Script di Reset
+
+L'applicazione include uno script dedicato per il reset del setup:
+
+1. Aprire un terminale o prompt dei comandi
+2. Navigare nella directory dell'applicazione
+3. Eseguire il comando: `electron electron/reset-setup.js`
+4. Confermare l'operazione quando richiesto
+5. Riavviare l'applicazione
+
+Questo script esegue le seguenti operazioni:
+- Elimina il file marker `setup-completed` dalla directory dei dati utente
+- Elimina i file di configurazione (`dbConfig.json`, `user.json`, `license.json`)
+- Ripristina le impostazioni predefinite
+
+#### Metodo 2: Eliminazione Manuale del File Marker
+
+È possibile resettare il setup eliminando manualmente il file che indica che il setup è stato completato:
+
+1. Chiudere completamente l'applicazione
+2. Navigare nella directory dei dati utente di Electron:
+   - Windows: `%APPDATA%\PatientAppointmentSystem`
+   - macOS: `~/Library/Application Support/PatientAppointmentSystem`
+   - Linux: `~/.config/PatientAppointmentSystem`
+3. Eliminare il file `setup-completed`
+4. Opzionalmente, eliminare anche i file di configurazione (`dbConfig.json`, `user.json`, `license.json`) per un reset completo
+5. Riavviare l'applicazione
+
+Al successivo avvio, l'applicazione rileverà l'assenza del file marker e avvierà automaticamente il Setup Wizard.
+
+#### Metodo 3: Reset Completo (Incluso Database)
+
+Per un reset completo che include anche il database:
+
+1. Eseguire uno dei metodi precedenti per resettare il setup
+2. Accedere a PostgreSQL (tramite pgAdmin o riga di comando)
+3. Eliminare il database dell'applicazione: `DROP DATABASE nome_database;`
+4. Riavviare l'applicazione e completare nuovamente il setup
+
+**Nota**: Questo metodo comporta la perdita di tutti i dati. Assicurarsi di eseguire un backup se necessario.
+
 ## Manutenzione e Modifiche
 
 ### Aggiunta di Nuove Funzionalità
