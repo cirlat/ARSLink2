@@ -412,6 +412,27 @@ ipcMain.handle("get-user-data-path", async (event) => {
   }
 });
 
+// Reset setup handler
+ipcMain.handle("reset-setup", async (event) => {
+  try {
+    // Create a BrowserWindow to access localStorage
+    const win = BrowserWindow.getFocusedWindow() || mainWindow;
+    if (win) {
+      // Execute script to remove setupCompleted from localStorage
+      await win.webContents.executeJavaScript(
+        "localStorage.removeItem('setupCompleted'); console.log('Setup reset: localStorage.setupCompleted removed');",
+      );
+      console.log("Setup has been reset successfully");
+      return { success: true, message: "Setup reset successfully" };
+    } else {
+      throw new Error("No active window found");
+    }
+  } catch (error) {
+    console.error(`Error resetting setup: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
 // Create medical_records table if it doesn't exist
 ipcMain.handle("ensure-medical-records-table", async (event) => {
   try {
