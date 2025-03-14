@@ -23,19 +23,15 @@ export async function getDocumentsPath(): Promise<string> {
     if (isRunningInElectron()) {
       try {
         // Get user data path from Electron
-        const result = await electronAPI.executeQuery("GET_USER_DATA_PATH", []);
-        if (result.success && result.rows && result.rows.length > 0) {
+        const result = await electronAPI.getUserDataPath();
+        if (result.success && result.path) {
           // Use Electron API to join paths instead of path module
-          documentsPath = await electronAPI.executeQuery("JOIN_PATHS", [
-            result.rows[0],
+          const joinResult = await electronAPI.joinPaths([
+            result.path,
             "Documents",
           ]);
-          if (
-            documentsPath.success &&
-            documentsPath.rows &&
-            documentsPath.rows.length > 0
-          ) {
-            documentsPath = documentsPath.rows[0];
+          if (joinResult.success && joinResult.path) {
+            documentsPath = joinResult.path;
           } else {
             documentsPath =
               "C:\\ProgramData\\PatientAppointmentSystem\\Documents";
@@ -86,10 +82,11 @@ export async function createDirectoryIfNotExists(
 ): Promise<boolean> {
   try {
     if (isRunningInElectron()) {
+      // Use Electron API to create directory
       try {
         // Use Electron API to create directory
-        // In Electron, we need to use a specific command for file system operations
-        const result = await electronAPI.executeQuery("MKDIR", [dirPath]);
+        const result = await electronAPI.createDirectory(dirPath);
+
         if (result.success) {
           console.log(`Directory created: ${dirPath}`);
           return true;
@@ -141,12 +138,12 @@ export async function saveFile(
     let patientDir;
     if (isRunningInElectron()) {
       // Use Electron API to join paths
-      const result = await electronAPI.executeQuery("JOIN_PATHS", [
+      const result = await electronAPI.joinPaths([
         documentsPath,
         `patient_${patientId}`,
       ]);
-      if (result.success && result.rows && result.rows.length > 0) {
-        patientDir = result.rows[0];
+      if (result.success && result.path) {
+        patientDir = result.path;
       } else {
         patientDir = `${documentsPath}/patient_${patientId}`;
       }
@@ -166,12 +163,9 @@ export async function saveFile(
     let filePath;
     if (isRunningInElectron()) {
       // Use Electron API to join paths
-      const result = await electronAPI.executeQuery("JOIN_PATHS", [
-        patientDir,
-        uniqueFilename,
-      ]);
-      if (result.success && result.rows && result.rows.length > 0) {
-        filePath = result.rows[0];
+      const result = await electronAPI.joinPaths([patientDir, uniqueFilename]);
+      if (result.success && result.path) {
+        filePath = result.path;
       } else {
         filePath = `${patientDir}/${uniqueFilename}`;
       }
@@ -186,10 +180,10 @@ export async function saveFile(
       const buffer = Buffer.from(arrayBuffer);
 
       // Save file using Electron API
-      const result = await electronAPI.executeQuery("WRITE_FILE", [
+      const result = await electronAPI.writeFile({
         filePath,
-        buffer,
-      ]);
+        data: buffer,
+      });
 
       if (result.success) {
         console.log(`File saved to: ${filePath}`);
@@ -259,7 +253,7 @@ export async function openFile(filePath: string): Promise<boolean> {
   try {
     if (isRunningInElectron()) {
       // Open file using Electron API
-      const result = await electronAPI.executeQuery("OPEN_FILE", [filePath]);
+      const result = await electronAPI.openFile(filePath);
 
       if (result.success) {
         console.log(`File opened: ${filePath}`);
@@ -316,7 +310,7 @@ export async function deleteFile(filePath: string): Promise<boolean> {
   try {
     if (isRunningInElectron()) {
       // Delete file using Electron API
-      const result = await electronAPI.executeQuery("DELETE_FILE", [filePath]);
+      const result = await electronAPI.deleteFile(filePath);
 
       if (result.success) {
         console.log(`File deleted: ${filePath}`);
@@ -361,12 +355,10 @@ export async function getFileInfo(filePath: string): Promise<any | null> {
   try {
     if (isRunningInElectron()) {
       // Get file info using Electron API
-      const result = await electronAPI.executeQuery("GET_FILE_INFO", [
-        filePath,
-      ]);
+      const result = await electronAPI.getFileInfo(filePath);
 
       if (result.success) {
-        return result.rows[0];
+        return result.info;
       } else {
         console.error(`Error getting file info: ${result.error}`);
         return null;

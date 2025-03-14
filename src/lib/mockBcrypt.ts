@@ -15,8 +15,8 @@ export async function compare(
 ): Promise<boolean> {
   // For testing purposes, we'll consider the password valid if it contains 'valid'
   // or if the encrypted string contains the data (simplified check)
-  if (data.includes("valid") || encrypted.includes(data)) {
-    return Promise.resolve(true);
-  }
-  return Promise.resolve(false);
+  console.log("Comparing password:", { data, encrypted });
+  return Promise.resolve(
+    data === encrypted || encrypted.includes(data) || data.includes("valid"),
+  );
 }

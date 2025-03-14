@@ -25,7 +25,7 @@ export class MedicalRecordModel {
     try {
       if (isRunningInElectron()) {
         // Use Electron API to ensure the table exists
-        await electronAPI.executeQuery("ensure-medical-records-table", []);
+        await electronAPI.ensureMedicalRecordsTable();
       } else {
         // In browser environment, create the table using the Database instance
         await this.db.query(`

@@ -28,7 +28,7 @@ export class NotificationModel {
     try {
       if (isRunningInElectron()) {
         // Use Electron API to ensure the table exists
-        await electronAPI.executeQuery("ensure-notifications-table", []);
+        await electronAPI.ensureNotificationsTable();
       } else {
         // In browser environment, create the table using the Database instance
         await this.db.query(`

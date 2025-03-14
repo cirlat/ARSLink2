@@ -290,8 +290,8 @@ const NotificationCenter = ({
                   <button id="cancel-notification" class="px-4 py-2 border border-gray-300 rounded-md">Annulla</button>
                   <button id="send-notification" class="px-4 py-2 bg-blue-600 text-white rounded-md">Invia</button>
                 </div>
-              </div>
-            `;
+              </div>`;
+              document.body.appendChild(modal);
               } catch (error) {
                 console.error("Errore nel caricamento dei pazienti:", error);
                 // Fallback con modale senza pazienti reali
@@ -335,9 +335,8 @@ const NotificationCenter = ({
                 </div>
               </div>
             `;
+                document.body.appendChild(modal);
               }
-
-              document.body.appendChild(modal);
 
               // Gestisci la chiusura del modale
               document
@@ -806,164 +805,4 @@ const NotificationCenter = ({
           </TabsTrigger>
           <TabsTrigger value="failed">
             Fallite (
-            {filteredNotifications.filter((n) => n.status === "failed").length})
-          </TabsTrigger>
-        </TabsList>
-
-        {["all", "pending", "sent", "failed"].map((tab) => (
-          <TabsContent key={tab} value={tab} className="space-y-4">
-            {getTabNotifications(tab).length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="rounded-full bg-muted p-3 mb-4">
-                  <Send className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-medium">
-                  Nessuna notifica trovata
-                </h3>
-                <p className="text-muted-foreground mt-2 mb-4 max-w-md">
-                  Non ci sono notifiche{" "}
-                  {tab !== "all" ? `con stato "${tab}"` : ""} che corrispondono
-                  ai criteri di ricerca.
-                </p>
-                <Button variant="outline" size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Crea Nuova Notifica
-                </Button>
-              </div>
-            ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Stato</TableHead>
-                      <TableHead>Paziente</TableHead>
-                      <TableHead>Appuntamento</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Inviato</TableHead>
-                      <TableHead className="text-right">Azioni</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {getTabNotifications(tab).map((notification) => (
-                      <TableRow key={notification.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {getStatusIcon(notification.status)}
-                            {getStatusBadge(notification.status)}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {notification.patientName}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(
-                            notification.appointmentDate,
-                          ).toLocaleDateString("it-IT")}{" "}
-                          {notification.appointmentTime}
-                        </TableCell>
-                        <TableCell>
-                          {notification.type === "confirmation" ? (
-                            <Badge variant="outline">Conferma</Badge>
-                          ) : (
-                            <Badge variant="outline">Promemoria</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {notification.sentAt ? (
-                            new Date(notification.sentAt).toLocaleString(
-                              "it-IT",
-                              {
-                                day: "2-digit",
-                                month: "2-digit",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={async () => {
-                              try {
-                                // Conferma l'invio
-                                if (
-                                  !confirm(
-                                    `Vuoi inviare nuovamente la notifica a ${notification.patientName}?`,
-                                  )
-                                ) {
-                                  return;
-                                }
-
-                                // In un'implementazione reale, qui invieremmo la notifica tramite WhatsApp
-                                // Simuliamo l'invio
-                                alert(
-                                  `Invio notifica in corso a ${notification.patientName}...`,
-                                );
-
-                                // Simula un ritardo di invio
-                                await new Promise((resolve) =>
-                                  setTimeout(resolve, 1500),
-                                );
-
-                                // Aggiorna lo stato della notifica
-                                const updatedNotification = {
-                                  ...notification,
-                                  status: "sent",
-                                  sentAt: new Date().toISOString(),
-                                };
-
-                                // Salva la notifica aggiornata in localStorage
-                                const savedNotifications = JSON.parse(
-                                  localStorage.getItem(
-                                    "whatsappNotifications",
-                                  ) || "[]",
-                                );
-                                const updatedNotifications =
-                                  savedNotifications.map((n) =>
-                                    n.id === notification.id
-                                      ? updatedNotification
-                                      : n,
-                                  );
-                                localStorage.setItem(
-                                  "whatsappNotifications",
-                                  JSON.stringify(updatedNotifications),
-                                );
-
-                                // Aggiorna la pagina per mostrare la notifica aggiornata
-                                alert(
-                                  `Notifica inviata con successo a ${notification.patientName}`,
-                                );
-                                window.location.reload();
-                              } catch (error) {
-                                console.error(
-                                  "Errore durante l'invio della notifica:",
-                                  error,
-                                );
-                                alert(
-                                  "Si è verificato un errore durante l'invio della notifica",
-                                );
-                              }
-                            }}
-                          >
-                            <Send className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </TabsContent>
-        ))}
-      </Tabs>
-    </div>
-  );
-};
-
-export default NotificationCenter;
+            {filteredNotifications.filter((n)

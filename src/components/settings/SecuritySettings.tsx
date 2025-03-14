@@ -96,6 +96,10 @@ const SecuritySettings = () => {
 
       // Verifica la password corrente
       const { compare } = await import("@/lib/mockBcrypt");
+      console.log("Verifying password:", {
+        currentPassword,
+        storedPassword: user.password || "",
+      });
       const isMatch = await compare(currentPassword, user.password || "");
 
       if (!isMatch) {
