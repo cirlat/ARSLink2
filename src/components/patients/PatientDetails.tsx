@@ -858,7 +858,7 @@ const PatientDetails = (props: PatientDetailsProps) => {
                                 <p class="text-sm text-gray-500 mb-2">Data: ${new Date(record.date).toLocaleDateString()}</p>
                                 <p class="text-sm text-gray-500 mb-4">Medico: ${record.doctor}</p>
                                 <div class="bg-gray-50 p-4 rounded-md">
-                                  <p>${documentContent}</p>
+                                  <div>${documentContent}</div>
                                 </div>
                                 ${
                                   record.files && record.files.length > 0

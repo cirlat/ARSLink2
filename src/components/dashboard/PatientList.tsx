@@ -69,11 +69,10 @@ interface PatientListProps {
 
 const PatientList: React.FC<PatientListProps> = ({
   patients: propPatients,
-
   onAddPatient,
-  onEditPatient = (id) => console.log("Edit patient", id),
-  onDeletePatient = (id) => console.log("Delete patient", id),
-  onViewPatient = (id) => console.log("View patient", id),
+  onEditPatient,
+  onDeletePatient,
+  onViewPatient,
 }) => {
   const navigate = useNavigate();
 
@@ -208,7 +207,7 @@ const PatientList: React.FC<PatientListProps> = ({
       onViewPatient(id);
     } else {
       // Navigate to patient details page
-      window.location.href = `/patients/${id}`;
+      navigate(`/patients/${id}`);
     }
   };
 
@@ -218,7 +217,7 @@ const PatientList: React.FC<PatientListProps> = ({
       onEditPatient(id);
     } else {
       // Navigate to patient edit page
-      window.location.href = `/patients/${id}/edit`;
+      navigate(`/patients/${id}/edit`);
     }
   };
 

@@ -68,50 +68,26 @@ export async function createDirectoryIfNotExists(
   try {
     // Verifica se siamo in un ambiente Electron
     if (isRunningInElectron()) {
+      // Usa l'API Electron per creare la directory
       try {
-        // Usa Node.js fs direttamente per creare la directory
-        // Questo è più affidabile dell'API Electron in alcuni casi
-        const fs = window.require("fs");
-        const path = window.require("path");
-
-        // Normalizza il percorso per gestire correttamente gli slash
-        const normalizedPath = path.normalize(dirPath);
-
-        if (!fs.existsSync(normalizedPath)) {
-          // Crea la directory in modo ricorsivo (crea anche le directory padre se necessario)
-          fs.mkdirSync(normalizedPath, { recursive: true });
-          console.log(`Directory creata: ${normalizedPath}`);
+        const result = await electronAPI.createDirectory(dirPath);
+        if (result.success) {
+          console.log(`Directory creata tramite API Electron: ${dirPath}`);
+          return true;
         } else {
-          console.log(`Directory già esistente: ${normalizedPath}`);
-        }
-        return true;
-      } catch (fsError) {
-        console.error(`Errore nell'accesso al filesystem: ${fsError.message}`);
-        // Fallback all'API Electron se disponibile
-        if (typeof electronAPI.createDirectory === "function") {
-          try {
-            const result = await electronAPI.createDirectory(dirPath);
-            if (result.success) {
-              console.log(`Directory creata tramite API Electron: ${dirPath}`);
-              return true;
-            } else {
-              // Se la directory esiste già, non è un errore
-              if (result.error && result.error.includes("already exists")) {
-                console.log(`Directory già esistente: ${dirPath}`);
-                return true;
-              }
-              console.error(
-                `Errore nella creazione della directory: ${result.error}`,
-              );
-              return false;
-            }
-          } catch (electronError) {
-            console.error(`Errore con API Electron: ${electronError.message}`);
-            return false;
+          // Se la directory esiste già, non è un errore
+          if (result.error && result.error.includes("already exists")) {
+            console.log(`Directory già esistente: ${dirPath}`);
+            return true;
           }
-        } else {
+          console.error(
+            `Errore nella creazione della directory: ${result.error}`,
+          );
           return false;
         }
+      } catch (electronError) {
+        console.error(`Errore con API Electron: ${electronError.message}`);
+        return false;
       }
     } else {
       // In ambiente browser, simula la creazione della directory
