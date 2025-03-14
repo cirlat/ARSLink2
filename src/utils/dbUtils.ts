@@ -625,22 +625,24 @@ export async function createDirectoryIfNotExists(
   try {
     // Verifica se siamo in un ambiente Electron
     if (isRunningInElectron()) {
-      // Importa il modulo fs
-      const fs = await import("fs");
-      const { promisify } = await import("util");
-      const mkdir = promisify(fs.mkdir);
-      const exists = promisify(fs.exists);
+      // Usa l'API Electron per verificare se la directory esiste
+      try {
+        // Usa il metodo fs.mkdir direttamente con l'opzione recursive
+        // Questo evita di dover usare promisify che può causare problemi in alcuni ambienti
+        const fs = require("fs");
 
-      // Verifica se la directory esiste
-      const dirExists = await exists(dirPath);
+        // Verifica se la directory esiste
+        if (!fs.existsSync(dirPath)) {
+          // Crea la directory con l'opzione recursive
+          fs.mkdirSync(dirPath, { recursive: true });
+          console.log(`Directory creata: ${dirPath}`);
+        }
 
-      // Se la directory non esiste, creala
-      if (!dirExists) {
-        await mkdir(dirPath, { recursive: true });
-        console.log(`Directory creata: ${dirPath}`);
+        return true;
+      } catch (fsError) {
+        console.error(`Errore nell'accesso al filesystem: ${fsError.message}`);
+        throw fsError;
       }
-
-      return true;
     } else {
       // In ambiente browser, simula la creazione della directory
       console.log(`Simulazione: Directory creata ${dirPath}`);

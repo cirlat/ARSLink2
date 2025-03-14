@@ -103,11 +103,14 @@ export class WhatsAppService {
     appointment: Appointment,
     phoneNumber: string,
     message: string,
+    notificationType: "confirmation" | "reminder" | "custom" = "custom",
   ): Promise<boolean> {
     // Formatta il numero di telefono per WhatsApp
     phoneNumber = this.formatPhoneNumber(phoneNumber);
     if (!this.isEnabled || !this.isAuthenticated) {
-      return false;
+      throw new Error(
+        "Il servizio WhatsApp non è abilitato o autenticato. Verifica le impostazioni e l'autenticazione.",
+      );
     }
 
     try {
@@ -123,75 +126,80 @@ export class WhatsAppService {
         return false;
       }
 
-      // In un'implementazione reale, qui utilizzeremmo Selenium per controllare WhatsApp Web
-      // Simuliamo un processo più realistico
+      // Crea una nuova notifica nel database
+      const { NotificationModel } = await import("@/models/notification");
+      const notificationModel = new NotificationModel();
 
-      console.log(`Simulazione invio WhatsApp a ${phoneNumber}: ${message}`);
-
-      // Simulazione del processo di invio con possibilità di fallimento casuale
-      const isSuccessful = Math.random() > 0.1; // 90% di successo
-
-      if (!isSuccessful) {
-        throw new Error("Simulazione fallimento invio WhatsApp");
-      }
-
-      // Salva la notifica in localStorage per simulazione
+      // Ottieni il nome del paziente
+      let patientName = "Paziente";
       try {
-        const notifications = JSON.parse(
-          localStorage.getItem("whatsappNotifications") || "[]",
-        );
-        notifications.push({
-          appointmentId: appointment.id,
-          phoneNumber,
-          message,
-          sentAt: new Date().toISOString(),
-          status: "sent",
-        });
-        localStorage.setItem(
-          "whatsappNotifications",
-          JSON.stringify(notifications),
-        );
-      } catch (e) {
-        console.error(
-          "Errore nel salvataggio della notifica in localStorage:",
-          e,
-        );
+        const { PatientModel } = await import("@/models/patient");
+        const patientModel = new PatientModel();
+        const patient = await patientModel.findById(appointment.patient_id);
+        if (patient) {
+          patientName = patient.name;
+        }
+      } catch (error) {
+        console.error("Errore nel recupero del nome del paziente:", error);
       }
 
-      // Aggiorna lo stato di notifica dell'appuntamento
-      await this.appointmentModel.updateWhatsAppNotification(
-        appointment.id,
-        true,
-      );
+      // Crea la notifica con stato "pending"
+      const notification = await notificationModel.create({
+        patient_id: appointment.patient_id,
+        patient_name: patientName,
+        appointment_id: appointment.id,
+        appointment_date: new Date(appointment.date),
+        appointment_time: appointment.time,
+        message,
+        status: "pending",
+        type: notificationType,
+      });
 
-      return true;
+      // In un'implementazione reale, qui utilizzeremmo Selenium per controllare WhatsApp Web
+      console.log(`Invio WhatsApp a ${phoneNumber}: ${message}`);
+
+      try {
+        // Verifica se WhatsApp Web è aperto e connesso
+        // Questa è una simulazione, in un'implementazione reale controlleremmo lo stato di Selenium
+        const isWhatsAppConnected = this.isAuthenticated;
+
+        if (!isWhatsAppConnected) {
+          throw new Error(
+            "WhatsApp Web non è connesso. Apri WhatsApp Web e scansiona il codice QR.",
+          );
+        }
+
+        // Simulazione del processo di invio con possibilità di fallimento casuale
+        const isSuccessful = Math.random() > 0.1; // 90% di successo
+
+        if (!isSuccessful) {
+          throw new Error(
+            "Errore nell'invio del messaggio WhatsApp. Verifica la connessione e riprova.",
+          );
+        }
+
+        // Aggiorna lo stato della notifica a "sent"
+        await notificationModel.updateStatus(
+          notification.id!,
+          "sent",
+          new Date(),
+        );
+
+        // Aggiorna lo stato di notifica dell'appuntamento
+        await this.appointmentModel.updateWhatsAppNotification(
+          appointment.id,
+          true,
+        );
+
+        return true;
+      } catch (sendError) {
+        // Aggiorna lo stato della notifica a "failed"
+        await notificationModel.updateStatus(notification.id!, "failed");
+        throw sendError;
+      }
     } catch (error) {
       console.error("Error sending WhatsApp notification:", error);
-
-      // Registra il fallimento in localStorage
-      try {
-        const failedNotifications = JSON.parse(
-          localStorage.getItem("failedWhatsappNotifications") || "[]",
-        );
-        failedNotifications.push({
-          appointmentId: appointment.id,
-          phoneNumber,
-          message,
-          attemptedAt: new Date().toISOString(),
-          error: error.message || "Unknown error",
-        });
-        localStorage.setItem(
-          "failedWhatsappNotifications",
-          JSON.stringify(failedNotifications),
-        );
-      } catch (e) {
-        console.error(
-          "Errore nel salvataggio della notifica fallita in localStorage:",
-          e,
-        );
-      }
-
-      return false;
+      throw error;
     }
   }
 
@@ -231,7 +239,12 @@ export class WhatsAppService {
     phoneNumber: string,
   ): Promise<boolean> {
     const message = `Gentile paziente, confermiamo il suo appuntamento per il ${new Date(appointment.date).toLocaleDateString()} alle ${appointment.time}. Risponda "OK" per confermare o "NO" per annullare. Grazie!`;
-    return this.sendNotification(appointment, phoneNumber, message);
+    return this.sendNotification(
+      appointment,
+      phoneNumber,
+      message,
+      "confirmation",
+    );
   }
 
   async sendAppointmentReminder(
@@ -239,7 +252,7 @@ export class WhatsAppService {
     phoneNumber: string,
   ): Promise<boolean> {
     const message = `Gentile paziente, le ricordiamo il suo appuntamento per domani ${new Date(appointment.date).toLocaleDateString()} alle ${appointment.time}. A presto!`;
-    return this.sendNotification(appointment, phoneNumber, message);
+    return this.sendNotification(appointment, phoneNumber, message, "reminder");
   }
 
   async processPendingNotifications(): Promise<{

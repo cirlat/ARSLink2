@@ -357,7 +357,7 @@ const Dashboard = () => {
                             // Gestisci la modifica dell'appuntamento
                             document
                               .getElementById("edit-appointment")
-                              .addEventListener("click", () => {
+                              .addEventListener("click", async () => {
                                 document.body.removeChild(modal);
                                 // Apri il form di modifica dell'appuntamento
                                 const dialog = document.createElement("div");
@@ -367,11 +367,14 @@ const Dashboard = () => {
                                 document.body.appendChild(dialog);
 
                                 // Renderizza il form di modifica
-                                const {
-                                  createRoot,
-                                } = require("react-dom/client");
+                                const { createRoot } = await import(
+                                  "react-dom/client"
+                                );
+                                const AppointmentFormModule = await import(
+                                  "@/components/appointments/AppointmentForm"
+                                );
                                 const AppointmentForm =
-                                  require("@/components/appointments/AppointmentForm").default;
+                                  AppointmentFormModule.default;
                                 const root = createRoot(
                                   document.getElementById(
                                     "appointment-form-container",
@@ -408,6 +411,7 @@ const Dashboard = () => {
                                         "Appuntamento eliminato con successo!",
                                       );
                                       document.body.removeChild(modal);
+                                      // Force a complete reload to refresh all appointment lists
                                       window.location.reload();
                                     } else {
                                       alert(
@@ -676,7 +680,7 @@ const Dashboard = () => {
                             // Gestisci la modifica dell'appuntamento
                             document
                               .getElementById("edit-appointment")
-                              .addEventListener("click", () => {
+                              .addEventListener("click", async () => {
                                 document.body.removeChild(modal);
                                 // Apri il form di modifica dell'appuntamento
                                 const dialog = document.createElement("div");
@@ -686,11 +690,14 @@ const Dashboard = () => {
                                 document.body.appendChild(dialog);
 
                                 // Renderizza il form di modifica
-                                const {
-                                  createRoot,
-                                } = require("react-dom/client");
+                                const { createRoot } = await import(
+                                  "react-dom/client"
+                                );
+                                const AppointmentFormModule = await import(
+                                  "@/components/appointments/AppointmentForm"
+                                );
                                 const AppointmentForm =
-                                  require("@/components/appointments/AppointmentForm").default;
+                                  AppointmentFormModule.default;
                                 const root = createRoot(
                                   document.getElementById(
                                     "appointment-form-container",

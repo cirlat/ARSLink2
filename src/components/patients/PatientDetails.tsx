@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { Button } from "../ui/button";
 import {
@@ -64,84 +65,182 @@ interface PatientDetailsProps {
   communications?: Communication[];
 }
 
-const PatientDetails = ({
-  patient = {
-    id: "12345",
-    name: "Maria Rossi",
-    codiceFiscale: "RSSMRA80A01H501U",
-    dateOfBirth: "1980-01-01",
-    gender: "Female",
-    email: "maria.rossi@example.com",
-    phone: "+39 123 456 7890",
-    address: "Via Roma 123, 00100 Roma, Italia",
-    profileImage: "https://api.dicebear.com/7.x/avataaars/svg?seed=Maria",
-  },
-  appointments = [
-    {
-      id: "apt1",
-      date: "2023-06-15",
-      time: "10:00",
-      type: "Check-up",
-      status: "completed",
-      notes: "Regular annual check-up. Blood pressure normal.",
-    },
-    {
-      id: "apt2",
-      date: "2023-09-22",
-      time: "14:30",
-      type: "Follow-up",
-      status: "completed",
-      notes: "Follow-up for previous treatment.",
-    },
-    {
-      id: "apt3",
-      date: "2024-01-10",
-      time: "11:15",
-      type: "Consultation",
-      status: "upcoming",
-    },
-  ],
-  medicalRecords = [
-    {
-      id: "rec1",
-      date: "2023-06-15",
-      title: "Annual Check-up Results",
-      doctor: "Dr. Bianchi",
-      description: "All tests normal. Recommended annual follow-up.",
-    },
-    {
-      id: "rec2",
-      date: "2023-09-22",
-      title: "Blood Test Results",
-      doctor: "Dr. Verdi",
-      description:
-        "Cholesterol slightly elevated. Dietary changes recommended.",
-    },
-  ],
-  communications = [
-    {
-      id: "comm1",
-      date: "2023-12-20",
-      type: "whatsapp",
-      message: "Reminder for your appointment on January 10th at 11:15.",
-      status: "sent",
-    },
-    {
-      id: "comm2",
-      date: "2023-12-25",
-      type: "email",
-      message: "Happy Holidays from our clinic! Our holiday hours are...",
-      status: "sent",
-    },
-    {
-      id: "comm3",
-      date: "2024-01-05",
-      type: "whatsapp",
-      message: "Your appointment is in 5 days. Please confirm.",
-      status: "pending",
-    },
-  ],
-}: PatientDetailsProps) => {
+const PatientDetails = (props: PatientDetailsProps) => {
+  const [patient, setPatient] = useState<any>(null);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
+  const [communications, setCommunications] = useState<Communication[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { id } = useParams<{ id: string }>();
+
+  useEffect(() => {
+    const loadPatientData = async () => {
+      setIsLoading(true);
+      try {
+        // Load patient details
+        const { PatientModel } = await import("@/models/patient");
+        const patientModel = new PatientModel();
+        const patientData = await patientModel.findById(parseInt(id || "0"));
+
+        if (patientData) {
+          // Format patient data
+          const formattedPatient = {
+            id: patientData.id.toString(),
+            name: patientData.name,
+            codiceFiscale: patientData.codice_fiscale,
+            dateOfBirth: patientData.date_of_birth,
+            gender: patientData.gender,
+            email: patientData.email || "",
+            phone: patientData.phone,
+            address:
+              `${patientData.address || ""}, ${patientData.city || ""} ${patientData.postal_code || ""}`.trim(),
+            profileImage: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(patientData.name)}`,
+          };
+          setPatient(formattedPatient);
+
+          // Load patient appointments
+          const { AppointmentModel } = await import("@/models/appointment");
+          const appointmentModel = new AppointmentModel();
+          const patientAppointments = await appointmentModel.findByPatientId(
+            parseInt(id || "0"),
+          );
+
+          if (patientAppointments && patientAppointments.length > 0) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const formattedAppointments = patientAppointments.map((app) => {
+              const appDate = new Date(app.date);
+              let status: "completed" | "upcoming" | "cancelled" = "upcoming";
+
+              if (appDate < today) {
+                status = "completed";
+              }
+
+              return {
+                id: app.id!.toString(),
+                date: app.date.toString(),
+                time: app.time.substring(0, 5),
+                type: app.appointment_type,
+                status,
+                notes: app.notes,
+              };
+            });
+
+            setAppointments(formattedAppointments);
+          } else {
+            setAppointments([]);
+          }
+
+          // For medical records and communications, we'll use mock data for now
+          // as these features might be implemented in future versions
+          setMedicalRecords([
+            {
+              id: "rec1",
+              date: "2023-06-15",
+              title: "Annual Check-up Results",
+              doctor: "Dr. Bianchi",
+              description: "All tests normal. Recommended annual follow-up.",
+            },
+            {
+              id: "rec2",
+              date: "2023-09-22",
+              title: "Blood Test Results",
+              doctor: "Dr. Verdi",
+              description:
+                "Cholesterol slightly elevated. Dietary changes recommended.",
+            },
+          ]);
+
+          setCommunications([
+            {
+              id: "comm1",
+              date: "2023-12-20",
+              type: "whatsapp",
+              message:
+                "Reminder for your appointment on January 10th at 11:15.",
+              status: "sent",
+            },
+            {
+              id: "comm2",
+              date: "2023-12-25",
+              type: "email",
+              message:
+                "Happy Holidays from our clinic! Our holiday hours are...",
+              status: "sent",
+            },
+            {
+              id: "comm3",
+              date: "2024-01-05",
+              type: "whatsapp",
+              message: "Your appointment is in 5 days. Please confirm.",
+              status: "pending",
+            },
+          ]);
+        } else {
+          // If patient not found, use default values
+          setPatient({
+            id: id || "0",
+            name: "Paziente non trovato",
+            codiceFiscale: "",
+            dateOfBirth: new Date().toISOString(),
+            gender: "",
+            email: "",
+            phone: "",
+            address: "",
+            profileImage:
+              "https://api.dicebear.com/7.x/avataaars/svg?seed=NotFound",
+          });
+          setAppointments([]);
+        }
+      } catch (error) {
+        console.error("Error loading patient data:", error);
+        // Use default values if there's an error
+        setPatient({
+          id: id || "0",
+          name: "Errore nel caricamento",
+          codiceFiscale: "",
+          dateOfBirth: new Date().toISOString(),
+          gender: "",
+          email: "",
+          phone: "",
+          address: "",
+          profileImage: "https://api.dicebear.com/7.x/avataaars/svg?seed=Error",
+        });
+        setAppointments([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPatientData();
+  }, [id]);
+  if (isLoading) {
+    return (
+      <div className="w-full h-full bg-background p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="spinner mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">
+            Caricamento dati paziente...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!patient) {
+    return (
+      <div className="w-full h-full bg-background p-6 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-bold mb-2">Paziente non trovato</h2>
+          <p className="text-muted-foreground">
+            Il paziente richiesto non è stato trovato nel database.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full bg-background p-6">
       <div className="flex flex-col md:flex-row gap-6 mb-6">

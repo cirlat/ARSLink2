@@ -49,6 +49,101 @@ const Settings = () => {
   const [googleCalendarSync, setGoogleCalendarSync] = useState(true);
   const [whatsappIntegration, setWhatsappIntegration] = useState(true);
   const [showLicenseInfo, setShowLicenseInfo] = useState(false);
+  const [clinicName, setClinicName] = useState("Studio Medico Dr. Rossi");
+  const [address, setAddress] = useState("Via Roma 123, 00100 Roma");
+  const [email, setEmail] = useState("info@studiomedico.it");
+  const [phone, setPhone] = useState("+39 06 12345678");
+  const [language, setLanguage] = useState("it");
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load settings from database
+  useEffect(() => {
+    const loadSettings = async () => {
+      setIsLoading(true);
+      try {
+        const { default: Database } = await import("@/models/database");
+        const db = Database.getInstance();
+
+        // Load general settings
+        const generalSettingsResult = await db.query(
+          "SELECT value FROM configurations WHERE key = 'general_settings'",
+          [],
+        );
+
+        if (generalSettingsResult.length > 0) {
+          const generalSettings = JSON.parse(generalSettingsResult[0].value);
+          setClinicName(
+            generalSettings.clinicName || "Studio Medico Dr. Rossi",
+          );
+          setAddress(generalSettings.address || "Via Roma 123, 00100 Roma");
+          setEmail(generalSettings.email || "info@studiomedico.it");
+          setPhone(generalSettings.phone || "+39 06 12345678");
+          setDarkMode(generalSettings.darkMode || false);
+          setLanguage(generalSettings.language || "it");
+        }
+
+        // Load backup settings
+        const backupConfigResult = await db.query(
+          "SELECT value FROM configurations WHERE key = 'backup_config'",
+          [],
+        );
+
+        if (backupConfigResult.length > 0) {
+          const backupConfig = JSON.parse(backupConfigResult[0].value);
+          setAutoBackup(
+            backupConfig.autoBackup !== undefined
+              ? backupConfig.autoBackup
+              : true,
+          );
+          setBackupFrequency(backupConfig.backupFrequency || "daily");
+        }
+
+        // Apply dark mode if needed
+        if (darkMode) {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+      } catch (error) {
+        console.error("Error loading settings:", error);
+        // Fallback to localStorage
+        try {
+          const storedGeneralSettings = localStorage.getItem("generalSettings");
+          if (storedGeneralSettings) {
+            const generalSettings = JSON.parse(storedGeneralSettings);
+            setClinicName(
+              generalSettings.clinicName || "Studio Medico Dr. Rossi",
+            );
+            setAddress(generalSettings.address || "Via Roma 123, 00100 Roma");
+            setEmail(generalSettings.email || "info@studiomedico.it");
+            setPhone(generalSettings.phone || "+39 06 12345678");
+            setDarkMode(generalSettings.darkMode || false);
+            setLanguage(generalSettings.language || "it");
+          }
+
+          const storedBackupConfig = localStorage.getItem("backupConfig");
+          if (storedBackupConfig) {
+            const backupConfig = JSON.parse(storedBackupConfig);
+            setAutoBackup(
+              backupConfig.autoBackup !== undefined
+                ? backupConfig.autoBackup
+                : true,
+            );
+            setBackupFrequency(backupConfig.backupFrequency || "daily");
+          }
+        } catch (localStorageError) {
+          console.error(
+            "Error loading settings from localStorage:",
+            localStorageError,
+          );
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
 
   return (
     <div className="container mx-auto p-6 max-w-6xl">
@@ -58,23 +153,14 @@ const Settings = () => {
           onClick={async () => {
             // Salva tutte le impostazioni in localStorage e nel database
 
-            // Impostazioni generali
-            const clinicName = document.getElementById("clinic-name")?.value;
-            const address = document.getElementById("address")?.value;
-            const email = document.getElementById("email")?.value;
-            const phone = document.getElementById("phone")?.value;
-
             // Backup
             const backupPath = document.getElementById("backup-path")?.value;
-            const backupFrequency =
-              document.querySelector('[id^="backup-frequency"]')?.value ||
-              "daily";
 
             // Salva in localStorage
-            if (clinicName) localStorage.setItem("clinicName", clinicName);
-            if (address) localStorage.setItem("address", address);
-            if (email) localStorage.setItem("email", email);
-            if (phone) localStorage.setItem("phone", phone);
+            localStorage.setItem("clinicName", clinicName);
+            localStorage.setItem("address", address);
+            localStorage.setItem("email", email);
+            localStorage.setItem("phone", phone);
             if (backupPath) localStorage.setItem("backupPath", backupPath);
 
             // Salva le impostazioni come oggetto JSON
@@ -229,7 +315,8 @@ const Settings = () => {
                       <Input
                         id="clinic-name"
                         placeholder="Studio Medico Dr. Rossi"
-                        defaultValue="Studio Medico Dr. Rossi"
+                        value={clinicName}
+                        onChange={(e) => setClinicName(e.target.value)}
                       />
                     </div>
 
@@ -238,7 +325,8 @@ const Settings = () => {
                       <Input
                         id="address"
                         placeholder="Via Roma 123, 00100 Roma"
-                        defaultValue="Via Roma 123, 00100 Roma"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
                       />
                     </div>
 
@@ -249,7 +337,8 @@ const Settings = () => {
                           id="email"
                           type="email"
                           placeholder="info@studiomedico.it"
-                          defaultValue="info@studiomedico.it"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
@@ -257,7 +346,8 @@ const Settings = () => {
                         <Input
                           id="phone"
                           placeholder="+39 06 12345678"
-                          defaultValue="+39 06 12345678"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
                         />
                       </div>
                     </div>
@@ -295,8 +385,9 @@ const Settings = () => {
                       </div>
                       <Select
                         id="language"
-                        defaultValue={localStorage.getItem("language") || "it"}
+                        value={language}
                         onValueChange={(value) => {
+                          setLanguage(value);
                           localStorage.setItem("language", value);
                           // In un'implementazione reale, qui cambieremmo la lingua dell'interfaccia
                         }}
