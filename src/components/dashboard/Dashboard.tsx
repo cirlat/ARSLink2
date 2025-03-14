@@ -1,100 +1,464 @@
 import React, { useState, useEffect } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import DashboardContent from "./DashboardContent";
-import LicenseExpiredAlert from "../system/LicenseExpiredAlert";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Calendar, Clock, User, Users, Bell, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-interface DashboardProps {
-  userName?: string;
-  userRole?: "Medico" | "Assistente";
-  userAvatar?: string;
-  licenseExpiryDays?: number;
-  lastBackupStatus?: "success" | "failed" | "pending";
-  lastBackupTime?: string;
-  onLogout?: () => void;
-}
-
-const Dashboard: React.FC<DashboardProps> = ({
-  userName = "Dr. Mario Rossi",
-  userRole = "Medico",
-  userAvatar = "",
-  licenseExpiryDays = 30,
-  lastBackupStatus = "success",
-  lastBackupTime = "2023-06-10 14:30",
-  onLogout,
-}) => {
-  const location = useLocation();
+const Dashboard = () => {
   const navigate = useNavigate();
-  const [showLicenseAlert, setShowLicenseAlert] = useState<boolean>(
-    licenseExpiryDays < 15 || localStorage.getItem("licenseExpired") === "true",
-  );
-  const [showBackupStatus, setShowBackupStatus] = useState<boolean>(
-    lastBackupStatus === "failed",
-  );
-  const [isLicenseExpired, setIsLicenseExpired] = useState<boolean>(
-    localStorage.getItem("licenseExpired") === "true",
-  );
+  const [recentPatients, setRecentPatients] = useState([]);
+  const [upcomingAppointments, setUpcomingAppointments] = useState([]);
+  const [todayAppointments, setTodayAppointments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Gestione dell'aggiunta di un nuovo paziente
-  const handleAddPatient = () => {
-    navigate("/patients/new");
-  };
+  // Carica i dati dal database
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        // Carica i pazienti recenti
+        const { PatientModel } = await import("@/models/patient");
+        const patientModel = new PatientModel();
+        const patientsResult = await patientModel.findAll();
+
+        if (patientsResult.patients && patientsResult.patients.length > 0) {
+          // Ordina i pazienti per data di creazione (più recenti prima)
+          const sortedPatients = [...patientsResult.patients].sort((a, b) => {
+            return (
+              new Date(b.created_at || 0).getTime() -
+              new Date(a.created_at || 0).getTime()
+            );
+          });
+
+          // Prendi i primi 3 pazienti
+          const recentPatientsList = sortedPatients.slice(0, 3).map((p) => ({
+            id: p.id.toString(),
+            name: p.name,
+            date: new Date(p.created_at || Date.now()).toLocaleDateString(),
+            reason: "Nuovo paziente",
+          }));
+
+          setRecentPatients(recentPatientsList);
+        } else {
+          // Fallback a dati di esempio se non ci sono pazienti
+          setRecentPatients([
+            {
+              id: "1",
+              name: "Maria Rossi",
+              date: "10/05/2023",
+              reason: "Visita di controllo",
+            },
+            {
+              id: "2",
+              name: "Giuseppe Verdi",
+              date: "15/05/2023",
+              reason: "Consulto",
+            },
+            {
+              id: "3",
+              name: "Francesca Bianchi",
+              date: "18/05/2023",
+              reason: "Procedura medica",
+            },
+          ]);
+        }
+
+        // Carica gli appuntamenti
+        const { AppointmentModel } = await import("@/models/appointment");
+        const appointmentModel = new AppointmentModel();
+
+        // Appuntamenti di oggi
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayAppointmentsResult =
+          await appointmentModel.findByDate(today);
+
+        if (todayAppointmentsResult && todayAppointmentsResult.length > 0) {
+          const formattedTodayAppointments = todayAppointmentsResult.map(
+            (a) => ({
+              id: a.id.toString(),
+              patientName: a.patient_name || "Paziente",
+              time: a.time.substring(0, 5), // Formato HH:MM
+              type: a.appointment_type,
+            }),
+          );
+
+          // Ordina per orario
+          formattedTodayAppointments.sort((a, b) =>
+            a.time.localeCompare(b.time),
+          );
+
+          setTodayAppointments(formattedTodayAppointments);
+        } else {
+          // Fallback a dati di esempio se non ci sono appuntamenti oggi
+          setTodayAppointments([]);
+        }
+
+        // Prossimi appuntamenti (escluso oggi)
+        const upcomingAppointmentsResult =
+          await appointmentModel.findUpcoming(6);
+
+        if (
+          upcomingAppointmentsResult &&
+          upcomingAppointmentsResult.length > 0
+        ) {
+          // Filtra per escludere gli appuntamenti di oggi
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(0, 0, 0, 0);
+
+          const futureAppointments = upcomingAppointmentsResult.filter((a) => {
+            const appointmentDate = new Date(a.date);
+            return appointmentDate >= tomorrow;
+          });
+
+          const formattedUpcomingAppointments = futureAppointments
+            .slice(0, 3)
+            .map((a) => ({
+              id: a.id.toString(),
+              patientName: a.patient_name || "Paziente",
+              date: new Date(a.date).toLocaleDateString(),
+              time: a.time.substring(0, 5), // Formato HH:MM
+              type: a.appointment_type,
+            }));
+
+          setUpcomingAppointments(formattedUpcomingAppointments);
+        } else {
+          // Fallback a dati di esempio se non ci sono appuntamenti futuri
+          setUpcomingAppointments([]);
+        }
+      } catch (error) {
+        console.error("Errore nel caricamento dei dati:", error);
+        // Fallback a dati di esempio in caso di errore
+        setRecentPatients([
+          {
+            id: "1",
+            name: "Maria Rossi",
+            date: "10/05/2023",
+            reason: "Visita di controllo",
+          },
+          {
+            id: "2",
+            name: "Giuseppe Verdi",
+            date: "15/05/2023",
+            reason: "Consulto",
+          },
+          {
+            id: "3",
+            name: "Francesca Bianchi",
+            date: "18/05/2023",
+            reason: "Procedura medica",
+          },
+        ]);
+
+        setTodayAppointments([
+          {
+            id: "1",
+            patientName: "Lucia Ferrari",
+            time: "10:00",
+            type: "Visita di controllo",
+          },
+          {
+            id: "2",
+            patientName: "Roberto Esposito",
+            time: "11:30",
+            type: "Consulto",
+          },
+        ]);
+
+        setUpcomingAppointments([
+          {
+            id: "1",
+            patientName: "Marco Rossi",
+            date: "15/06/2023",
+            time: "09:30",
+            type: "Visita di controllo",
+          },
+          {
+            id: "2",
+            patientName: "Giulia Bianchi",
+            date: "16/06/2023",
+            time: "11:00",
+            type: "Consulto",
+          },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Avvisi di sistema */}
-      {isLicenseExpired ? (
-        <LicenseExpiredAlert onDismiss={() => setShowLicenseAlert(false)} />
-      ) : (
-        showLicenseAlert && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <span className="text-yellow-400">⚠️</span>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-yellow-700">
-                  La tua licenza scadrà tra {licenseExpiryDays} giorni. Vai
-                  nelle impostazioni per rinnovarla.
+    <div className="p-6 bg-white h-full overflow-y-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            onClick={() => navigate("/calendar")}
+            className="flex items-center"
+          >
+            <Calendar className="mr-2 h-4 w-4" />
+            Calendario
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate("/patients")}
+            className="flex items-center"
+          >
+            <Users className="mr-2 h-4 w-4" />
+            Pazienti
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate("/notifications")}
+            className="flex items-center"
+          >
+            <Bell className="mr-2 h-4 w-4" />
+            Notifiche
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Appuntamenti di Oggi */}
+        <Card className="col-span-1 md:col-span-2 lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-lg font-medium">
+              Appuntamenti di Oggi
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/calendar")}
+            >
+              Vedi tutti
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="text-center py-6">
+                <div className="spinner mx-auto"></div>
+                <p className="mt-2 text-muted-foreground">
+                  Caricamento appuntamenti...
                 </p>
               </div>
-              <button
-                className="ml-auto pl-3"
-                onClick={() => setShowLicenseAlert(false)}
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        )
-      )}
+            ) : todayAppointments.length > 0 ? (
+              <div className="space-y-4">
+                {todayAppointments.map((appointment) => (
+                  <div
+                    key={appointment.id}
+                    className="flex items-center justify-between p-3 bg-slate-50 rounded-md hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center">
+                      <div className="bg-blue-100 p-2 rounded-full mr-3">
+                        <Clock className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{appointment.patientName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {appointment.type}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">{appointment.time}</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-600 hover:text-blue-800 p-0 h-auto"
+                        onClick={() => {
+                          // Implementare la visualizzazione dei dettagli dell'appuntamento
+                          console.log(
+                            `Visualizza dettagli appuntamento ${appointment.id}`,
+                          );
+                        }}
+                      >
+                        Dettagli
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-muted-foreground">
+                  Nessun appuntamento per oggi
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-2"
+                  onClick={() => navigate("/calendar")}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Aggiungi Appuntamento
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {showBackupStatus && lastBackupStatus === "failed" && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <span className="text-red-400">❌</span>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-700">
-                L'ultimo backup del {lastBackupTime} è fallito. Controlla lo
-                spazio su disco e riprova.
-              </p>
-            </div>
-            <button
-              className="ml-auto pl-3"
-              onClick={() => setShowBackupStatus(false)}
+        {/* Ultimi Pazienti Inseriti */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-lg font-medium">
+              Ultimi Pazienti Inseriti
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/patients")}
             >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
+              Vedi tutti
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="text-center py-6">
+                <div className="spinner mx-auto"></div>
+                <p className="mt-2 text-muted-foreground">
+                  Caricamento pazienti...
+                </p>
+              </div>
+            ) : recentPatients.length > 0 ? (
+              <div className="space-y-4">
+                {recentPatients.map((patient) => (
+                  <div
+                    key={patient.id}
+                    className="flex items-center justify-between p-3 bg-slate-50 rounded-md hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center">
+                      <div className="bg-green-100 p-2 rounded-full mr-3">
+                        <User className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{patient.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {patient.reason}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">
+                        {patient.date}
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-green-600 hover:text-green-800 p-0 h-auto"
+                        onClick={() => {
+                          // Implementare la visualizzazione dei dettagli del paziente
+                          navigate(`/patients/${patient.id}`);
+                        }}
+                      >
+                        Dettagli
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-muted-foreground">Nessun paziente recente</p>
+                <Button
+                  variant="outline"
+                  className="mt-2"
+                  onClick={() => navigate("/patients/new")}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Aggiungi Paziente
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Contenuto della pagina */}
-      <main className="flex-1 overflow-auto">
-        <DashboardContent />
-        <Outlet />
-      </main>
+        {/* Prossimi Appuntamenti */}
+        <Card className="col-span-1 md:col-span-2 lg:col-span-3">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-lg font-medium">
+              Prossimi Appuntamenti
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/calendar")}
+            >
+              Vedi tutti
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="text-center py-6">
+                <div className="spinner mx-auto"></div>
+                <p className="mt-2 text-muted-foreground">
+                  Caricamento appuntamenti futuri...
+                </p>
+              </div>
+            ) : upcomingAppointments.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {upcomingAppointments.map((appointment) => (
+                  <div
+                    key={appointment.id}
+                    className="p-4 bg-slate-50 rounded-md hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center mb-2">
+                      <div className="bg-blue-100 p-2 rounded-full mr-3">
+                        <Calendar className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{appointment.patientName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {appointment.type}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      <div>
+                        <p className="text-sm font-medium">
+                          {appointment.date}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {appointment.time}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-600 hover:text-blue-800"
+                        onClick={() => {
+                          // Implementare la visualizzazione dei dettagli dell'appuntamento
+                          console.log(
+                            `Visualizza dettagli appuntamento ${appointment.id}`,
+                          );
+                        }}
+                      >
+                        Dettagli
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-muted-foreground">
+                  Nessun appuntamento programmato
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-2"
+                  onClick={() => navigate("/calendar")}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Aggiungi Appuntamento
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

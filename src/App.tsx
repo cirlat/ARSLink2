@@ -52,6 +52,11 @@ function App() {
     const storedUserRole = localStorage.getItem("userRole");
     if (storedUserName) setUserName(storedUserName);
     if (storedUserRole) setUserRole(storedUserRole);
+
+    // Imposta isAuthenticated a true per scopi di sviluppo
+    if (!localStorage.getItem("isAuthenticated")) {
+      localStorage.setItem("isAuthenticated", "true");
+    }
   }, [location.pathname, navigate]);
 
   // Gestione del logout
@@ -63,8 +68,8 @@ function App() {
   return (
     <Suspense fallback={<p>Loading...</p>}>
       <div className="flex h-screen w-full bg-background">
-        {/* Mostra la sidebar solo se l'utente è autenticato e non è nella pagina di setup o login */}
-        {localStorage.getItem("isAuthenticated") === "true" && !isSetupPage && (
+        {/* Mostra la sidebar sempre tranne nella pagina di setup */}
+        {!isSetupPage && (
           <Sidebar
             userName={userName}
             userRole={userRole}

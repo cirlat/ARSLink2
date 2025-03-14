@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,47 +56,61 @@ const CalendarView = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] =
     useState<Appointment | null>(null);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Dati di esempio per gli appuntamenti
-  const mockAppointments: Appointment[] = [
-    {
-      id: "1",
-      patientName: "Marco Rossi",
-      date: new Date(),
-      time: "09:00",
-      duration: 30,
-      type: "Visita generale",
-      synced: true,
-      notified: true,
-    },
-    {
-      id: "2",
-      patientName: "Giulia Bianchi",
-      date: new Date(),
-      time: "10:30",
-      duration: 45,
-      type: "Controllo",
-      synced: true,
-      notified: false,
-    },
-    {
-      id: "3",
-      patientName: "Luca Verdi",
-      date: addDays(new Date(), 1),
-      time: "14:00",
-      duration: 60,
-      type: "Prima visita",
-      synced: false,
-      notified: false,
-    },
-  ];
+  // Carica gli appuntamenti dal database
+  useEffect(() => {
+    const loadAppointments = async () => {
+      setIsLoading(true);
+      try {
+        const { AppointmentModel } = await import("@/models/appointment");
+        const appointmentModel = new AppointmentModel();
 
-  // Generazione degli anni per il selettore
-  const currentYear = getYear(new Date());
-  const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
+        // Ottieni tutti gli appuntamenti per il mese corrente
+        const startDate = new Date();
+        startDate.setDate(1); // Primo giorno del mese
+        startDate.setHours(0, 0, 0, 0);
 
-  // Generazione dei mesi per il selettore
-  const months = Array.from({ length: 12 }, (_, i) => i);
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + 1);
+        endDate.setDate(0); // Ultimo giorno del mese
+        endDate.setHours(23, 59, 59, 999);
+
+        const result = await appointmentModel.findByDateRange(
+          startDate,
+          endDate,
+        );
+
+        if (result && result.length > 0) {
+          // Formatta gli appuntamenti per l'uso nel componente
+          const formattedAppointments = result.map((a) => ({
+            id: a.id.toString(),
+            patientName: a.patient_name || "Paziente",
+            date: new Date(a.date),
+            time: a.time.substring(0, 5), // Formato HH:MM
+            duration: a.duration,
+            type: a.appointment_type,
+            synced: a.google_calendar_synced,
+            notified: a.whatsapp_notification_sent,
+          }));
+
+          setAppointments(formattedAppointments);
+        } else {
+          // Nessun appuntamento trovato
+          setAppointments([]);
+        }
+      } catch (error) {
+        console.error("Errore nel caricamento degli appuntamenti:", error);
+        // Fallback a dati vuoti in caso di errore
+        setAppointments([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAppointments();
+  }, []);
 
   const handleNewAppointment = () => {
     setSelectedAppointment(null);
@@ -146,7 +160,7 @@ const CalendarView = () => {
   };
 
   const renderDayView = () => {
-    const dayAppointments = mockAppointments
+    const dayAppointments = appointments
       .filter((app) => isSameDay(app.date, date))
       .sort((a, b) => a.time.localeCompare(b.time));
 
@@ -155,7 +169,14 @@ const CalendarView = () => {
         <h2 className="text-xl font-semibold">
           {format(date, "EEEE, d MMMM yyyy", { locale: it })}
         </h2>
-        {dayAppointments.length > 0 ? (
+        {isLoading ? (
+          <div className="text-center py-6">
+            <div className="spinner mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">
+              Caricamento appuntamenti...
+            </p>
+          </div>
+        ) : dayAppointments.length > 0 ? (
           dayAppointments.map((appointment) => (
             <AppointmentCard
               key={appointment.id}
@@ -186,62 +207,71 @@ const CalendarView = () => {
           {format(startDate, "d MMMM", { locale: it })} -{" "}
           {format(endDate, "d MMMM yyyy", { locale: it })}
         </h2>
-        <div className="grid grid-cols-7 gap-4">
-          {weekDays.map((day, index) => {
-            const dayAppointments = mockAppointments.filter((app) =>
-              isSameDay(app.date, day),
-            );
+        {isLoading ? (
+          <div className="text-center py-6">
+            <div className="spinner mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">
+              Caricamento appuntamenti...
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-7 gap-4">
+            {weekDays.map((day, index) => {
+              const dayAppointments = appointments.filter((app) =>
+                isSameDay(app.date, day),
+              );
 
-            return (
-              <div key={index} className="space-y-2">
-                <div className="text-center p-2 bg-muted rounded-md">
-                  <div className="font-medium">
-                    {format(day, "EEEE", { locale: it })}
-                  </div>
-                  <div>{format(day, "d")}</div>
-                </div>
-                <div className="space-y-2 h-[400px] overflow-y-auto">
-                  {dayAppointments.length > 0 ? (
-                    dayAppointments.map((appointment) => (
-                      <div
-                        key={appointment.id}
-                        className="p-2 bg-card border rounded-md text-sm cursor-pointer hover:bg-accent"
-                        onClick={() => handleEditAppointment(appointment)}
-                      >
-                        <div className="font-medium">{appointment.time}</div>
-                        <div className="truncate">
-                          {appointment.patientName}
-                        </div>
-                        <div className="flex items-center space-x-1 mt-1">
-                          {appointment.synced ? (
-                            <Badge
-                              variant="outline"
-                              className="bg-green-50 text-green-700 border-green-200"
-                            >
-                              <Check className="h-3 w-3 mr-1" /> Sincronizzato
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="bg-amber-50 text-amber-700 border-amber-200"
-                            >
-                              <AlertCircle className="h-3 w-3 mr-1" /> Non
-                              sincronizzato
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center text-sm text-muted-foreground p-2">
-                      Nessun appuntamento
+              return (
+                <div key={index} className="space-y-2">
+                  <div className="text-center p-2 bg-muted rounded-md">
+                    <div className="font-medium">
+                      {format(day, "EEEE", { locale: it })}
                     </div>
-                  )}
+                    <div>{format(day, "d")}</div>
+                  </div>
+                  <div className="space-y-2 h-[400px] overflow-y-auto">
+                    {dayAppointments.length > 0 ? (
+                      dayAppointments.map((appointment) => (
+                        <div
+                          key={appointment.id}
+                          className="p-2 bg-card border rounded-md text-sm cursor-pointer hover:bg-accent"
+                          onClick={() => handleEditAppointment(appointment)}
+                        >
+                          <div className="font-medium">{appointment.time}</div>
+                          <div className="truncate">
+                            {appointment.patientName}
+                          </div>
+                          <div className="flex items-center space-x-1 mt-1">
+                            {appointment.synced ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-green-50 text-green-700 border-green-200"
+                              >
+                                <Check className="h-3 w-3 mr-1" /> Sincronizzato
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="bg-amber-50 text-amber-700 border-amber-200"
+                              >
+                                <AlertCircle className="h-3 w-3 mr-1" /> Non
+                                sincronizzato
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-sm text-muted-foreground p-2">
+                        Nessun appuntamento
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   };
@@ -262,7 +292,7 @@ const CalendarView = () => {
                 <SelectValue placeholder="Seleziona mese" />
               </SelectTrigger>
               <SelectContent>
-                {months.map((month) => (
+                {Array.from({ length: 12 }, (_, i) => i).map((month) => (
                   <SelectItem key={month} value={month.toString()}>
                     {format(new Date(2000, month, 1), "MMMM", { locale: it })}
                   </SelectItem>
@@ -278,7 +308,10 @@ const CalendarView = () => {
                 <SelectValue placeholder="Anno" />
               </SelectTrigger>
               <SelectContent>
-                {years.map((year) => (
+                {Array.from(
+                  { length: 10 },
+                  (_, i) => getYear(new Date()) - 5 + i,
+                ).map((year) => (
                   <SelectItem key={year} value={year.toString()}>
                     {year}
                   </SelectItem>
@@ -288,19 +321,26 @@ const CalendarView = () => {
           </div>
         </div>
         <div className="bg-card rounded-lg p-4 border">
-          <Calendar
-            mode="single"
-            selected={date}
-            onSelect={(newDate) => newDate && setDate(newDate)}
-            className="rounded-md border"
-            locale={it}
-            modifiers={{
-              appointment: mockAppointments.map((a) => a.date),
-            }}
-            modifiersClassNames={{
-              appointment: "bg-primary text-primary-foreground font-bold",
-            }}
-          />
+          {isLoading ? (
+            <div className="flex items-center justify-center h-[350px]">
+              <div className="spinner mr-2"></div>
+              <p>Caricamento calendario...</p>
+            </div>
+          ) : (
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={(newDate) => newDate && setDate(newDate)}
+              className="rounded-md border"
+              locale={it}
+              modifiers={{
+                appointment: appointments.map((a) => a.date),
+              }}
+              modifiersClassNames={{
+                appointment: "bg-primary text-primary-foreground font-bold",
+              }}
+            />
+          )}
         </div>
         <Card>
           <CardHeader>
@@ -309,9 +349,16 @@ const CalendarView = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {mockAppointments.filter((app) => isSameDay(app.date, date))
-              .length > 0 ? (
-              mockAppointments
+            {isLoading ? (
+              <div className="text-center py-6">
+                <div className="spinner mx-auto"></div>
+                <p className="mt-2 text-muted-foreground">
+                  Caricamento appuntamenti...
+                </p>
+              </div>
+            ) : appointments.filter((app) => isSameDay(app.date, date)).length >
+              0 ? (
+              appointments
                 .filter((app) => isSameDay(app.date, date))
                 .sort((a, b) => a.time.localeCompare(b.time))
                 .map((appointment) => (
