@@ -196,8 +196,15 @@ export async function initializeAppSetup(): Promise<boolean> {
       // Save default Google Calendar settings to database
       try {
         console.log("Saving default Google Calendar settings to database...");
+
+        // Verifica se la licenza permette Google Calendar
+        const { LicenseModel } = await import("../models/license");
+        const licenseModel = LicenseModel.getInstance();
+        const isGoogleCalendarEnabled =
+          await licenseModel.isGoogleCalendarEnabled();
+
         const googleCalendarConfig = {
-          enabled: false,
+          enabled: isGoogleCalendarEnabled,
           clientId: "",
           clientSecret: "",
           redirectUri: "http://localhost:5173/settings",
@@ -218,8 +225,14 @@ export async function initializeAppSetup(): Promise<boolean> {
       // Save default WhatsApp settings to database
       try {
         console.log("Saving default WhatsApp settings to database...");
+
+        // Verifica se la licenza permette WhatsApp
+        const { LicenseModel } = await import("../models/license");
+        const licenseModel = LicenseModel.getInstance();
+        const isWhatsAppEnabled = await licenseModel.isWhatsAppEnabled();
+
         const whatsappConfig = {
-          enabled: false,
+          enabled: isWhatsAppEnabled,
           browserPath:
             "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
           dataPath: "C:\\ProgramData\\PatientAppointmentSystem\\WhatsAppData",
@@ -255,6 +268,24 @@ export async function initializeAppSetup(): Promise<boolean> {
           ["backup_config", JSON.stringify(backupConfig)],
         );
         console.log("Default backup settings saved to database");
+
+        // Salva anche le impostazioni generali
+        const generalSettings = {
+          clinicName: "Studio Medico",
+          address: "Via Roma 123, 00100 Roma",
+          email: "info@studiomedico.it",
+          phone: "+39 06 12345678",
+          darkMode: false,
+          language: "it",
+        };
+
+        await db.query(
+          `INSERT INTO configurations (key, value) 
+           VALUES ($1, $2) 
+           ON CONFLICT (key) DO UPDATE SET value = $2`,
+          ["general_settings", JSON.stringify(generalSettings)],
+        );
+        console.log("Default general settings saved to database");
       } catch (backupError) {
         console.error("Error saving backup settings:", backupError);
       }

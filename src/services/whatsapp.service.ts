@@ -25,16 +25,45 @@ export class WhatsAppService {
   }
 
   private async checkEnabled(): Promise<void> {
-    this.isEnabled = await this.licenseModel.isWhatsAppEnabled();
+    // Verifica se la licenza permette WhatsApp
+    const isLicenseEnabled = await this.licenseModel.isWhatsAppEnabled();
 
-    // Carica le configurazioni da localStorage
-    const whatsappConfig = localStorage.getItem("whatsappConfig");
-    if (whatsappConfig) {
-      const config = JSON.parse(whatsappConfig);
-      this.isAuthenticated = config.isAuthenticated || false;
-      this.browserPath = config.browserPath || "";
-      this.dataPath = config.dataPath || "";
+    // Carica le configurazioni dal database
+    try {
+      const { default: Database } = await import("../models/database");
+      const db = Database.getInstance();
+      const configRows = await db.query(
+        "SELECT value FROM configurations WHERE key = 'whatsapp_config'",
+      );
+
+      if (configRows && configRows.length > 0) {
+        const configValue = configRows[0].value;
+        if (configValue) {
+          const config = JSON.parse(configValue);
+          // Aggiorna lo stato in base alla licenza
+          config.enabled = isLicenseEnabled;
+          this.isAuthenticated = config.isAuthenticated || false;
+          this.browserPath = config.browserPath || "";
+          this.dataPath = config.dataPath || "";
+
+          // Salva la configurazione aggiornata
+          await db.query(
+            `INSERT INTO configurations (key, value) 
+             VALUES ($1, $2) 
+             ON CONFLICT (key) DO UPDATE SET value = $2`,
+            ["whatsapp_config", JSON.stringify(config)],
+          );
+
+          // Aggiorna anche localStorage per compatibilità
+          localStorage.setItem("whatsappConfig", JSON.stringify(config));
+        }
+      }
+    } catch (error) {
+      console.error("Error loading WhatsApp configuration:", error);
     }
+
+    // Imposta lo stato di abilitazione
+    this.isEnabled = isLicenseEnabled;
   }
 
   async isServiceEnabled(): Promise<boolean> {
@@ -83,6 +112,7 @@ export class WhatsAppService {
           browserPath,
           dataPath,
           isAuthenticated: this.isAuthenticated,
+          enabled: this.isEnabled,
         }),
       );
 
@@ -101,6 +131,7 @@ export class WhatsAppService {
               browserPath,
               dataPath,
               isAuthenticated: this.isAuthenticated,
+              enabled: this.isEnabled,
             }),
           ],
         );
@@ -226,6 +257,7 @@ export class WhatsAppService {
               localStorage.getItem("whatsappConfig") || "{}",
             );
             config.isAuthenticated = true;
+            config.enabled = this.isEnabled;
             localStorage.setItem("whatsappConfig", JSON.stringify(config));
 
             // Aggiorna lo stato di autenticazione nel database
@@ -243,6 +275,7 @@ export class WhatsAppService {
                     browserPath: this.browserPath,
                     dataPath: this.dataPath,
                     isAuthenticated: true,
+                    enabled: this.isEnabled,
                     lastAuthenticated: new Date().toISOString(),
                   }),
                 ],
@@ -284,6 +317,7 @@ export class WhatsAppService {
             localStorage.getItem("whatsappConfig") || "{}",
           );
           config.isAuthenticated = true;
+          config.enabled = this.isEnabled;
           localStorage.setItem("whatsappConfig", JSON.stringify(config));
 
           this.isAuthenticated = true;
@@ -633,6 +667,7 @@ export class WhatsAppService {
       // Aggiorna lo stato di autenticazione in localStorage
       const config = JSON.parse(localStorage.getItem("whatsappConfig") || "{}");
       config.isAuthenticated = false;
+      config.enabled = this.isEnabled;
       localStorage.setItem("whatsappConfig", JSON.stringify(config));
 
       // Aggiorna lo stato di autenticazione nel database
@@ -650,6 +685,7 @@ export class WhatsAppService {
               browserPath: this.browserPath,
               dataPath: this.dataPath,
               isAuthenticated: false,
+              enabled: this.isEnabled,
               lastDisconnected: new Date().toISOString(),
             }),
           ],

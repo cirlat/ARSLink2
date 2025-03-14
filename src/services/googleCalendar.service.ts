@@ -23,14 +23,43 @@ export class GoogleCalendarService {
   }
 
   private async checkEnabled(): Promise<void> {
-    this.isEnabled = await this.licenseModel.isGoogleCalendarEnabled();
+    // Verifica se la licenza permette Google Calendar
+    const isLicenseEnabled = await this.licenseModel.isGoogleCalendarEnabled();
 
-    // Carica le configurazioni da localStorage
-    const googleConfig = localStorage.getItem("googleConfig");
-    if (googleConfig) {
-      const config = JSON.parse(googleConfig);
-      this.isAuthenticated = config.isAuthenticated || false;
+    // Carica le configurazioni dal database
+    try {
+      const { default: Database } = await import("../models/database");
+      const db = Database.getInstance();
+      const configRows = await db.query(
+        "SELECT value FROM configurations WHERE key = 'google_calendar_config'",
+      );
+
+      if (configRows && configRows.length > 0) {
+        const configValue = configRows[0].value;
+        if (configValue) {
+          const config = JSON.parse(configValue);
+          // Aggiorna lo stato in base alla licenza
+          config.enabled = isLicenseEnabled;
+          this.isAuthenticated = config.authenticated || false;
+
+          // Salva la configurazione aggiornata
+          await db.query(
+            `INSERT INTO configurations (key, value) 
+             VALUES ($1, $2) 
+             ON CONFLICT (key) DO UPDATE SET value = $2`,
+            ["google_calendar_config", JSON.stringify(config)],
+          );
+
+          // Aggiorna anche localStorage per compatibilità
+          localStorage.setItem("googleConfig", JSON.stringify(config));
+        }
+      }
+    } catch (error) {
+      console.error("Error loading Google Calendar configuration:", error);
     }
+
+    // Imposta lo stato di abilitazione
+    this.isEnabled = isLicenseEnabled;
   }
 
   async isServiceEnabled(): Promise<boolean> {
@@ -75,6 +104,11 @@ export class GoogleCalendarService {
       console.error("Error authenticating with Google Calendar:", error);
       return false;
     }
+  }
+
+  // Alias per compatibilità con il codice esistente
+  async createEvent(appointment: Appointment): Promise<boolean> {
+    return this.syncAppointment(appointment);
   }
 
   async syncAppointment(appointment: Appointment): Promise<boolean> {

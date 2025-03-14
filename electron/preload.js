@@ -12,6 +12,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
   backupDatabase: (path) => ipcRenderer.invoke("backup-database", path),
   restoreDatabase: (path) => ipcRenderer.invoke("restore-database", path),
 
+  // File system operations
+  createDirectory: (dirPath) => ipcRenderer.invoke("create-directory", dirPath),
+  writeFile: (options) => ipcRenderer.invoke("write-file", options),
+  readFile: (filePath) => ipcRenderer.invoke("read-file", filePath),
+  deleteFile: (filePath) => ipcRenderer.invoke("delete-file", filePath),
+  getFileInfo: (filePath) => ipcRenderer.invoke("get-file-info", filePath),
+  openFile: (filePath) => ipcRenderer.invoke("open-file", filePath),
+  getUserDataPath: () => ipcRenderer.invoke("get-user-data-path"),
+
   // Other native APIs that might be needed
   getAppVersion: () => process.env.npm_package_version || "1.0.0",
   getPlatform: () => process.platform || "browser",

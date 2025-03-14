@@ -146,17 +146,45 @@ export class LicenseModel {
   }
 
   async isGoogleCalendarEnabled(): Promise<boolean> {
-    const license = await this.getCurrentLicense();
-    if (!license) return false;
+    try {
+      const license = await this.getCurrentLicense();
+      if (!license) return false;
 
-    return license.google_calendar_enabled && (await this.isLicenseValid());
+      // Se la licenza è di tipo FULL, abilita Google Calendar
+      if (
+        license.license_type.toLowerCase() === "full" &&
+        (await this.isLicenseValid())
+      ) {
+        return true;
+      }
+
+      // Altrimenti controlla le features specifiche
+      return license.google_calendar_enabled && (await this.isLicenseValid());
+    } catch (error) {
+      console.error("Error checking Google Calendar license:", error);
+      return false;
+    }
   }
 
   async isWhatsAppEnabled(): Promise<boolean> {
-    const license = await this.getCurrentLicense();
-    if (!license) return false;
+    try {
+      const license = await this.getCurrentLicense();
+      if (!license) return false;
 
-    return license.whatsapp_enabled && (await this.isLicenseValid());
+      // Se la licenza è di tipo FULL, abilita WhatsApp
+      if (
+        license.license_type.toLowerCase() === "full" &&
+        (await this.isLicenseValid())
+      ) {
+        return true;
+      }
+
+      // Altrimenti controlla le features specifiche
+      return license.whatsapp_enabled && (await this.isLicenseValid());
+    } catch (error) {
+      console.error("Error checking WhatsApp license:", error);
+      return false;
+    }
   }
 
   async installLicense(licenseData: License): Promise<License> {
