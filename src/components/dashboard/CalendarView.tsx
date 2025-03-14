@@ -122,6 +122,52 @@ const CalendarView = () => {
     setIsDialogOpen(true);
   };
 
+  // Funzione per ricaricare gli appuntamenti dopo una modifica
+  const reloadAppointments = async () => {
+    setIsLoading(true);
+    try {
+      const { AppointmentModel } = await import("@/models/appointment");
+      const appointmentModel = new AppointmentModel();
+
+      // Ottieni tutti gli appuntamenti per il mese corrente
+      const startDate = new Date();
+      startDate.setDate(1); // Primo giorno del mese
+      startDate.setHours(0, 0, 0, 0);
+
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + 1);
+      endDate.setDate(0); // Ultimo giorno del mese
+      endDate.setHours(23, 59, 59, 999);
+
+      const result = await appointmentModel.findByDateRange(startDate, endDate);
+
+      if (result && result.length > 0) {
+        // Formatta gli appuntamenti per l'uso nel componente
+        const formattedAppointments = result.map((a) => ({
+          id: a.id.toString(),
+          patientName: a.patient_name || "Paziente",
+          date: new Date(a.date),
+          time: a.time.substring(0, 5), // Formato HH:MM
+          duration: a.duration,
+          type: a.appointment_type,
+          synced: a.google_calendar_synced,
+          notified: a.whatsapp_notification_sent,
+        }));
+
+        setAppointments(formattedAppointments);
+      } else {
+        // Nessun appuntamento trovato
+        setAppointments([]);
+      }
+    } catch (error) {
+      console.error("Errore nel caricamento degli appuntamenti:", error);
+      // Fallback a dati vuoti in caso di errore
+      setAppointments([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleDeleteAppointment = (id: string) => {
     // In un'app reale, questo eliminerebbe l'appuntamento
     console.log(`Elimina appuntamento ${id}`);
@@ -424,7 +470,13 @@ const CalendarView = () => {
             <DialogContent className="sm:max-w-[600px]">
               <AppointmentForm
                 appointment={selectedAppointment}
-                onClose={() => setIsDialogOpen(false)}
+                onClose={() => {
+                  setIsDialogOpen(false);
+                  reloadAppointments(); // Ricarica gli appuntamenti dopo la chiusura del form
+                }}
+                onSubmit={() => {
+                  reloadAppointments(); // Ricarica gli appuntamenti dopo il salvataggio
+                }}
               />
             </DialogContent>
           </Dialog>

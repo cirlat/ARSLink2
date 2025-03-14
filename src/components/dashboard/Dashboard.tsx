@@ -112,6 +112,13 @@ const Dashboard = () => {
             return appointmentDate >= tomorrow;
           });
 
+          // Ordina gli appuntamenti per data (dal più vicino al più lontano)
+          futureAppointments.sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            return dateA.getTime() - dateB.getTime();
+          });
+
           const formattedUpcomingAppointments = futureAppointments
             .slice(0, 3)
             .map((a) => ({

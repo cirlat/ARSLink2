@@ -334,9 +334,10 @@ const PatientDetails = (props: PatientDetailsProps) => {
                   }
 
                   // Renderizza il form per un nuovo appuntamento
-                  const { createRoot } = require("react-dom/client");
-                  const AppointmentForm =
-                    require("@/components/appointments/AppointmentForm").default;
+                  const { createRoot } = await import("react-dom/client");
+                  const AppointmentForm = (
+                    await import("@/components/appointments/AppointmentForm")
+                  ).default;
                   const root = createRoot(
                     document.getElementById("appointment-form-container"),
                   );
@@ -414,9 +415,12 @@ const PatientDetails = (props: PatientDetailsProps) => {
                       }
 
                       // Renderizza il form per un nuovo appuntamento
-                      const { createRoot } = require("react-dom/client");
-                      const AppointmentForm =
-                        require("@/components/appointments/AppointmentForm").default;
+                      const { createRoot } = await import("react-dom/client");
+                      const AppointmentForm = (
+                        await import(
+                          "@/components/appointments/AppointmentForm"
+                        )
+                      ).default;
                       const root = createRoot(
                         document.getElementById("appointment-form-container"),
                       );
@@ -520,11 +524,14 @@ const PatientDetails = (props: PatientDetailsProps) => {
                               document.body.appendChild(dialog);
 
                               // Renderizza il form di modifica
-                              const {
-                                createRoot,
-                              } = require("react-dom/client");
-                              const AppointmentForm =
-                                require("@/components/appointments/AppointmentForm").default;
+                              const { createRoot } = await import(
+                                "react-dom/client"
+                              );
+                              const AppointmentForm = (
+                                await import(
+                                  "@/components/appointments/AppointmentForm"
+                                )
+                              ).default;
                               const root = createRoot(
                                 document.getElementById(
                                   "appointment-form-container",
@@ -606,7 +613,130 @@ const PatientDetails = (props: PatientDetailsProps) => {
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Cartella Clinica</h3>
-                <Button>
+                <Button
+                  onClick={async () => {
+                    try {
+                      // Apri il form per aggiungere un nuovo documento
+                      const dialog = document.createElement("div");
+                      dialog.className =
+                        "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+                      dialog.innerHTML = `<div id="medical-record-form-container" class="bg-white rounded-lg p-6 w-full max-w-2xl"></div>`;
+                      document.body.appendChild(dialog);
+
+                      // Crea il form per il nuovo documento
+                      const formContent = `
+                      <div class="space-y-4">
+                        <h2 class="text-xl font-bold">Aggiungi Documento Medico</h2>
+                        <div class="space-y-2">
+                          <label class="text-sm font-medium">Titolo</label>
+                          <input id="doc-title" type="text" class="w-full p-2 border rounded-md" placeholder="Titolo del documento" />
+                        </div>
+                        <div class="space-y-2">
+                          <label class="text-sm font-medium">Data</label>
+                          <input id="doc-date" type="date" class="w-full p-2 border rounded-md" value="${new Date().toISOString().split("T")[0]}" />
+                        </div>
+                        <div class="space-y-2">
+                          <label class="text-sm font-medium">Medico</label>
+                          <input id="doc-doctor" type="text" class="w-full p-2 border rounded-md" placeholder="Nome del medico" />
+                        </div>
+                        <div class="space-y-2">
+                          <label class="text-sm font-medium">Descrizione</label>
+                          <textarea id="doc-description" class="w-full p-2 border rounded-md h-32" placeholder="Descrizione o note"></textarea>
+                        </div>
+                        <div class="space-y-2">
+                          <label class="text-sm font-medium">File (opzionale)</label>
+                          <input id="doc-file" type="file" class="w-full p-2 border rounded-md" />
+                        </div>
+                        <div class="flex justify-end space-x-2 pt-4">
+                          <button id="cancel-doc" class="px-4 py-2 border border-gray-300 rounded-md">Annulla</button>
+                          <button id="save-doc" class="px-4 py-2 bg-blue-600 text-white rounded-md">Salva Documento</button>
+                        </div>
+                      </div>
+                    `;
+
+                      const formContainer = document.getElementById(
+                        "medical-record-form-container",
+                      );
+                      if (formContainer) {
+                        formContainer.innerHTML = formContent;
+                      }
+
+                      // Gestisci la chiusura del form
+                      document
+                        .getElementById("cancel-doc")
+                        ?.addEventListener("click", () => {
+                          document.body.removeChild(dialog);
+                        });
+
+                      // Gestisci il salvataggio del documento
+                      document
+                        .getElementById("save-doc")
+                        ?.addEventListener("click", async () => {
+                          const title = (
+                            document.getElementById(
+                              "doc-title",
+                            ) as HTMLInputElement
+                          )?.value;
+                          const date = (
+                            document.getElementById(
+                              "doc-date",
+                            ) as HTMLInputElement
+                          )?.value;
+                          const doctor = (
+                            document.getElementById(
+                              "doc-doctor",
+                            ) as HTMLInputElement
+                          )?.value;
+                          const description = (
+                            document.getElementById(
+                              "doc-description",
+                            ) as HTMLTextAreaElement
+                          )?.value;
+
+                          if (!title || !date || !doctor || !description) {
+                            alert("Compila tutti i campi obbligatori");
+                            return;
+                          }
+
+                          try {
+                            // In un'implementazione reale, qui salveremmo il documento nel database
+                            // Per ora, aggiungiamo il documento alla lista locale
+                            const newRecord = {
+                              id: `rec${Date.now()}`,
+                              date,
+                              title,
+                              doctor,
+                              description,
+                            };
+
+                            setMedicalRecords([newRecord, ...medicalRecords]);
+
+                            // Chiudi il form
+                            document.body.removeChild(dialog);
+
+                            // Mostra un messaggio di successo
+                            alert("Documento aggiunto con successo!");
+                          } catch (error) {
+                            console.error(
+                              "Errore durante il salvataggio del documento:",
+                              error,
+                            );
+                            alert(
+                              `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                            );
+                          }
+                        });
+                    } catch (error) {
+                      console.error(
+                        "Errore durante l'apertura del form per un nuovo documento:",
+                        error,
+                      );
+                      alert(
+                        `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                      );
+                    }
+                  }}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Aggiungi Documento
                 </Button>
@@ -657,7 +787,175 @@ const PatientDetails = (props: PatientDetailsProps) => {
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Storico Comunicazioni</h3>
-                <Button>
+                <Button
+                  onClick={async () => {
+                    try {
+                      // Apri il form per inviare un nuovo messaggio
+                      const dialog = document.createElement("div");
+                      dialog.className =
+                        "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+                      dialog.innerHTML = `<div id="message-form-container" class="bg-white rounded-lg p-6 w-full max-w-2xl"></div>`;
+                      document.body.appendChild(dialog);
+
+                      // Crea il form per il nuovo messaggio
+                      const formContent = `
+                      <div class="space-y-4">
+                        <h2 class="text-xl font-bold">Invia Messaggio</h2>
+                        <div class="space-y-2">
+                          <label class="text-sm font-medium">Tipo di Comunicazione</label>
+                          <select id="msg-type" class="w-full p-2 border rounded-md">
+                            <option value="whatsapp">WhatsApp</option>
+                            <option value="email">Email</option>
+                            <option value="phone">Telefonata</option>
+                          </select>
+                        </div>
+                        <div class="space-y-2">
+                          <label class="text-sm font-medium">Destinatario</label>
+                          <input id="msg-recipient" type="text" class="w-full p-2 border rounded-md" value="${patient?.phone || ""}" readonly />
+                          <p class="text-xs text-gray-500">Numero di telefono del paziente</p>
+                        </div>
+                        <div class="space-y-2">
+                          <label class="text-sm font-medium">Messaggio</label>
+                          <textarea id="msg-content" class="w-full p-2 border rounded-md h-32" placeholder="Scrivi il tuo messaggio qui"></textarea>
+                        </div>
+                        <div class="flex justify-end space-x-2 pt-4">
+                          <button id="cancel-msg" class="px-4 py-2 border border-gray-300 rounded-md">Annulla</button>
+                          <button id="send-msg" class="px-4 py-2 bg-blue-600 text-white rounded-md">Invia Messaggio</button>
+                        </div>
+                      </div>
+                    `;
+
+                      const formContainer = document.getElementById(
+                        "message-form-container",
+                      );
+                      if (formContainer) {
+                        formContainer.innerHTML = formContent;
+                      }
+
+                      // Gestisci la chiusura del form
+                      document
+                        .getElementById("cancel-msg")
+                        ?.addEventListener("click", () => {
+                          document.body.removeChild(dialog);
+                        });
+
+                      // Gestisci l'invio del messaggio
+                      document
+                        .getElementById("send-msg")
+                        ?.addEventListener("click", async () => {
+                          const type = (
+                            document.getElementById(
+                              "msg-type",
+                            ) as HTMLSelectElement
+                          )?.value as "whatsapp" | "email" | "phone";
+                          const recipient = (
+                            document.getElementById(
+                              "msg-recipient",
+                            ) as HTMLInputElement
+                          )?.value;
+                          const content = (
+                            document.getElementById(
+                              "msg-content",
+                            ) as HTMLTextAreaElement
+                          )?.value;
+
+                          if (!type || !recipient || !content) {
+                            alert("Compila tutti i campi obbligatori");
+                            return;
+                          }
+
+                          try {
+                            // In un'implementazione reale, qui invieremmo il messaggio tramite il servizio appropriato
+                            if (type === "whatsapp") {
+                              // Invia messaggio WhatsApp
+                              const { WhatsAppService } = await import(
+                                "@/services/whatsapp.service"
+                              );
+                              const whatsAppService =
+                                WhatsAppService.getInstance();
+
+                              // Verifica se il servizio è abilitato e autenticato
+                              const isEnabled =
+                                await whatsAppService.isServiceEnabled();
+                              const isAuthenticated =
+                                await whatsAppService.isServiceAuthenticated();
+
+                              if (!isEnabled || !isAuthenticated) {
+                                throw new Error(
+                                  "Il servizio WhatsApp non è abilitato o autenticato. Verifica le impostazioni.",
+                                );
+                              }
+
+                              // Crea un oggetto appuntamento fittizio per la funzione sendNotification
+                              const dummyAppointment = {
+                                id: 0,
+                                patient_id: parseInt(patient?.id || "0"),
+                                date: new Date(),
+                                time: "00:00",
+                                duration: 0,
+                                appointment_type: "custom",
+                                notes: "",
+                              };
+
+                              // Invia il messaggio
+                              await whatsAppService.sendNotification(
+                                dummyAppointment,
+                                recipient,
+                                content,
+                                "custom",
+                              );
+                            } else if (type === "email") {
+                              // Simulazione invio email
+                              console.log(
+                                `Invio email a ${recipient}: ${content}`,
+                              );
+                            } else if (type === "phone") {
+                              // Simulazione registrazione telefonata
+                              console.log(
+                                `Registrazione telefonata a ${recipient}: ${content}`,
+                              );
+                            }
+
+                            // Aggiungi la comunicazione alla lista locale
+                            const newCommunication = {
+                              id: `comm${Date.now()}`,
+                              date: new Date().toISOString(),
+                              type,
+                              message: content,
+                              status: "sent",
+                            };
+
+                            setCommunications([
+                              newCommunication,
+                              ...communications,
+                            ]);
+
+                            // Chiudi il form
+                            document.body.removeChild(dialog);
+
+                            // Mostra un messaggio di successo
+                            alert("Messaggio inviato con successo!");
+                          } catch (error) {
+                            console.error(
+                              "Errore durante l'invio del messaggio:",
+                              error,
+                            );
+                            alert(
+                              `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                            );
+                          }
+                        });
+                    } catch (error) {
+                      console.error(
+                        "Errore durante l'apertura del form per un nuovo messaggio:",
+                        error,
+                      );
+                      alert(
+                        `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                      );
+                    }
+                  }}
+                >
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Invia Messaggio
                 </Button>

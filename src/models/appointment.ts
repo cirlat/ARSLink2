@@ -106,13 +106,17 @@ export class AppointmentModel {
   async findUpcoming(limit: number = 10): Promise<Appointment[]> {
     try {
       const today = new Date();
-      return await this.db.query(
-        "SELECT a.*, p.name as patient_name FROM appointments a JOIN patients p ON a.patient_id = p.id WHERE a.date >= $1 ORDER BY a.date, a.time LIMIT $2",
-        [today, limit],
+      today.setHours(0, 0, 0, 0);
+
+      const result = await this.db.query(
+        "SELECT a.*, p.name as patient_name, p.phone FROM appointments a LEFT JOIN patients p ON a.patient_id = p.id WHERE a.date >= $1 ORDER BY a.date ASC, a.time ASC LIMIT $2",
+        [today.toISOString().split("T")[0], limit],
       );
+
+      return result;
     } catch (error) {
       console.error("Error finding upcoming appointments:", error);
-      throw error;
+      return [];
     }
   }
 
@@ -128,7 +132,7 @@ export class AppointmentModel {
       const values: any[] = [];
       let paramCount = 1;
 
-      // Costruisci la query dinamicamente in base ai campi da aggiornare
+      // Build the query dynamically based on the fields to update
       const fields: (keyof Appointment)[] = [
         "patient_id",
         "date",
@@ -150,16 +154,15 @@ export class AppointmentModel {
         }
       });
 
-      updates.push(`updated_at = $${paramCount}`);
-      values.push(new Date());
-      paramCount++;
+      // Usa CURRENT_TIMESTAMP per updated_at invece di passare un valore
+      updates.push(`updated_at = CURRENT_TIMESTAMP`);
 
-      values.push(id); // Per la clausola WHERE
+      values.push(id); // For the WHERE clause
 
       const query = `
         UPDATE appointments 
         SET ${updates.join(", ")} 
-        WHERE id = $${paramCount - 1} 
+        WHERE id = $${paramCount} 
         RETURNING *
       `;
 

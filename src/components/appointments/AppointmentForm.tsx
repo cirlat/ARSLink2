@@ -195,16 +195,17 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
           "with data:",
           appointmentData,
         );
+        // Crea una copia dei dati senza updated_at che verrà gestito dal database
+        const updateData = { ...appointmentData };
         savedAppointment = await appointmentModel.update(
           parseInt(appointment.id),
-          appointmentData,
+          updateData,
         );
 
         if (!savedAppointment) {
           throw new Error(
             "Impossibile aggiornare l'appuntamento. Verifica che l'ID sia valido.",
           );
-        }
       } else {
         savedAppointment = await appointmentModel.create(appointmentData);
       }
