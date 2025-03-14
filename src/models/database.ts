@@ -570,6 +570,21 @@ class Database {
             )
           `);
 
+          // Medical Records table
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS "medical_records" (
+              id SERIAL PRIMARY KEY,
+              patient_id INTEGER NOT NULL REFERENCES "patients"(id) ON DELETE CASCADE,
+              record_date DATE NOT NULL,
+              diagnosis TEXT,
+              treatment TEXT,
+              notes TEXT,
+              attachments TEXT[],
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
           await client.query("COMMIT");
           console.log("Database initialized successfully");
         } catch (error) {

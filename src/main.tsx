@@ -18,6 +18,21 @@ const basename = import.meta.env.BASE_URL;
 (async () => {
   // Run setup before rendering the app
   try {
+    console.log("Checking for setup completion...");
+    const setupCompletedValue = localStorage.getItem("setupCompleted");
+    console.log(
+      `Setup completion status: ${setupCompletedValue || "not found"}`,
+    );
+
+    // Check if setup is already completed
+    if (setupCompletedValue === "true") {
+      console.log("Setup already completed, checking setup timestamp...");
+      const setupCompletedAt = localStorage.getItem("setupCompletedAt");
+      console.log(`Setup completed at: ${setupCompletedAt || "unknown time"}`);
+    } else {
+      console.log("Setup not completed, initializing application setup...");
+    }
+
     const setupSuccess = await initializeAppSetup();
     if (!setupSuccess) {
       console.warn(
