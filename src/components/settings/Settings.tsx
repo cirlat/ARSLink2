@@ -1078,54 +1078,121 @@ const Settings = () => {
                     >
                       Configura Integrazione
                     </Button>
-                    <Button
-                      variant="outline"
-                      disabled={!whatsappIntegration}
-                      onClick={async () => {
-                        try {
-                          // Autentica WhatsApp Web
-                          const { WhatsAppService } = await import(
-                            "@/services/whatsapp.service"
-                          );
-                          const whatsAppService = WhatsAppService.getInstance();
-
-                          // Verifica se il servizio è abilitato
-                          const isEnabled =
-                            await whatsAppService.isServiceEnabled();
-
-                          if (!isEnabled) {
-                            alert(
-                              "Il servizio WhatsApp non è abilitato. Verifica la tua licenza.",
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        disabled={!whatsappIntegration}
+                        onClick={async () => {
+                          try {
+                            // Autentica WhatsApp Web
+                            const { WhatsAppService } = await import(
+                              "@/services/whatsapp.service"
                             );
-                            return;
-                          }
+                            const whatsAppService =
+                              WhatsAppService.getInstance();
 
-                          alert(
-                            "Verrà avviato WhatsApp Web. Scansiona il codice QR con il tuo telefono per autenticarti.",
-                          );
+                            // Verifica se il servizio è abilitato
+                            const isEnabled =
+                              await whatsAppService.isServiceEnabled();
 
-                          const result = await whatsAppService.authenticate();
+                            if (!isEnabled) {
+                              alert(
+                                "Il servizio WhatsApp non è abilitato. Verifica la tua licenza.",
+                              );
+                              return;
+                            }
 
-                          if (result) {
                             alert(
-                              "Autenticazione WhatsApp Web completata con successo!",
+                              "Verrà avviato WhatsApp Web. Scansiona il codice QR con il tuo telefono per autenticarti.",
                             );
-                          } else {
-                            alert("Errore nell'autenticazione di WhatsApp Web");
+
+                            const result = await whatsAppService.authenticate();
+
+                            if (result) {
+                              alert(
+                                "Autenticazione WhatsApp Web completata con successo!",
+                              );
+                            } else {
+                              alert(
+                                "Errore nell'autenticazione di WhatsApp Web",
+                              );
+                            }
+                          } catch (error) {
+                            console.error(
+                              "Errore nell'autenticazione di WhatsApp Web:",
+                              error,
+                            );
+                            alert(
+                              `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                            );
                           }
-                        } catch (error) {
-                          console.error(
-                            "Errore nell'autenticazione di WhatsApp Web:",
-                            error,
-                          );
-                          alert(
-                            `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
-                          );
-                        }
-                      }}
-                    >
-                      Autentica WhatsApp Web
-                    </Button>
+                        }}
+                      >
+                        Autentica WhatsApp Web
+                      </Button>
+                      <Button
+                        variant="outline"
+                        disabled={!whatsappIntegration}
+                        onClick={async () => {
+                          try {
+                            // Disconnetti WhatsApp Web
+                            const { WhatsAppService } = await import(
+                              "@/services/whatsapp.service"
+                            );
+                            const whatsAppService =
+                              WhatsAppService.getInstance();
+
+                            // Verifica se il servizio è abilitato e autenticato
+                            const isEnabled =
+                              await whatsAppService.isServiceEnabled();
+                            const isAuthenticated =
+                              await whatsAppService.isServiceAuthenticated();
+
+                            if (!isEnabled) {
+                              alert(
+                                "Il servizio WhatsApp non è abilitato. Verifica la tua licenza.",
+                              );
+                              return;
+                            }
+
+                            if (!isAuthenticated) {
+                              alert(
+                                "WhatsApp Web non è autenticato. Non è necessario disconnettersi.",
+                              );
+                              return;
+                            }
+
+                            if (
+                              confirm(
+                                "Sei sicuro di voler disconnettere WhatsApp Web? Dovrai scansionare nuovamente il codice QR per autenticarti.",
+                              )
+                            ) {
+                              const result = await whatsAppService.disconnect();
+
+                              if (result) {
+                                alert(
+                                  "Disconnessione da WhatsApp Web completata con successo!",
+                                );
+                              } else {
+                                alert(
+                                  "Errore nella disconnessione da WhatsApp Web",
+                                );
+                              }
+                            }
+                          } catch (error) {
+                            console.error(
+                              "Errore nella disconnessione da WhatsApp Web:",
+                              error,
+                            );
+                            alert(
+                              `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+                            );
+                          }
+                        }}
+                      >
+                        Disconnetti WhatsApp Web
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="mt-4">

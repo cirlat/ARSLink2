@@ -149,14 +149,7 @@ const SecuritySettings = () => {
         throw new Error("Impossibile aggiornare la password nel database");
       }
 
-      if (updated) {
-        setSuccess("Password aggiornata con successo");
-        setCurrentPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-      } else {
-        throw new Error("Impossibile aggiornare la password");
-      }
+      // Password already updated in the previous block, no need to check 'updated' variable
     } catch (error) {
       console.error("Errore durante l'aggiornamento della password:", error);
       setError(

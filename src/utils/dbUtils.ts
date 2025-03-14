@@ -691,26 +691,12 @@ export async function backupDatabase(path: string): Promise<boolean> {
         // Create timestamp for backup file
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         const backupFileName = `patient_appointment_system_backup_${timestamp}.sql`;
-        const fullBackupPath = `${path}\\${backupFileName}`;
+        const fullBackupPath = `${path}/${backupFileName}`;
 
-        // Use child_process to execute pg_dump directly
-        const { exec } = require("child_process");
-        const util = require("util");
-        const execPromise = util.promisify(exec);
+        // Use Electron API to perform backup
+        const result = await electronAPI.backupDatabase(fullBackupPath);
 
-        // Build pg_dump command
-        const command = `pg_dump -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -F c -b -v -f "${fullBackupPath}" "${dbConfig.dbName}"`;
-
-        // Set PGPASSWORD environment variable
-        const env = {
-          ...process.env,
-          PGPASSWORD: dbConfig.password || "",
-        };
-
-        console.log(`Executing backup command: ${command}`);
-
-        try {
-          await execPromise(command, { env });
+        if (result.success) {
           console.log(`Backup completed successfully to ${fullBackupPath}`);
 
           // Save backup information to database
@@ -748,31 +734,8 @@ export async function backupDatabase(path: string): Promise<boolean> {
           localStorage.setItem("nextBackup", nextBackupDate.toISOString());
 
           return true;
-        } catch (pgDumpError) {
-          console.error("Error executing pg_dump:", pgDumpError);
-
-          // Save failed backup information
-          const db = Database.getInstance();
-          const now = new Date();
-
-          await db.query(
-            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-            ["last_backup", now.toISOString()],
-          );
-
-          await db.query(
-            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-            ["last_backup_status", "failed"],
-          );
-
-          await db.query(
-            "INSERT INTO configurations (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
-            ["backup_error_message", pgDumpError.message || "Unknown error"],
-          );
-
-          throw new Error(
-            `Errore nell'esecuzione di pg_dump: ${pgDumpError.message}`,
-          );
+        } else {
+          throw new Error(result.error || "Unknown error during backup");
         }
       } catch (error) {
         console.error("Error during backup operation:", error);

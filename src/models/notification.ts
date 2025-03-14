@@ -234,6 +234,12 @@ export class NotificationModel {
     sentAt?: Date,
   ): Promise<Notification | null> {
     try {
+      // Make sure id is a valid number
+      if (typeof id !== "number" || isNaN(id)) {
+        console.error(`Invalid notification ID: ${id}`);
+        return null;
+      }
+
       const result = await this.db.query(
         "UPDATE notifications SET status = $1, sent_at = $2, updated_at = $3 WHERE id = $4 RETURNING *",
         [status, sentAt || null, new Date(), id],
