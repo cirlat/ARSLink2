@@ -768,7 +768,7 @@ const PatientDetails = (props: PatientDetailsProps) => {
                                 title,
                                 doctor,
                                 description,
-                                files: filePaths.length > 0 ? filePaths : null,
+                                files: filePaths.length > 0 ? filePaths : [],
                               };
 
                               const savedRecord =

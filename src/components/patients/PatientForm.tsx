@@ -480,7 +480,10 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
         );
 
         console.log("Generated fiscal code:", fiscalCode);
-        form.setValue("fiscalCode", fiscalCode, { shouldDirty: true });
+        form.setValue("fiscalCode", fiscalCode, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
       }
     }, 100); // Small delay to ensure form values are updated
 

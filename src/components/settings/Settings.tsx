@@ -311,6 +311,79 @@ const Settings = () => {
                 ["backup_config", JSON.stringify(backupConfig)],
               );
 
+              // Salva le impostazioni di Google Calendar
+              const googleClientId =
+                document.getElementById("google-client-id")?.value;
+              const googleClientSecret = document.getElementById(
+                "google-client-secret",
+              )?.value;
+              const googleRedirectUri = document.getElementById(
+                "google-redirect-uri",
+              )?.value;
+
+              if (googleClientId || googleClientSecret || googleRedirectUri) {
+                const googleCalendarConfig = {
+                  enabled: googleCalendarSync,
+                  clientId: googleClientId,
+                  clientSecret: googleClientSecret,
+                  redirectUri:
+                    googleRedirectUri || "http://localhost:5173/settings",
+                };
+
+                await db.query(
+                  `INSERT INTO configurations (key, value) 
+                   VALUES ($1, $2) 
+                   ON CONFLICT (key) DO UPDATE SET value = $2`,
+                  [
+                    "google_calendar_config",
+                    JSON.stringify(googleCalendarConfig),
+                  ],
+                );
+
+                // Salva anche in localStorage
+                localStorage.setItem("googleClientId", googleClientId || "");
+                localStorage.setItem(
+                  "googleClientSecret",
+                  googleClientSecret || "",
+                );
+                localStorage.setItem(
+                  "googleRedirectUri",
+                  googleRedirectUri || "http://localhost:5173/settings",
+                );
+              }
+
+              // Salva le impostazioni di WhatsApp
+              const whatsappBrowserPath = document.getElementById(
+                "whatsapp-browser-path",
+              )?.value;
+              const whatsappDataPath =
+                document.getElementById("whatsapp-data-path")?.value;
+
+              if (whatsappBrowserPath || whatsappDataPath) {
+                const whatsappConfig = {
+                  enabled: whatsappIntegration,
+                  browserPath: whatsappBrowserPath,
+                  dataPath: whatsappDataPath,
+                };
+
+                await db.query(
+                  `INSERT INTO configurations (key, value) 
+                   VALUES ($1, $2) 
+                   ON CONFLICT (key) DO UPDATE SET value = $2`,
+                  ["whatsapp_config", JSON.stringify(whatsappConfig)],
+                );
+
+                // Salva anche in localStorage
+                localStorage.setItem(
+                  "whatsappBrowserPath",
+                  whatsappBrowserPath || "",
+                );
+                localStorage.setItem(
+                  "whatsappDataPath",
+                  whatsappDataPath || "",
+                );
+              }
+
               console.log("Impostazioni salvate nel database");
             } catch (dbError) {
               console.error(
