@@ -684,4 +684,96 @@ class Database {
             license_key VARCHAR(100) UNIQUE NOT NULL,
             license_type VARCHAR(20) NOT NULL,
             expiry_date DATE NOT NULL,
-            google_calendar_enabled BOOLEAN NOT
+            google_calendar_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+            whatsapp_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )`,
+          [],
+        );
+
+        if (!result.success) {
+          throw new Error(result.error || "Error initializing license table");
+        }
+
+        // Create configurations table
+        result = await electronAPI.executeQuery(
+          `CREATE TABLE IF NOT EXISTS "configurations" (
+            id SERIAL PRIMARY KEY,
+            key VARCHAR(50) UNIQUE NOT NULL,
+            value TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )`,
+          [],
+        );
+
+        if (!result.success) {
+          throw new Error(
+            result.error || "Error initializing configurations table",
+          );
+        }
+
+        // Create notifications table
+        result = await electronAPI.executeQuery(
+          `CREATE TABLE IF NOT EXISTS "notifications" (
+            id SERIAL PRIMARY KEY,
+            patient_id INTEGER NOT NULL REFERENCES "patients"(id) ON DELETE CASCADE,
+            patient_name VARCHAR(100) NOT NULL,
+            appointment_id INTEGER REFERENCES "appointments"(id) ON DELETE SET NULL,
+            appointment_date DATE,
+            appointment_time TIME,
+            message TEXT NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            type VARCHAR(20) NOT NULL,
+            sent_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )`,
+          [],
+        );
+
+        if (!result.success) {
+          throw new Error(
+            result.error || "Error initializing notifications table",
+          );
+        }
+
+        // Create medical_records table
+        result = await electronAPI.executeQuery(
+          `CREATE TABLE IF NOT EXISTS "medical_records" (
+            id SERIAL PRIMARY KEY,
+            patient_id INTEGER NOT NULL REFERENCES "patients"(id) ON DELETE CASCADE,
+            record_date DATE NOT NULL,
+            doctor TEXT,
+            description TEXT,
+            files TEXT[],
+            diagnosis TEXT,
+            treatment TEXT,
+            notes TEXT,
+            attachments TEXT[],
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )`,
+          [],
+        );
+
+        if (!result.success) {
+          throw new Error(
+            result.error || "Error initializing medical_records table",
+          );
+        }
+
+        console.log("Database initialized successfully through Electron API");
+      } else {
+        // In browser environment, we'll just simulate the database
+        console.log("Simulating database initialization");
+      }
+    } catch (error) {
+      console.error("Error initializing database:", error);
+      throw error;
+    }
+  }
+}
+
+export default Database;
