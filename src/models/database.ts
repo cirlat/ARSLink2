@@ -313,8 +313,106 @@ class Database {
   public static getInstance(): Database {
     if (!Database.instance) {
       Database.instance = new Database();
+      
+      // Esegui backup automatico all'avvio dell'applicazione
+      if (typeof window !== "undefined") {
+        // Verifica se è il primo avvio dell'applicazione
+        const isFirstRun = !localStorage.getItem("app_initialized");
+        if (!isFirstRun) {
+          setTimeout(() => {
+            Database.instance.performStartupBackup();
+          }, 1000);
+        } else {
+          localStorage.setItem("app_initialized", "true");
+        }
+      }
     }
     return Database.instance;
+  }
+  
+  // Metodo per eseguire il backup all'avvio dell'applicazione
+  private async performStartupBackup(): Promise<void> {
+    if (this.backupInProgress) return;
+    
+    this.backupInProgress = true;
+    
+    try {
+      // Mostra un loader o un messaggio di backup in corso
+      if (typeof document !== "undefined") {
+        const loaderContainer = document.createElement("div");
+        loaderContainer.id = "backup-loader";
+        loaderContainer.style.position = "fixed";
+        loaderContainer.style.top = "0";
+        loaderContainer.style.left = "0";
+        loaderContainer.style.width = "100%";
+        loaderContainer.style.height = "100%";
+        loaderContainer.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+        loaderContainer.style.display = "flex";
+        loaderContainer.style.flexDirection = "column";
+        loaderContainer.style.justifyContent = "center";
+        loaderContainer.style.alignItems = "center";
+        loaderContainer.style.zIndex = "9999";
+        
+        const spinner = document.createElement("div");
+        spinner.style.border = "5px solid #f3f3f3";
+        spinner.style.borderTop = "5px solid #3498db";
+        spinner.style.borderRadius = "50%";
+        spinner.style.width = "50px";
+        spinner.style.height = "50px";
+        spinner.style.animation = "spin 2s linear infinite";
+        
+        const style = document.createElement("style");
+        style.textContent = "@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }";
+        
+        const message = document.createElement("div");
+        message.textContent = "Backup in corso...";
+        message.style.color = "white";
+        message.style.marginTop = "20px";
+        message.style.fontSize = "18px";
+        
+        loaderContainer.appendChild(spinner);
+        loaderContainer.appendChild(message);
+        document.head.appendChild(style);
+        document.body.appendChild(loaderContainer);
+        
+        // Esegui il backup
+        await this.backup();
+        
+        // Aggiorna il messaggio
+        message.textContent = "Backup completato con successo!";
+        
+        // Rimuovi il loader dopo un breve ritardo
+        setTimeout(() => {
+          document.body.removeChild(loaderContainer);
+        }, 1500);
+      } else {
+        // Se non c'è un documento, esegui comunque il backup
+        await this.backup();
+      }
+    } catch (error) {
+      console.error("Errore durante il backup all'avvio:", error);
+      
+      // Mostra un messaggio di errore
+      if (typeof document !== "undefined") {
+        const loaderElement = document.getElementById("backup-loader");
+        if (loaderElement) {
+          const messageElement = loaderElement.querySelector("div:last-child");
+          if (messageElement) {
+            messageElement.textContent = "Errore durante il backup!";
+            messageElement.style.color = "#ff5555";
+          }
+          
+          // Rimuovi il loader dopo un breve ritardo
+          setTimeout(() => {
+            if (loaderElement.parentNode) {
+              loaderElement.parentNode.removeChild(loaderElement);
+            }
+          }, 3000);
+        }
+      }
+    } finally {
+      this.backupInProgress = false;
+    }
   }
 
   private getDbConfig() {
