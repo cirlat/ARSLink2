@@ -178,6 +178,26 @@ const GoogleCalendarSettings: React.FC = () => {
     }
   };
 
+  const syncAllAppointments = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      const googleService = GoogleCalendarService.getInstance();
+      const result = await googleService.syncAllAppointments();
+
+      setSuccess(
+        `Sincronizzazione completata: ${result.success} appuntamenti sincronizzati, ${result.failed} falliti`,
+      );
+    } catch (err) {
+      console.error("Errore durante la sincronizzazione:", err);
+      setError("Errore durante la sincronizzazione degli appuntamenti");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (!isEnabled) {
     return (
       <Card className="w-full">
@@ -315,6 +335,19 @@ const GoogleCalendarSettings: React.FC = () => {
             ) : null}
             Salva Impostazioni
           </Button>
+
+          {isAuthenticated && (
+            <Button
+              variant="outline"
+              onClick={syncAllAppointments}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Sincronizza Appuntamenti
+            </Button>
+          )}
 
           {isAuthenticated ? (
             <Button

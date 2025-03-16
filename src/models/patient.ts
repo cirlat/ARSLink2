@@ -10,6 +10,7 @@ export interface Patient {
   phone: string;
   address?: string;
   city?: string;
+  birth_place?: string;
   postal_code?: string;
   medical_history?: string;
   allergies?: string;
@@ -43,6 +44,7 @@ export class PatientModel {
           phone VARCHAR(20) NOT NULL,
           address TEXT,
           city VARCHAR(100),
+          birth_place VARCHAR(100),
           postal_code VARCHAR(10),
           medical_history TEXT,
           allergies TEXT,
@@ -84,6 +86,17 @@ export class PatientModel {
         await this.db.query("ALTER TABLE patients ADD COLUMN medications TEXT");
       }
 
+      // Check if birth_place column exists, if not add it
+      const checkBirthPlaceColumn = await this.db.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'patients' AND column_name = 'birth_place'",
+      );
+
+      if (checkBirthPlaceColumn.length === 0) {
+        await this.db.query(
+          "ALTER TABLE patients ADD COLUMN birth_place VARCHAR(100)",
+        );
+      }
+
       console.log("Ensured patients table exists with all required columns");
     } catch (error) {
       console.error("Error ensuring patients table exists:", error);
@@ -106,9 +119,9 @@ export class PatientModel {
       const result = await this.db.query(
         `INSERT INTO patients (
           name, codice_fiscale, date_of_birth, gender, email, phone, 
-          address, city, postal_code, medical_history, allergies, 
+          address, city, birth_place, postal_code, medical_history, allergies, 
           medications, notes, privacy_consent, marketing_consent
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) 
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
         RETURNING *`,
         [
           patient.name,
@@ -119,6 +132,7 @@ export class PatientModel {
           patient.phone,
           patient.address || null,
           patient.city || null,
+          patient.birth_place || null,
           patient.postal_code || null,
           patient.medical_history || null,
           patient.allergies || null,
@@ -227,6 +241,7 @@ export class PatientModel {
         "phone",
         "address",
         "city",
+        "birth_place",
         "postal_code",
         "medical_history",
         "allergies",

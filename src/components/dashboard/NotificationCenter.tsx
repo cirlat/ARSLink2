@@ -133,6 +133,108 @@ const NotificationCenter = ({
     return filteredNotifications;
   };
 
+  const handleResendNotification = async (notification: any) => {
+    try {
+      // Carica il servizio WhatsApp
+      const { WhatsAppService } = await import("@/services/whatsapp.service");
+      const whatsAppService = WhatsAppService.getInstance();
+
+      // Verifica se il servizio è abilitato e autenticato
+      const isEnabled = await whatsAppService.isServiceEnabled();
+      const isAuthenticated = await whatsAppService.isServiceAuthenticated();
+
+      if (!isEnabled || !isAuthenticated) {
+        if (!isEnabled) {
+          alert(
+            "Il servizio WhatsApp non è abilitato. Verifica la tua licenza.",
+          );
+        } else {
+          const confirmAuth = confirm(
+            "WhatsApp Web non è autenticato. Vuoi aprire WhatsApp Web per autenticarti?",
+          );
+          if (confirmAuth) {
+            const authResult = await whatsAppService.authenticate();
+            if (!authResult) {
+              throw new Error(
+                "Errore durante l'autenticazione di WhatsApp Web.",
+              );
+            }
+            alert(
+              "WhatsApp Web autenticato con successo! Riprova a inviare la notifica.",
+            );
+            return;
+          }
+        }
+        return;
+      }
+
+      // Carica i dettagli della notifica dal database
+      const { NotificationModel } = await import("@/models/notification");
+      const notificationModel = new NotificationModel();
+      const notificationDetails = await notificationModel.findById(
+        parseInt(notification.id),
+      );
+
+      if (!notificationDetails) {
+        throw new Error("Notifica non trovata nel database");
+      }
+
+      // Carica i dettagli del paziente
+      const { PatientModel } = await import("@/models/patient");
+      const patientModel = new PatientModel();
+      const patient = await patientModel.findById(
+        notificationDetails.patient_id,
+      );
+
+      if (!patient) {
+        throw new Error("Paziente non trovato nel database");
+      }
+
+      // Crea un oggetto appuntamento fittizio per la funzione sendNotification
+      const dummyAppointment = {
+        id: notificationDetails.id,
+        patient_id: notificationDetails.patient_id,
+        date: notificationDetails.appointment_date || new Date(),
+        time:
+          notificationDetails.appointment_time ||
+          new Date().toTimeString().substring(0, 5),
+        duration: 30,
+        appointment_type: notificationDetails.type,
+        notes: "",
+      };
+
+      // Invia la notifica
+      const sent = await whatsAppService.sendNotification(
+        dummyAppointment,
+        patient.phone,
+        notificationDetails.message,
+        notificationDetails.type as any,
+      );
+
+      // Aggiorna lo stato della notifica nel database
+      if (sent) {
+        await notificationModel.updateStatus(
+          notificationDetails.id!,
+          "sent",
+          new Date(),
+        );
+
+        // Aggiorna la UI
+        window.location.reload();
+
+        // Mostra un messaggio di successo
+        alert("Notifica inviata con successo!");
+      } else {
+        throw new Error("Errore nell'invio della notifica WhatsApp");
+      }
+    } catch (error) {
+      console.error("Errore durante l'invio della notifica:", error);
+      alert(
+        `Si è verificato un errore: ${error.message || "Errore sconosciuto"}`,
+      );
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "sent":
@@ -1117,18 +1219,31 @@ const NotificationCenter = ({
                       {notification.message}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          // Mostra i dettagli della notifica
-                          alert(
-                            `Dettagli Notifica:\n\nID: ${notification.id}\nPaziente: ${notification.patientName}\nStato: ${notification.status}\nTipo: ${notification.type}\nData: ${notification.appointmentDate || "N/A"}\nOra: ${notification.appointmentTime || "N/A"}\nMessaggio: ${notification.message}\nInviato il: ${notification.sentAt ? new Date(notification.sentAt).toLocaleString() : "Non inviato"}`,
-                          );
-                        }}
-                      >
-                        Dettagli
-                      </Button>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            // Mostra i dettagli della notifica
+                            alert(
+                              `Dettagli Notifica:\n\nID: ${notification.id}\nPaziente: ${notification.patientName}\nStato: ${notification.status}\nTipo: ${notification.type}\nData: ${notification.appointmentDate || "N/A"}\nOra: ${notification.appointmentTime || "N/A"}\nMessaggio: ${notification.message}\nInviato il: ${notification.sentAt ? new Date(notification.sentAt).toLocaleString() : "Non inviato"}`,
+                            );
+                          }}
+                        >
+                          Dettagli
+                        </Button>
+                        {notification.status !== "sent" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleResendNotification(notification)
+                            }
+                          >
+                            Re-invia
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -1183,18 +1298,27 @@ const NotificationCenter = ({
                       {notification.message}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          // Mostra i dettagli della notifica
-                          alert(
-                            `Dettagli Notifica:\n\nID: ${notification.id}\nPaziente: ${notification.patientName}\nStato: ${notification.status}\nTipo: ${notification.type}\nData: ${notification.appointmentDate || "N/A"}\nOra: ${notification.appointmentTime || "N/A"}\nMessaggio: ${notification.message}\nInviato il: ${notification.sentAt ? new Date(notification.sentAt).toLocaleString() : "Non inviato"}`,
-                          );
-                        }}
-                      >
-                        Dettagli
-                      </Button>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            // Mostra i dettagli della notifica
+                            alert(
+                              `Dettagli Notifica:\n\nID: ${notification.id}\nPaziente: ${notification.patientName}\nStato: ${notification.status}\nTipo: ${notification.type}\nData: ${notification.appointmentDate || "N/A"}\nOra: ${notification.appointmentTime || "N/A"}\nMessaggio: ${notification.message}\nInviato il: ${notification.sentAt ? new Date(notification.sentAt).toLocaleString() : "Non inviato"}`,
+                            );
+                          }}
+                        >
+                          Dettagli
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleResendNotification(notification)}
+                        >
+                          Re-invia
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -1311,18 +1435,27 @@ const NotificationCenter = ({
                       {notification.message}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          // Mostra i dettagli della notifica
-                          alert(
-                            `Dettagli Notifica:\n\nID: ${notification.id}\nPaziente: ${notification.patientName}\nStato: ${notification.status}\nTipo: ${notification.type}\nData: ${notification.appointmentDate || "N/A"}\nOra: ${notification.appointmentTime || "N/A"}\nMessaggio: ${notification.message}\nInviato il: ${notification.sentAt ? new Date(notification.sentAt).toLocaleString() : "Non inviato"}`,
-                          );
-                        }}
-                      >
-                        Dettagli
-                      </Button>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            // Mostra i dettagli della notifica
+                            alert(
+                              `Dettagli Notifica:\n\nID: ${notification.id}\nPaziente: ${notification.patientName}\nStato: ${notification.status}\nTipo: ${notification.type}\nData: ${notification.appointmentDate || "N/A"}\nOra: ${notification.appointmentTime || "N/A"}\nMessaggio: ${notification.message}\nInviato il: ${notification.sentAt ? new Date(notification.sentAt).toLocaleString() : "Non inviato"}`,
+                            );
+                          }}
+                        >
+                          Dettagli
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleResendNotification(notification)}
+                        >
+                          Re-invia
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

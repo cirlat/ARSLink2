@@ -813,6 +813,31 @@ class Database {
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         const filePath = `${backupPath}\\backup-${timestamp}.db`;
 
+        // Crea un backup in formato JSON
+        try {
+          // Ottieni tutti i dati dal database simulato
+          const jsonBackup = JSON.stringify(this.storage);
+
+          // Salva il backup in localStorage
+          localStorage.setItem(`backup_${timestamp}`, jsonBackup);
+
+          // Mantieni una lista di backup disponibili
+          const backupsList = JSON.parse(
+            localStorage.getItem("backups_list") || "[]",
+          );
+          backupsList.push({
+            timestamp,
+            filePath,
+            type: "json",
+            size: jsonBackup.length,
+          });
+          localStorage.setItem("backups_list", JSON.stringify(backupsList));
+
+          console.log(`Backup JSON completato: ${filePath}`);
+        } catch (jsonError) {
+          console.error("Errore durante il backup JSON:", jsonError);
+        }
+
         console.log(`Backup completato (simulazione): ${filePath}`);
 
         return { success: true, filePath };
@@ -833,6 +858,59 @@ class Database {
       // Implementazione del ripristino del database
       // In un ambiente reale, questo chiamerebbe l'API di Electron per eseguire il ripristino
       console.log(`Esecuzione ripristino del database da ${filePath}...`);
+
+      // Verifica se è un backup JSON
+      if (filePath.includes(".json") || filePath.includes("backup_")) {
+        // Estrai il timestamp dal nome del file
+        const timestamp = filePath.includes("backup_")
+          ? filePath.split("backup_")[1]
+          : filePath
+              .split("/")
+              .pop()
+              ?.split("-")
+              .slice(1)
+              .join("-")
+              .replace(".json", "");
+
+        if (timestamp) {
+          // Cerca il backup in localStorage
+          const jsonBackup = localStorage.getItem(`backup_${timestamp}`);
+          if (jsonBackup) {
+            try {
+              // Ripristina i dati dal backup JSON
+              this.storage = JSON.parse(jsonBackup);
+
+              // Salva i dati ripristinati in localStorage
+              this.saveStorageToLocalStorage();
+
+              console.log(`Ripristino JSON completato da: backup_${timestamp}`);
+              return { success: true };
+            } catch (jsonError) {
+              console.error("Errore durante il ripristino JSON:", jsonError);
+              return {
+                success: false,
+                error: `Errore durante il ripristino JSON: ${jsonError.message}`,
+              };
+            }
+          } else {
+            return {
+              success: false,
+              error: `Backup JSON non trovato: backup_${timestamp}`,
+            };
+          }
+        }
+      }
+
+      // Fallback al ripristino standard
+      if (
+        typeof window !== "undefined" &&
+        window.electronAPI &&
+        typeof window.electronAPI.restoreDatabase === "function"
+      ) {
+        // Usa l'API Electron per eseguire il ripristino
+        const result = await window.electronAPI.restoreDatabase(filePath);
+        return result;
+      }
 
       // Simula un'operazione di ripristino
       await new Promise((resolve) => setTimeout(resolve, 1500));

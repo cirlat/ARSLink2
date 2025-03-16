@@ -266,6 +266,35 @@ export class GoogleCalendarService {
     }
   }
 
+  async syncAllAppointments(): Promise<{ success: number; failed: number }> {
+    if (!this.isEnabled || !this.isAuthenticated) {
+      return { success: 0, failed: 0 };
+    }
+
+    try {
+      // Get all unsynced appointments
+      const appointments = await this.appointmentModel.findUnsyncedAppointments();
+      
+      let successCount = 0;
+      let failedCount = 0;
+
+      // Sync each appointment
+      for (const appointment of appointments) {
+        const success = await this.syncAppointment(appointment);
+        if (success) {
+          successCount++;
+        } else {
+          failedCount++;
+        }
+      }
+
+      return { success: successCount, failed: failedCount };
+    } catch (error) {
+      console.error("Error syncing all appointments:", error);
+      return { success: 0, failed: 0 };
+    }
+  }
+
   // Metodo helper per calcolare l'ora di fine dell'appuntamento
   private calculateEndTime(
     date: Date,
@@ -304,43 +333,6 @@ export class GoogleCalendarService {
     } catch (error) {
       console.error("Error deleting appointment from Google Calendar:", error);
       return false;
-    }
-  }
-
-  async syncAllAppointments(): Promise<{ success: number; failed: number }> {
-    if (!this.isEnabled || !this.isAuthenticated) {
-      return { success: 0, failed: 0 };
-    }
-
-    try {
-      // Ottieni tutti gli appuntamenti futuri non sincronizzati
-      const today = new Date();
-      const appointments = await this.appointmentModel.findByDateRange(
-        today,
-        new Date(today.getFullYear() + 1, today.getMonth(), today.getDate()),
-      );
-
-      let success = 0;
-      let failed = 0;
-
-      for (const appointment of appointments) {
-        if (!appointment.google_calendar_synced) {
-          const result = await this.syncAppointment(appointment);
-          if (result) {
-            success++;
-          } else {
-            failed++;
-          }
-        }
-      }
-
-      return { success, failed };
-    } catch (error) {
-      console.error(
-        "Error syncing all appointments with Google Calendar:",
-        error,
-      );
-      return { success: 0, failed: 0 };
     }
   }
 
@@ -482,31 +474,4 @@ export class GoogleCalendarService {
             clientSecret: this.clientSecret,
             redirectUri: this.redirectUri,
             authenticated: true,
-            enabled: this.isEnabled,
-          }),
-        );
-
-        return { success: true };
-      }
-    } catch (error) {
-      console.error(
-        "Errore durante la gestione del callback di autorizzazione:",
-        error,
-      );
-      return {
-        success: false,
-        error: error.message || "Errore sconosciuto durante l'autorizzazione",
-      };
-    }
-  }
-
-  disconnect(): void {
-    // In un'implementazione reale, qui revocheremmo l'accesso e disconnetteremmo il client OAuth2
-
-    // Rimuovi le configurazioni da localStorage
-    localStorage.removeItem("googleConfig");
-
-    this.isAuthenticated = false;
-    this.authClient = null;
-  }
-}
+            enabled: this
