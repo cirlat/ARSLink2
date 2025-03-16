@@ -17,6 +17,7 @@ import {
   AlertCircle,
   Check,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { GoogleCalendarService } from "@/services/googleCalendar.service";
 import { LicenseModel } from "@/models/license";
@@ -344,7 +345,9 @@ const GoogleCalendarSettings: React.FC = () => {
             >
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
               Sincronizza Appuntamenti
             </Button>
           )}
