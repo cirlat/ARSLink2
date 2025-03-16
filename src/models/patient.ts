@@ -26,6 +26,68 @@ export class PatientModel {
 
   constructor() {
     this.db = Database.getInstance();
+    this.ensureTableExists();
+  }
+
+  private async ensureTableExists(): Promise<void> {
+    try {
+      // Ensure the patients table has all the required columns
+      await this.db.query(`
+        CREATE TABLE IF NOT EXISTS patients (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          codice_fiscale VARCHAR(16) NOT NULL,
+          date_of_birth DATE NOT NULL,
+          gender VARCHAR(10) NOT NULL,
+          email VARCHAR(255),
+          phone VARCHAR(20) NOT NULL,
+          address TEXT,
+          city VARCHAR(100),
+          postal_code VARCHAR(10),
+          medical_history TEXT,
+          allergies TEXT,
+          medications TEXT,
+          notes TEXT,
+          privacy_consent BOOLEAN NOT NULL DEFAULT TRUE,
+          marketing_consent BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Check if medical_history column exists, if not add it
+      const checkMedicalHistoryColumn = await this.db.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'patients' AND column_name = 'medical_history'",
+      );
+
+      if (checkMedicalHistoryColumn.length === 0) {
+        await this.db.query(
+          "ALTER TABLE patients ADD COLUMN medical_history TEXT",
+        );
+      }
+
+      // Check if allergies column exists, if not add it
+      const checkAllergiesColumn = await this.db.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'patients' AND column_name = 'allergies'",
+      );
+
+      if (checkAllergiesColumn.length === 0) {
+        await this.db.query("ALTER TABLE patients ADD COLUMN allergies TEXT");
+      }
+
+      // Check if medications column exists, if not add it
+      const checkMedicationsColumn = await this.db.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'patients' AND column_name = 'medications'",
+      );
+
+      if (checkMedicationsColumn.length === 0) {
+        await this.db.query("ALTER TABLE patients ADD COLUMN medications TEXT");
+      }
+
+      console.log("Ensured patients table exists with all required columns");
+    } catch (error) {
+      console.error("Error ensuring patients table exists:", error);
+    }
   }
 
   async create(patient: Patient): Promise<Patient> {
@@ -182,6 +244,7 @@ export class PatientModel {
         }
       });
 
+      // Add updated_at timestamp as a Date object, not a number
       updates.push(`updated_at = $${paramCount}`);
       values.push(new Date());
       paramCount++;
