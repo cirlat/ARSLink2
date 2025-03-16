@@ -494,6 +494,7 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
     form.watch("dateOfBirth"),
     form.watch("gender"),
     form.watch("birthPlace"),
+    form, // Add form to dependencies to ensure the effect runs when form changes
   ]);
 
   const handleSubmit = async (data: PatientFormValues) => {
@@ -524,6 +525,7 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
           codice_fiscale: data.fiscalCode || "",
           date_of_birth: data.dateOfBirth,
           gender: data.gender,
+          birth_place: data.birthPlace || "",
           email: data.email || "",
           phone: data.phone,
           address: data.address || "",
@@ -537,8 +539,30 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
           marketing_consent: data.marketingConsent || false,
         };
 
-        const savedPatient = await patientModel.create(patientData);
-        console.log("Paziente salvato nel database:", savedPatient);
+        // Check if we're in edit mode by looking at the URL
+        const isEditMode = window.location.pathname.includes("/edit");
+        let savedPatient;
+
+        if (isEditMode) {
+          // Get patient ID from URL
+          const patientId = window.location.pathname
+            .split("/")
+            .filter(Boolean)
+            .at(-2);
+
+          if (patientId) {
+            // Update existing patient
+            savedPatient = await patientModel.update(
+              parseInt(patientId),
+              patientData,
+            );
+            console.log("Paziente aggiornato nel database:", savedPatient);
+          }
+        } else {
+          // Create new patient
+          savedPatient = await patientModel.create(patientData);
+          console.log("Paziente salvato nel database:", savedPatient);
+        }
       } catch (error) {
         console.error(
           "Errore nel salvataggio del paziente nel database:",
