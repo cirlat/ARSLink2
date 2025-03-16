@@ -6,7 +6,7 @@ import * as z from "zod";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Save, Plus, AlertCircle } from "lucide-react";
+import { CalendarIcon, Save, Plus, AlertCircle, RefreshCw } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -498,6 +498,58 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
   ]);
 
   const handleSubmit = async (data: PatientFormValues) => {
+    // Verifica se ci sono errori nel form prima di procedere
+    if (!form.formState.isValid) {
+      // Trova tutti i campi con errori
+      const errorFields = Object.keys(form.formState.errors);
+
+      // Se ci sono errori nella scheda personale ma siamo nella scheda medica, cambia tab
+      if (
+        activeTab === "medical" &&
+        errorFields.some((field) =>
+          [
+            "firstName",
+            "lastName",
+            "gender",
+            "dateOfBirth",
+            "birthPlace",
+            "phone",
+            "email",
+            "address",
+            "city",
+            "postalCode",
+            "fiscalCode",
+            "privacyConsent",
+            "marketingConsent",
+          ].includes(field),
+        )
+      ) {
+        setActiveTab("personal");
+        alert(
+          "Ci sono errori nei dati personali. Correggi prima di procedere.",
+        );
+        return;
+      }
+
+      // Se ci sono errori nella scheda medica ma siamo nella scheda personale, cambia tab
+      if (
+        activeTab === "personal" &&
+        errorFields.some((field) =>
+          ["medicalHistory", "allergies", "medications", "notes"].includes(
+            field,
+          ),
+        )
+      ) {
+        setActiveTab("medical");
+        alert("Ci sono errori nei dati medici. Correggi prima di procedere.");
+        return;
+      }
+
+      // Se siamo nella scheda corretta ma ci sono comunque errori
+      alert("Correggi gli errori nel form prima di procedere.");
+      return;
+    }
+
     // Genera il Codice Fiscale se non fornito
     if (!data.fiscalCode) {
       data.fiscalCode = generateFiscalCode(
@@ -537,6 +589,8 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
           notes: data.notes || "",
           privacy_consent: data.privacyConsent,
           marketing_consent: data.marketingConsent || false,
+          created_at: new Date(),
+          updated_at: new Date(),
         };
 
         // Check if we're in edit mode by looking at the URL
@@ -869,40 +923,57 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Codice Fiscale</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Verrà generato automaticamente se lasciato vuoto"
-                          {...field}
-                        />
-                      </FormControl>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input
+                            placeholder="RSSMRA80A01H501U"
+                            {...field}
+                            className="uppercase"
+                          />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const values = form.getValues();
+                            if (
+                              values.firstName &&
+                              values.lastName &&
+                              values.dateOfBirth &&
+                              values.gender &&
+                              values.birthPlace
+                            ) {
+                              const fiscalCode = generateFiscalCode(
+                                values.firstName,
+                                values.lastName,
+                                values.dateOfBirth,
+                                values.gender,
+                                values.birthPlace,
+                              );
+                              form.setValue("fiscalCode", fiscalCode, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              });
+                            } else {
+                              alert(
+                                "Compila prima i campi Nome, Cognome, Data di Nascita, Genere e Città di Nascita.",
+                              );
+                            }
+                          }}
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <FormDescription>
-                        Il codice fiscale verrà generato automaticamente se
-                        lasciato vuoto.
+                        Generato automaticamente dai dati personali. Puoi
+                        rigenerarlo con il pulsante di aggiornamento.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                {/* Consensi & Privacy */}
-                <div className="space-y-4 mt-6 pt-4 border-t">
-                  <h3 className="text-lg font-medium">Consensi & Privacy</h3>
 
-                  <div className="bg-muted p-4 rounded-md mb-4">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <h4 className="font-medium">
-                          Informazioni sulla Privacy
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          I seguenti consensi sono necessari per il trattamento
-                          dei dati del paziente in conformità con il GDPR e le
-                          leggi italiane sulla privacy.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
+                <div className="space-y-4">
                   <FormField
                     control={form.control}
                     name="privacyConsent"
@@ -916,13 +987,11 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                         </FormControl>
                         <div className="space-y-1 leading-none">
                           <FormLabel>
-                            Consenso Privacy{" "}
-                            <span className="text-destructive">*</span>
+                            Consenso al trattamento dei dati personali
                           </FormLabel>
                           <FormDescription>
-                            Acconsento al trattamento dei miei dati personali
-                            per finalità sanitarie come descritto
-                            nell'informativa sulla privacy.
+                            Il paziente acconsente al trattamento dei dati
+                            personali ai sensi del GDPR.
                           </FormDescription>
                         </div>
                         <FormMessage />
@@ -942,13 +1011,15 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                           />
                         </FormControl>
                         <div className="space-y-1 leading-none">
-                          <FormLabel>Comunicazioni</FormLabel>
+                          <FormLabel>
+                            Consenso all'invio di comunicazioni
+                          </FormLabel>
                           <FormDescription>
-                            Acconsento a ricevere promemoria per appuntamenti,
-                            follow-up e altre comunicazioni relative alla mia
-                            assistenza sanitaria.
+                            Il paziente acconsente all'invio di comunicazioni
+                            promozionali e newsletter.
                           </FormDescription>
                         </div>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -962,14 +1033,18 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                   name="medicalHistory"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Storia Clinica</FormLabel>
+                      <FormLabel>Storia Medica</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Inserisci la storia clinica rilevante..."
-                          className="min-h-[120px]"
+                          placeholder="Inserisci la storia medica del paziente"
+                          className="min-h-[100px]"
                           {...field}
                         />
                       </FormControl>
+                      <FormDescription>
+                        Includi informazioni rilevanti sulla storia medica del
+                        paziente.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -983,11 +1058,14 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                       <FormLabel>Allergie</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Elenca eventuali allergie..."
-                          className="min-h-[80px]"
+                          placeholder="Inserisci le allergie del paziente"
+                          className="min-h-[100px]"
                           {...field}
                         />
                       </FormControl>
+                      <FormDescription>
+                        Elenca tutte le allergie conosciute del paziente.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -998,14 +1076,18 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                   name="medications"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Farmaci Attuali</FormLabel>
+                      <FormLabel>Farmaci</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Elenca i farmaci attuali..."
-                          className="min-h-[80px]"
+                          placeholder="Inserisci i farmaci assunti dal paziente"
+                          className="min-h-[100px]"
                           {...field}
                         />
                       </FormControl>
+                      <FormDescription>
+                        Elenca tutti i farmaci che il paziente sta assumendo
+                        attualmente.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1016,14 +1098,18 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                   name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Note Aggiuntive</FormLabel>
+                      <FormLabel>Note</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Eventuali note o osservazioni aggiuntive..."
-                          className="min-h-[80px]"
+                          placeholder="Inserisci eventuali note aggiuntive"
+                          className="min-h-[100px]"
                           {...field}
                         />
                       </FormControl>
+                      <FormDescription>
+                        Aggiungi qualsiasi altra informazione rilevante sul
+                        paziente.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1031,10 +1117,10 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
               </TabsContent>
             </Tabs>
 
-            <CardFooter className="px-0 pt-6 flex justify-between">
+            <div className="flex justify-end space-x-4">
               <Button
-                variant="outline"
                 type="button"
+                variant="outline"
                 onClick={() => navigate("/patients")}
               >
                 Annulla
@@ -1043,7 +1129,7 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                 <Save className="mr-2 h-4 w-4" />
                 Salva Paziente
               </Button>
-            </CardFooter>
+            </div>
           </form>
         </Form>
       </CardContent>

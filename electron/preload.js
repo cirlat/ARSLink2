@@ -21,6 +21,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openFile: (filePath) => ipcRenderer.invoke("open-file", filePath),
   getUserDataPath: () => ipcRenderer.invoke("get-user-data-path"),
 
+  // WhatsApp integration
+  openWhatsAppWeb: (config) => ipcRenderer.invoke("open-whatsapp-web", config),
+  sendWhatsAppMessage: (params) =>
+    ipcRenderer.invoke("send-whatsapp-message", params),
+
+  // Reset setup
+  resetSetup: () => ipcRenderer.invoke("reset-setup"),
+
   // Other native APIs that might be needed
   getAppVersion: () => process.env.npm_package_version || "1.0.0",
   getPlatform: () => process.platform || "browser",

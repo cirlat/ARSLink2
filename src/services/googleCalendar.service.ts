@@ -8,11 +8,29 @@ export class GoogleCalendarService {
   private isEnabled: boolean = false;
   private isAuthenticated: boolean = false;
   private authClient: any = null; // In un'implementazione reale, questo sarebbe un client OAuth2
+  private clientId: string = "";
+  private clientSecret: string = "";
+  private redirectUri: string = "";
 
   private constructor() {
     this.licenseModel = LicenseModel.getInstance();
     this.appointmentModel = new AppointmentModel();
     this.checkEnabled();
+    this.loadConfiguration();
+  }
+
+  private loadConfiguration() {
+    // Carica la configurazione da localStorage
+    const clientId = localStorage.getItem("googleClientId");
+    const clientSecret = localStorage.getItem("googleClientSecret");
+    const redirectUri = localStorage.getItem("googleRedirectUri");
+
+    if (clientId && clientSecret && redirectUri) {
+      this.clientId = clientId;
+      this.clientSecret = clientSecret;
+      this.redirectUri = redirectUri;
+      console.log("Configurazione Google Calendar caricata da localStorage");
+    }
   }
 
   public static getInstance(): GoogleCalendarService {
@@ -104,6 +122,47 @@ export class GoogleCalendarService {
       console.error("Error authenticating with Google Calendar:", error);
       return false;
     }
+  }
+
+  // Metodo per configurare il servizio
+  async configure(
+    clientId: string,
+    clientSecret: string,
+    redirectUri: string,
+  ): Promise<void> {
+    // Implementazione della configurazione
+    console.log("Configurazione del servizio Google Calendar");
+
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.redirectUri = redirectUri;
+
+    // Salva la configurazione in localStorage
+    localStorage.setItem("googleClientId", clientId);
+    localStorage.setItem("googleClientSecret", clientSecret);
+    localStorage.setItem("googleRedirectUri", redirectUri);
+  }
+
+  // Metodo per ottenere l'URL di autorizzazione
+  async getAuthUrl(): Promise<string> {
+    // Verifica che i parametri di configurazione siano impostati
+    if (!this.clientId || !this.redirectUri) {
+      throw new Error(
+        "Configurazione Google Calendar mancante. Imposta Client ID e Redirect URI.",
+      );
+    }
+
+    // Costruisci l'URL di autorizzazione con i parametri corretti
+    const scopes = encodeURIComponent(
+      "https://www.googleapis.com/auth/calendar",
+    );
+    const redirectUri = encodeURIComponent(this.redirectUri);
+
+    console.log("Generazione URL di autorizzazione Google Calendar");
+    console.log(`Client ID: ${this.clientId}`);
+    console.log(`Redirect URI: ${this.redirectUri}`);
+
+    return `https://accounts.google.com/o/oauth2/auth?client_id=${this.clientId}&redirect_uri=${redirectUri}&scope=${scopes}&response_type=code&access_type=offline&prompt=consent`;
   }
 
   // Alias per compatibilità con il codice esistente
@@ -278,6 +337,50 @@ export class GoogleCalendarService {
         error,
       );
       return { success: 0, failed: 0 };
+    }
+  }
+
+  // Metodo per gestire il callback di autorizzazione
+  async handleAuthCallback(
+    code: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Verifica che i parametri di configurazione siano impostati
+      if (!this.clientId || !this.clientSecret || !this.redirectUri) {
+        return {
+          success: false,
+          error:
+            "Configurazione Google Calendar mancante. Imposta Client ID, Client Secret e Redirect URI.",
+        };
+      }
+
+      console.log("Gestione callback di autorizzazione Google Calendar");
+      console.log(`Codice di autorizzazione: ${code}`);
+
+      // In un'implementazione reale, qui ci sarebbe lo scambio del codice con un token di accesso
+      // Per ora, simuliamo un token di accesso
+      const accessToken = `simulated_access_token_${Date.now()}`;
+      const refreshToken = `simulated_refresh_token_${Date.now()}`;
+      const expiresIn = 3600; // 1 ora
+
+      // Salva i token in localStorage
+      localStorage.setItem("googleAccessToken", accessToken);
+      localStorage.setItem("googleRefreshToken", refreshToken);
+      localStorage.setItem(
+        "googleTokenExpiry",
+        (Date.now() + expiresIn * 1000).toString(),
+      );
+
+      return { success: true };
+    } catch (error) {
+      console.error(
+        "Errore durante la gestione del callback di autorizzazione:",
+        error,
+      );
+      return {
+        success: false,
+        error: error.message || "Errore sconosciuto durante l'autorizzazione",
+      };
     }
   }
 

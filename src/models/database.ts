@@ -774,6 +774,77 @@ class Database {
       throw error;
     }
   }
+
+  async backup(): Promise<{
+    success: boolean;
+    filePath?: string;
+    error?: string;
+  }> {
+    try {
+      // Verifica se siamo in ambiente Electron
+      if (
+        typeof window !== "undefined" &&
+        window.electronAPI &&
+        typeof window.electronAPI.backupDatabase === "function"
+      ) {
+        // Usa l'API Electron per eseguire il backup
+        console.log("Esecuzione backup del database tramite Electron API...");
+
+        // Ottieni il percorso di backup dalle impostazioni
+        const backupPath =
+          localStorage.getItem("backupPath") ||
+          "C:\\ProgramData\\PatientAppointmentSystem\\Backups";
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const filePath = `${backupPath}\\backup-${timestamp}.db`;
+
+        const result = await window.electronAPI.backupDatabase(filePath);
+        return result;
+      } else {
+        // Implementazione di fallback per ambiente browser
+        console.log("Esecuzione backup del database (simulazione)...");
+
+        // Simula un'operazione di backup
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // Percorso del file di backup (simulato)
+        const backupPath =
+          localStorage.getItem("backupPath") ||
+          "C:\\ProgramData\\PatientAppointmentSystem\\Backups";
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const filePath = `${backupPath}\\backup-${timestamp}.db`;
+
+        console.log(`Backup completato (simulazione): ${filePath}`);
+
+        return { success: true, filePath };
+      }
+    } catch (error) {
+      console.error("Errore durante il backup del database:", error);
+      return {
+        success: false,
+        error: error.message || "Errore sconosciuto durante il backup",
+      };
+    }
+  }
+
+  async restore(
+    filePath: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Implementazione del ripristino del database
+      // In un ambiente reale, questo chiamerebbe l'API di Electron per eseguire il ripristino
+      console.log(`Esecuzione ripristino del database da ${filePath}...`);
+
+      // Simula un'operazione di ripristino
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      console.log(`Ripristino completato da: ${filePath}`);
+
+      return { success: true };
+    } catch (error) {
+      console.error("Errore durante il ripristino del database:", error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 export default Database;

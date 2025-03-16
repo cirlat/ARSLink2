@@ -50,12 +50,23 @@ interface ElectronAPI {
     paths: string[],
   ) => Promise<{ success: boolean; path?: string; error?: string }>;
 
+  // WhatsApp integration
+  openWhatsAppWeb: (config: {
+    browserPath: string;
+    dataPath: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  sendWhatsAppMessage: (params: {
+    phone: string;
+    message: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+
   // Table creation
   ensureMedicalRecordsTable: () => Promise<{
     success: boolean;
     error?: string;
   }>;
   ensureNotificationsTable: () => Promise<{ success: boolean; error?: string }>;
+  resetSetup: () => Promise<{ success: boolean; error?: string }>;
 }
 
 interface DatabaseConfig {
