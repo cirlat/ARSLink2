@@ -337,20 +337,19 @@ const GoogleCalendarSettings: React.FC = () => {
             Salva Impostazioni
           </Button>
 
-          {isAuthenticated && (
-            <Button
-              variant="outline"
-              onClick={syncAllAppointments}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              Sincronizza Appuntamenti
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            onClick={syncAllAppointments}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Sincronizza Appuntamenti
+          </Button>
+          
 
           {isAuthenticated ? (
             <Button

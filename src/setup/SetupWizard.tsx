@@ -101,7 +101,7 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
 
   // WhatsApp
   const [whatsappConfig, setWhatsappConfig] = useState({
-    enabled: false,
+    enabled: true,
     browserPath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
     dataPath: "C:\\ProgramData\\PatientAppointmentSystem\\WhatsApp",
   });
@@ -374,6 +374,8 @@ const SetupWizard: React.FC<SetupWizardProps> = () => {
           "appointments",
           "license",
           "configurations",
+          "notifications",
+          "medical_records"
         ];
 
         for (const table of tables) {

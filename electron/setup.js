@@ -325,6 +325,39 @@ ipcMain.handle("setup-create-tables", async (event, config) => {
         )
       `);
 
+      // medical_records table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS "medical_records" (
+          id SERIAL PRIMARY KEY,
+          patient_id INTEGER NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          date DATE NOT NULL,
+          doctor VARCHAR(100) NOT NULL,
+          description TEXT,
+          files TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      //notifications table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id SERIAL PRIMARY KEY,
+          patient_id INTEGER NOT NULL,
+          patient_name VARCHAR(100) NOT NULL,
+          appointment_id INTEGER,
+          appointment_date DATE,
+          appointment_time TIME,
+          message TEXT NOT NULL,
+          status VARCHAR(20) NOT NULL DEFAULT 'pending',
+          type VARCHAR(20) NOT NULL,
+          sent_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       await client.query("COMMIT");
       console.log("Database tables created successfully");
 

@@ -376,6 +376,37 @@ export async function createTable(
           )`;
           break;
 
+          case "notifications":
+          query = `CREATE TABLE IF NOT EXISTS "notifications" (
+            id SERIAL PRIMARY KEY,
+            patient_id INTEGER NOT NULL REFERENCES "patients"(id) ON DELETE CASCADE,
+            patient_name VARCHAR(100) NOT NULL,
+            appointment_id INTEGER REFERENCES "appointments"(id) ON DELETE SET NULL,
+            appointment_date DATE,
+            appointment_time TIME,
+            message TEXT NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            type VARCHAR(20) NOT NULL,
+            sent_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )`;
+          break;
+
+          case "medical_records":
+          query = `CREATE TABLE IF NOT EXISTS "medical_records" (
+            id SERIAL PRIMARY KEY,
+            patient_id INTEGER NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            date DATE NOT NULL,
+            doctor VARCHAR(100) NOT NULL,
+            description TEXT,
+            files TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP        
+          )`;
+          break;
+
         default:
           console.error(`Table ${tableName} not recognized`);
           return false;
