@@ -509,27 +509,32 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
         .map(([field, error]) => `${field}: ${error.message}`)
         .join("\n");
 
+      // Verifica se ci sono errori nella scheda personale
+      const hasPersonalTabErrors = errorFields.some((field) =>
+        [
+          "firstName",
+          "lastName",
+          "gender",
+          "dateOfBirth",
+          "birthPlace",
+          "phone",
+          "email",
+          "address",
+          "city",
+          "postalCode",
+          "fiscalCode",
+          "privacyConsent",
+          "marketingConsent",
+        ].includes(field),
+      );
+
+      // Verifica se ci sono errori nella scheda medica
+      const hasMedicalTabErrors = errorFields.some((field) =>
+        ["medicalHistory", "allergies", "medications", "notes"].includes(field),
+      );
+
       // Se ci sono errori nella scheda personale ma siamo nella scheda medica, cambia tab
-      if (
-        activeTab === "medical" &&
-        errorFields.some((field) =>
-          [
-            "firstName",
-            "lastName",
-            "gender",
-            "dateOfBirth",
-            "birthPlace",
-            "phone",
-            "email",
-            "address",
-            "city",
-            "postalCode",
-            "fiscalCode",
-            "privacyConsent",
-            "marketingConsent",
-          ].includes(field),
-        )
-      ) {
+      if (activeTab === "medical" && hasPersonalTabErrors) {
         setActiveTab("personal");
         alert(
           `Ci sono errori nei dati personali. Correggi prima di procedere:\n${errorMessages}`,
@@ -538,14 +543,7 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
       }
 
       // Se ci sono errori nella scheda medica ma siamo nella scheda personale, cambia tab
-      if (
-        activeTab === "personal" &&
-        errorFields.some((field) =>
-          ["medicalHistory", "allergies", "medications", "notes"].includes(
-            field,
-          ),
-        )
-      ) {
+      if (activeTab === "personal" && hasMedicalTabErrors) {
         setActiveTab("medical");
         alert(
           `Ci sono errori nei dati medici. Correggi prima di procedere:\n${errorMessages}`,

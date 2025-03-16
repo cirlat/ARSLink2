@@ -609,8 +609,8 @@ export class WhatsAppService {
               .replace(/\+/g, "")
               .replace(/\s/g, "");
 
-            // Costruisci l'URL diretto di WhatsApp
-            const whatsappUrl = `https://web.whatsapp.com/send?phone=${formattedNumber}&text=${encodeURIComponent(message)}`;
+            // Costruisci l'URL diretto di WhatsApp con parametro per invio automatico
+            const whatsappUrl = `https://web.whatsapp.com/send?phone=${formattedNumber}&text=${encodeURIComponent(message)}&source=&data=&app_absent=`;
 
             // Costruisci il comando per avviare Chrome con i parametri corretti
             const args = [
@@ -641,8 +641,32 @@ export class WhatsAppService {
               window.open(whatsappUrl, "_blank");
             }
 
-            // Attendi un po' per dare tempo al browser di aprirsi e inviare il messaggio
+            // Attendi un po' per dare tempo al browser di aprirsi e inviare il messaggio automaticamente
             await new Promise((resolve) => setTimeout(resolve, 5000));
+
+            // Simula la pressione del tasto INVIO per inviare il messaggio
+            try {
+              if (
+                isRunningInElectron() &&
+                typeof window.require === "function"
+              ) {
+                const robot = window.require("robotjs");
+                if (robot) {
+                  // Premi il tasto INVIO per inviare il messaggio
+                  robot.keyTap("enter");
+                  console.log("Messaggio inviato automaticamente con robotjs");
+                }
+              } else {
+                console.log(
+                  "Impossibile inviare automaticamente il messaggio: robotjs non disponibile",
+                );
+              }
+            } catch (robotError) {
+              console.error(
+                "Errore nell'invio automatico del messaggio:",
+                robotError,
+              );
+            }
 
             // Aggiorna lo stato della notifica a "sent"
             await notificationModel.updateStatus(

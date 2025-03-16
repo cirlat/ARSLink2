@@ -798,6 +798,26 @@ class Database {
         const filePath = `${backupPath}\\backup-${timestamp}.db`;
 
         const result = await window.electronAPI.backupDatabase(filePath);
+
+        // Aggiungi alla lista dei backup anche in ambiente Electron
+        try {
+          const backupsList = JSON.parse(
+            localStorage.getItem("backups_list") || "[]",
+          );
+          backupsList.push({
+            timestamp,
+            filePath,
+            type: "electron",
+            size: 0,
+          });
+          localStorage.setItem("backups_list", JSON.stringify(backupsList));
+        } catch (listError) {
+          console.error(
+            "Errore nell'aggiornamento della lista dei backup:",
+            listError,
+          );
+        }
+
         return result;
       } else {
         // Implementazione di fallback per ambiente browser
