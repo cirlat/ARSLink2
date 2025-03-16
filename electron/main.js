@@ -194,8 +194,36 @@ ipcMain.handle("backup-database", async (event, backupPath) => {
     const backupFileName = `${dbConfig.dbName}_backup_${timestamp}.sql`;
     const fullBackupPath = path.join(backupPath, backupFileName);
 
-    // pg_dump command
-    const command = `pg_dump -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -F c -b -v -f "${fullBackupPath}" "${dbConfig.dbName}"`;
+    // pg_dump command with full path detection
+    let pgDumpPath = "pg_dump";
+
+    // Try to find pg_dump in common installation locations
+    const possiblePaths = [
+      "pg_dump",
+      "/usr/bin/pg_dump",
+      "/usr/local/bin/pg_dump",
+      "/usr/local/pgsql/bin/pg_dump",
+      "C:\\Program Files\\PostgreSQL\\latest\\bin\\pg_dump.exe",
+      "C:\\Program Files\\PostgreSQL\\15\\bin\\pg_dump.exe",
+      "C:\\Program Files\\PostgreSQL\\14\\bin\\pg_dump.exe",
+      "C:\\Program Files\\PostgreSQL\\13\\bin\\pg_dump.exe",
+      "C:\\Program Files\\PostgreSQL\\12\\bin\\pg_dump.exe",
+    ];
+
+    for (const path of possiblePaths) {
+      try {
+        // Check if the file exists and is executable
+        if (fs.existsSync(path)) {
+          pgDumpPath = path;
+          console.log(`Found pg_dump at: ${pgDumpPath}`);
+          break;
+        }
+      } catch (err) {
+        // Continue to next path
+      }
+    }
+
+    const command = `"${pgDumpPath}" -h ${dbConfig.host} -p ${dbConfig.port} -U ${dbConfig.username} -F c -b -v -f "${fullBackupPath}" "${dbConfig.dbName}"`;
 
     // Set PGPASSWORD environment variable to avoid password prompt
     const env = {
@@ -204,8 +232,68 @@ ipcMain.handle("backup-database", async (event, backupPath) => {
     };
 
     console.log(`Executing backup to ${fullBackupPath}`);
-    await execPromise(command, { env });
-    console.log("Backup completed successfully");
+    try {
+      await execPromise(command, { env });
+      console.log("Backup completed successfully");
+    } catch (execError) {
+      console.error("Error executing pg_dump:", execError);
+
+      // Fallback to JSON backup if pg_dump fails
+      console.log("Falling back to JSON backup method...");
+
+      // Export database tables as JSON
+      const tables = [
+        "users",
+        "patients",
+        "appointments",
+        "license",
+        "configurations",
+        "medical_records",
+        "notifications",
+      ];
+
+      const backupData = {
+        metadata: {
+          timestamp: new Date().toISOString(),
+          version: "1.0.0",
+          path: fullBackupPath,
+          error: execError.message,
+        },
+        tables: {},
+      };
+
+      // Connect to database to export data
+      const client = new Client({
+        host: dbConfig.host,
+        port: parseInt(dbConfig.port),
+        user: dbConfig.username,
+        password: dbConfig.password || "",
+        database: dbConfig.dbName,
+        ssl: false,
+      });
+
+      await client.connect();
+
+      for (const table of tables) {
+        try {
+          const result = await client.query(`SELECT * FROM ${table}`);
+          backupData.tables[table] = result.rows;
+        } catch (tableError) {
+          console.warn(`Could not backup table ${table}:`, tableError);
+          backupData.tables[table] = [];
+        }
+      }
+
+      await client.end();
+
+      // Save JSON backup
+      const jsonBackupPath = fullBackupPath.replace(".sql", ".json");
+      fs.writeFileSync(jsonBackupPath, JSON.stringify(backupData, null, 2));
+      console.log(`JSON backup saved to ${jsonBackupPath}`);
+
+      // Return success with the JSON path
+      return { success: true, path: jsonBackupPath, format: "json" };
+    }
 
     return { success: true, path: fullBackupPath };
   } catch (error) {
