@@ -90,16 +90,90 @@ const PatientList: React.FC<PatientListProps> = ({
         const result = await patientModel.findAll();
 
         if (result.patients.length > 0) {
-          // Converti i dati dal formato del database al formato richiesto dal componente
-          const formattedPatients = result.patients.map((p: any) => ({
-            id: p.id.toString(),
-            name: p.name,
-            codiceFiscale: p.codice_fiscale,
-            phone: p.phone,
-            email: p.email || "",
-            lastAppointment: "N/A", // In un'implementazione reale, questo verrebbe calcolato dagli appuntamenti
-            nextAppointment: null, // In un'implementazione reale, questo verrebbe calcolato dagli appuntamenti
-          }));
+          // Carica gli appuntamenti per ogni paziente
+          const { AppointmentModel } = await import("@/models/appointment");
+          const appointmentModel = new AppointmentModel();
+
+          // Array per memorizzare i pazienti formattati con i loro appuntamenti
+          const formattedPatientsPromises = result.patients.map(
+            async (p: any) => {
+              // Trova gli appuntamenti per questo paziente
+              let lastAppointment = "N/A";
+              let nextAppointment = null;
+
+              try {
+                const patientAppointments =
+                  await appointmentModel.findByPatientId(p.id);
+
+                if (patientAppointments && patientAppointments.length > 0) {
+                  // Ordina gli appuntamenti per data (dal più recente al più vecchio)
+                  const sortedAppointments = [...patientAppointments].sort(
+                    (a, b) => {
+                      const dateA = new Date(a.date);
+                      const dateB = new Date(b.date);
+                      return dateB.getTime() - dateA.getTime();
+                    },
+                  );
+
+                  // Trova l'ultimo appuntamento (il più recente nel passato)
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+
+                  const pastAppointments = sortedAppointments.filter((a) => {
+                    const appointmentDate = new Date(a.date);
+                    return appointmentDate < today;
+                  });
+
+                  if (pastAppointments.length > 0) {
+                    const lastApp = pastAppointments[0];
+                    lastAppointment = new Date(
+                      lastApp.date,
+                    ).toLocaleDateString();
+                  }
+
+                  // Trova il prossimo appuntamento (il più vicino nel futuro)
+                  const futureAppointments = sortedAppointments.filter((a) => {
+                    const appointmentDate = new Date(a.date);
+                    return appointmentDate >= today;
+                  });
+
+                  if (futureAppointments.length > 0) {
+                    // Ordina per data crescente
+                    futureAppointments.sort((a, b) => {
+                      const dateA = new Date(a.date);
+                      const dateB = new Date(b.date);
+                      return dateA.getTime() - dateB.getTime();
+                    });
+
+                    const nextApp = futureAppointments[0];
+                    nextAppointment = new Date(
+                      nextApp.date,
+                    ).toLocaleDateString();
+                  }
+                }
+              } catch (appointmentError) {
+                console.error(
+                  "Errore nel caricamento degli appuntamenti per il paziente:",
+                  appointmentError,
+                );
+              }
+
+              return {
+                id: p.id.toString(),
+                name: p.name,
+                codiceFiscale: p.codice_fiscale,
+                phone: p.phone,
+                email: p.email || "",
+                lastAppointment,
+                nextAppointment,
+              };
+            },
+          );
+
+          // Attendi che tutte le promesse siano risolte
+          const formattedPatients = await Promise.all(
+            formattedPatientsPromises,
+          );
           setPatients(formattedPatients);
         } else if (propPatients) {
           setPatients(propPatients);

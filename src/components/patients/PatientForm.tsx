@@ -502,6 +502,12 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
     if (!form.formState.isValid) {
       // Trova tutti i campi con errori
       const errorFields = Object.keys(form.formState.errors);
+      console.log("Campi con errori:", errorFields, form.formState.errors);
+
+      // Mostra tutti gli errori in un unico messaggio
+      const errorMessages = Object.entries(form.formState.errors)
+        .map(([field, error]) => `${field}: ${error.message}`)
+        .join("\n");
 
       // Se ci sono errori nella scheda personale ma siamo nella scheda medica, cambia tab
       if (
@@ -526,7 +532,7 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
       ) {
         setActiveTab("personal");
         alert(
-          "Ci sono errori nei dati personali. Correggi prima di procedere.",
+          `Ci sono errori nei dati personali. Correggi prima di procedere:\n${errorMessages}`,
         );
         return;
       }
@@ -541,12 +547,16 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
         )
       ) {
         setActiveTab("medical");
-        alert("Ci sono errori nei dati medici. Correggi prima di procedere.");
+        alert(
+          `Ci sono errori nei dati medici. Correggi prima di procedere:\n${errorMessages}`,
+        );
         return;
       }
 
       // Se siamo nella scheda corretta ma ci sono comunque errori
-      alert("Correggi gli errori nel form prima di procedere.");
+      alert(
+        `Correggi gli errori nel form prima di procedere:\n${errorMessages}`,
+      );
       return;
     }
 

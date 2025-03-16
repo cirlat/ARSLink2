@@ -244,17 +244,15 @@ export class PatientModel {
         }
       });
 
-      // Add updated_at timestamp as a Date object, not a number
-      updates.push(`updated_at = $${paramCount}`);
-      values.push(new Date());
-      paramCount++;
+      // Use CURRENT_TIMESTAMP for updated_at instead of passing a value
+      updates.push(`updated_at = CURRENT_TIMESTAMP`);
 
       values.push(id); // Per la clausola WHERE
 
       const query = `
         UPDATE patients 
         SET ${updates.join(", ")} 
-        WHERE id = $${paramCount - 1} 
+        WHERE id = $${paramCount} 
         RETURNING *
       `;
 
