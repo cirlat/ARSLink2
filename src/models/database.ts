@@ -802,7 +802,7 @@ class Database {
         // Aggiungi alla lista dei backup anche in ambiente Electron
         try {
           const backupsList = JSON.parse(
-            localStorage.getItem("backups_list") || "[]",
+            localStorage.getItem("backups_list") || "[]"
           );
           backupsList.push({
             timestamp,
@@ -812,10 +812,7 @@ class Database {
           });
           localStorage.setItem("backups_list", JSON.stringify(backupsList));
         } catch (listError) {
-          console.error(
-            "Errore nell'aggiornamento della lista dei backup:",
-            listError,
-          );
+          console.error("Errore nell'aggiornamento della lista dei backup:", listError);
         }
 
         return result;

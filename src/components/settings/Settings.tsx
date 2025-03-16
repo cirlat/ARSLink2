@@ -699,35 +699,111 @@ const Settings = () => {
                       <Button
                         variant="outline"
                         onClick={async () => {
-                          const filePath = prompt(
-                            "Inserisci il percorso completo del file di backup:",
-                          );
-                          if (!filePath) return;
-
+                          // Ottieni la lista dei backup disponibili
                           try {
-                            const { default: Database } = await import(
-                              "@/models/database"
+                            const backupsList = JSON.parse(
+                              localStorage.getItem("backups_list") || "[]"
                             );
-                            const db = Database.getInstance();
-                            const result = await db.restore(filePath);
-                            if (result.success) {
-                              alert(
-                                "Ripristino completato con successo. L'applicazione verrà riavviata.",
-                              );
-                              window.location.reload();
-                            } else {
-                              alert(
-                                `Errore durante il ripristino: ${result.error}`,
-                              );
+                            
+                            if (backupsList.length === 0) {
+                              alert("Nessun backup disponibile. Esegui prima un backup.");
+                              return;
                             }
+                            
+                            // Mostra una lista di backup disponibili in un dialog
+                            const backupSelect = document.createElement("select");
+                            backupSelect.id = "backup-select";
+                            backupSelect.style.width = "100%";
+                            backupSelect.style.padding = "8px";
+                            backupSelect.style.marginBottom = "16px";
+                            
+                            backupsList.forEach((backup, index) => {
+                              const option = document.createElement("option");
+                              option.value = backup.timestamp;
+                              option.text = `Backup ${new Date(backup.timestamp.replace(/-/g, ":")
+                                .substring(0, backup.timestamp.lastIndexOf("-"))).toLocaleString()} (${backup.filePath})`;
+                              backupSelect.appendChild(option);
+                            });
+                            
+                            const dialog = document.createElement("div");
+                            dialog.style.position = "fixed";
+                            dialog.style.top = "0";
+                            dialog.style.left = "0";
+                            dialog.style.width = "100%";
+                            dialog.style.height = "100%";
+                            dialog.style.backgroundColor = "rgba(0,0,0,0.5)";
+                            dialog.style.display = "flex";
+                            dialog.style.justifyContent = "center";
+                            dialog.style.alignItems = "center";
+                            dialog.style.zIndex = "9999";
+                            
+                            const dialogContent = document.createElement("div");
+                            dialogContent.style.backgroundColor = "white";
+                            dialogContent.style.padding = "24px";
+                            dialogContent.style.borderRadius = "8px";
+                            dialogContent.style.width = "400px";
+                            dialogContent.style.maxWidth = "90%";
+                            
+                            const title = document.createElement("h3");
+                            title.textContent = "Seleziona un backup da ripristinare";
+                            title.style.marginBottom = "16px";
+                            
+                            const buttonContainer = document.createElement("div");
+                            buttonContainer.style.display = "flex";
+                            buttonContainer.style.justifyContent = "flex-end";
+                            buttonContainer.style.gap = "8px";
+                            
+                            const cancelButton = document.createElement("button");
+                            cancelButton.textContent = "Annulla";
+                            cancelButton.style.padding = "8px 16px";
+                            cancelButton.style.border = "1px solid #ccc";
+                            cancelButton.style.borderRadius = "4px";
+                            cancelButton.style.backgroundColor = "#f1f1f1";
+                            cancelButton.onclick = () => document.body.removeChild(dialog);
+                            
+                            const confirmButton = document.createElement("button");
+                            confirmButton.textContent = "Ripristina";
+                            confirmButton.style.padding = "8px 16px";
+                            confirmButton.style.border = "none";
+                            confirmButton.style.borderRadius = "4px";
+                            confirmButton.style.backgroundColor = "#0070f3";
+                            confirmButton.style.color = "white";
+                            confirmButton.onclick = async () => {
+                              const selectedTimestamp = backupSelect.value;
+                              const selectedBackup = backupsList.find(b => b.timestamp === selectedTimestamp);
+                              
+                              if (!selectedBackup) return;
+                              
+                              document.body.removeChild(dialog);
+                              
+                              try {
+                                const { default: Database } = await import("@/models/database");
+                                const db = Database.getInstance();
+                                const result = await db.restore(`backup_${selectedTimestamp}`);
+                                if (result.success) {
+                                  alert("Ripristino completato con successo. L'applicazione verrà riavviata.");
+                                  window.location.reload();
+                                } else {
+                                  alert(`Errore durante il ripristino: ${result.error}`);
+                                }
+                              } catch (error) {
+                                console.error("Errore durante il ripristino:", error);
+                                alert(`Errore durante il ripristino: ${error.message}`);
+                              }
+                            };
+                            
+                            buttonContainer.appendChild(cancelButton);
+                            buttonContainer.appendChild(confirmButton);
+                            
+                            dialogContent.appendChild(title);
+                            dialogContent.appendChild(backupSelect);
+                            dialogContent.appendChild(buttonContainer);
+                            dialog.appendChild(dialogContent);
+                            
+                            document.body.appendChild(dialog);
                           } catch (error) {
-                            console.error(
-                              "Errore durante il ripristino:",
-                              error,
-                            );
-                            alert(
-                              `Errore durante il ripristino: ${error.message}`,
-                            );
+                            console.error("Errore nel caricamento dei backup:", error);
+                            alert(`Errore nel caricamento dei backup: ${error.message}`);
                           }
                         }}
                       >
