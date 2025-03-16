@@ -810,7 +810,8 @@ class Database {
         const backupPath =
           localStorage.getItem("backupPath") ||
           "C:\\ProgramData\\PatientAppointmentSystem\\Backups";
-        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/[:.]/g, "-");
         const filePath = `${backupPath}\\backup-${timestamp}.db`;
 
         // Crea un backup in formato JSON

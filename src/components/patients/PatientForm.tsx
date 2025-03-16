@@ -1051,10 +1051,7 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription>
-                        Includi informazioni rilevanti sulla storia medica del
-                        paziente.
-                      </FormDescription>
+                      <FormDescription>Campo opzionale</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1073,9 +1070,7 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription>
-                        Elenca tutte le allergie conosciute del paziente.
-                      </FormDescription>
+                      <FormDescription>Campo opzionale</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1094,10 +1089,7 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription>
-                        Elenca tutti i farmaci che il paziente sta assumendo
-                        attualmente.
-                      </FormDescription>
+                      <FormDescription>Campo opzionale</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1116,10 +1108,7 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription>
-                        Aggiungi qualsiasi altra informazione rilevante sul
-                        paziente.
-                      </FormDescription>
+                      <FormDescription>Campo opzionale</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
