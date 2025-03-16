@@ -46,15 +46,29 @@ export class LicenseModel {
       const storedLicenseExpiry = localStorage.getItem("licenseExpiry");
 
       if (storedLicenseKey && storedLicenseType && storedLicenseExpiry) {
+        // Verifica la validità della licenza usando la funzione di verifica
+        const { verifyLicenseKey } = await import("@/utils/licenseUtils");
+        const verificationResult = verifyLicenseKey(storedLicenseKey);
+
+        if (!verificationResult.valid) {
+          console.warn(
+            "Licenza in localStorage non valida:",
+            verificationResult.error,
+          );
+          return;
+        }
+
+        // Usa la data di scadenza dalla verifica, che è più affidabile
+        const expiryDate =
+          verificationResult.expiryDate || new Date(storedLicenseExpiry);
+
         // Crea un oggetto licenza dai dati in localStorage
         const license: License = {
           license_key: storedLicenseKey,
-          license_type: storedLicenseType as
-            | "basic"
-            | "google"
-            | "whatsapp"
-            | "full",
-          expiry_date: new Date(storedLicenseExpiry),
+          license_type:
+            verificationResult.licenseType ||
+            (storedLicenseType as "basic" | "google" | "whatsapp" | "full"),
+          expiry_date: expiryDate,
           google_calendar_enabled:
             storedLicenseType === "google" || storedLicenseType === "full",
           whatsapp_enabled:
@@ -82,11 +96,29 @@ export class LicenseModel {
       // Fallback completo a localStorage
       const storedLicense = localStorage.getItem("license");
       if (storedLicense) {
-        this.currentLicense = JSON.parse(storedLicense);
-        console.log(
-          "Licenza caricata da localStorage (fallback):",
-          this.currentLicense,
-        );
+        try {
+          const parsedLicense = JSON.parse(storedLicense);
+
+          // Verifica che la licenza sia un oggetto valido
+          if (
+            parsedLicense &&
+            parsedLicense.license_key &&
+            parsedLicense.expiry_date
+          ) {
+            // Assicurati che expiry_date sia un oggetto Date
+            parsedLicense.expiry_date = new Date(parsedLicense.expiry_date);
+            this.currentLicense = parsedLicense;
+            console.log(
+              "Licenza caricata da localStorage (fallback):",
+              this.currentLicense,
+            );
+          }
+        } catch (parseError) {
+          console.error(
+            "Errore nel parsing della licenza da localStorage:",
+            parseError,
+          );
+        }
       }
     }
   }
@@ -141,8 +173,18 @@ export class LicenseModel {
 
     const today = new Date();
     const expiryDate = new Date(license.expiry_date);
+
+    // Verifica che la data di scadenza sia valida
+    if (isNaN(expiryDate.getTime())) {
+      console.error(
+        "Data di scadenza della licenza non valida:",
+        license.expiry_date,
+      );
+      return 0;
+    }
+
     const diffTime = expiryDate.getTime() - today.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(Math.ceil(diffTime / (1000 * 60 * 60 * 24)), 0);
   }
 
   async isGoogleCalendarEnabled(): Promise<boolean> {
@@ -189,6 +231,18 @@ export class LicenseModel {
 
   async installLicense(licenseData: License): Promise<License> {
     try {
+      // Verifica che la data di scadenza sia un oggetto Date valido
+      if (
+        !(licenseData.expiry_date instanceof Date) ||
+        isNaN(licenseData.expiry_date.getTime())
+      ) {
+        if (typeof licenseData.expiry_date === "string") {
+          licenseData.expiry_date = new Date(licenseData.expiry_date);
+        } else {
+          throw new Error("Data di scadenza della licenza non valida");
+        }
+      }
+
       // Prima verifichiamo se esiste già una licenza
       const existingLicense = await this.db.query(
         "SELECT * FROM license LIMIT 1",
@@ -235,7 +289,15 @@ export class LicenseModel {
 
       this.currentLicense = result[0];
 
-      // Salva anche in localStorage come backup
+      // Aggiorna anche i valori in localStorage
+      localStorage.setItem("licenseKey", licenseData.license_key);
+      localStorage.setItem("licenseType", licenseData.license_type);
+      localStorage.setItem(
+        "licenseExpiry",
+        licenseData.expiry_date.toISOString(),
+      );
+
+      // Salva anche l'oggetto completo in localStorage come backup
       localStorage.setItem("license", JSON.stringify(this.currentLicense));
 
       return this.currentLicense;

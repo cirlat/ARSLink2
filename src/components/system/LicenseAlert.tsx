@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,42 +8,69 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { AlertCircle, Calendar, CheckCircle, ExternalLink } from "lucide-react";
+import { LicenseModel } from "@/models/license";
 
 interface LicenseAlertProps {
-  daysRemaining?: number;
-  expiryDate?: string;
   contactEmail?: string;
   contactPhone?: string;
   websiteUrl?: string;
-  isExpired?: boolean;
   onRenew?: () => void;
   onDismiss?: () => void;
 }
 
 const LicenseAlert = ({
-  daysRemaining = 15,
-  expiryDate = "2024-06-30",
   contactEmail = "support@patientapp.com",
   contactPhone = "+39 123 456 7890",
   websiteUrl = "https://www.patientapp.com/renew",
-  isExpired = false,
   onRenew = () => console.log("Renew license"),
   onDismiss = () => console.log("Dismiss alert"),
 }: LicenseAlertProps) => {
   const [open, setOpen] = useState(true);
+  const [daysRemaining, setDaysRemaining] = useState(0);
+  const [expiryDate, setExpiryDate] = useState<Date | null>(null);
+  const [isExpired, setIsExpired] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadLicenseData = async () => {
+      try {
+        const licenseModel = LicenseModel.getInstance();
+
+        // Ottieni la licenza corrente
+        const license = await licenseModel.getCurrentLicense();
+        if (!license) {
+          setIsExpired(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // Calcola i giorni rimanenti
+        const days = await licenseModel.getDaysUntilExpiry();
+        setDaysRemaining(days);
+        setExpiryDate(new Date(license.expiry_date));
+        setIsExpired(days <= 0);
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Errore nel caricamento dei dati della licenza:", error);
+        setIsLoading(false);
+      }
+    };
+
+    loadLicenseData();
+  }, []);
 
   // Format the expiry date
-  const formattedDate = new Date(expiryDate).toLocaleDateString("it-IT", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const formattedDate = expiryDate
+    ? expiryDate.toLocaleDateString("it-IT", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "";
 
   // Determine the severity level
   const getSeverityLevel = () => {
@@ -90,6 +117,11 @@ const LicenseAlert = ({
     const percentage = 100 - (daysRemaining / 30) * 100;
     return Math.min(Math.max(percentage, 0), 100);
   };
+
+  // Non mostrare il dialogo se la licenza non è in scadenza (più di 15 giorni) o se sta ancora caricando
+  if (((daysRemaining > 15 || !open) && !isExpired) || isLoading) {
+    return null;
+  }
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
