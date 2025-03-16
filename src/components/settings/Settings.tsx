@@ -476,7 +476,6 @@ const Settings = () => {
           {/* Stato del sistema */}
           <div className="mt-6 space-y-4">
             <LicenseAlert />
-            <BackupStatus />
           </div>
         </div>
 
@@ -602,6 +601,13 @@ const Settings = () => {
               {activeTab === "backup" && (
                 <div className="space-y-6">
                   <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Stato Backup</h3>
+                    <BackupStatus />
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-4">
                     <h3 className="text-lg font-medium">Backup Automatico</h3>
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
@@ -702,29 +708,38 @@ const Settings = () => {
                           // Ottieni la lista dei backup disponibili
                           try {
                             const backupsList = JSON.parse(
-                              localStorage.getItem("backups_list") || "[]"
+                              localStorage.getItem("backups_list") || "[]",
                             );
-                            
+
                             if (backupsList.length === 0) {
-                              alert("Nessun backup disponibile. Esegui prima un backup.");
+                              alert(
+                                "Nessun backup disponibile. Esegui prima un backup.",
+                              );
                               return;
                             }
-                            
+
                             // Mostra una lista di backup disponibili in un dialog
-                            const backupSelect = document.createElement("select");
+                            const backupSelect =
+                              document.createElement("select");
                             backupSelect.id = "backup-select";
                             backupSelect.style.width = "100%";
                             backupSelect.style.padding = "8px";
                             backupSelect.style.marginBottom = "16px";
-                            
+
                             backupsList.forEach((backup, index) => {
                               const option = document.createElement("option");
                               option.value = backup.timestamp;
-                              option.text = `Backup ${new Date(backup.timestamp.replace(/-/g, ":")
-                                .substring(0, backup.timestamp.lastIndexOf("-"))).toLocaleString()} (${backup.filePath})`;
+                              option.text = `Backup ${new Date(
+                                backup.timestamp
+                                  .replace(/-/g, ":")
+                                  .substring(
+                                    0,
+                                    backup.timestamp.lastIndexOf("-"),
+                                  ),
+                              ).toLocaleString()} (${backup.filePath})`;
                               backupSelect.appendChild(option);
                             });
-                            
+
                             const dialog = document.createElement("div");
                             dialog.style.position = "fixed";
                             dialog.style.top = "0";
@@ -736,32 +751,37 @@ const Settings = () => {
                             dialog.style.justifyContent = "center";
                             dialog.style.alignItems = "center";
                             dialog.style.zIndex = "9999";
-                            
+
                             const dialogContent = document.createElement("div");
                             dialogContent.style.backgroundColor = "white";
                             dialogContent.style.padding = "24px";
                             dialogContent.style.borderRadius = "8px";
                             dialogContent.style.width = "400px";
                             dialogContent.style.maxWidth = "90%";
-                            
+
                             const title = document.createElement("h3");
-                            title.textContent = "Seleziona un backup da ripristinare";
+                            title.textContent =
+                              "Seleziona un backup da ripristinare";
                             title.style.marginBottom = "16px";
-                            
-                            const buttonContainer = document.createElement("div");
+
+                            const buttonContainer =
+                              document.createElement("div");
                             buttonContainer.style.display = "flex";
                             buttonContainer.style.justifyContent = "flex-end";
                             buttonContainer.style.gap = "8px";
-                            
-                            const cancelButton = document.createElement("button");
+
+                            const cancelButton =
+                              document.createElement("button");
                             cancelButton.textContent = "Annulla";
                             cancelButton.style.padding = "8px 16px";
                             cancelButton.style.border = "1px solid #ccc";
                             cancelButton.style.borderRadius = "4px";
                             cancelButton.style.backgroundColor = "#f1f1f1";
-                            cancelButton.onclick = () => document.body.removeChild(dialog);
-                            
-                            const confirmButton = document.createElement("button");
+                            cancelButton.onclick = () =>
+                              document.body.removeChild(dialog);
+
+                            const confirmButton =
+                              document.createElement("button");
                             confirmButton.textContent = "Ripristina";
                             confirmButton.style.padding = "8px 16px";
                             confirmButton.style.border = "none";
@@ -770,40 +790,108 @@ const Settings = () => {
                             confirmButton.style.color = "white";
                             confirmButton.onclick = async () => {
                               const selectedTimestamp = backupSelect.value;
-                              const selectedBackup = backupsList.find(b => b.timestamp === selectedTimestamp);
-                              
+                              const selectedBackup = backupsList.find(
+                                (b) => b.timestamp === selectedTimestamp,
+                              );
+
                               if (!selectedBackup) return;
-                              
+
                               document.body.removeChild(dialog);
-                              
+
+                              // Mostra un loader durante il ripristino
+                              const loaderContainer =
+                                document.createElement("div");
+                              loaderContainer.style.position = "fixed";
+                              loaderContainer.style.top = "0";
+                              loaderContainer.style.left = "0";
+                              loaderContainer.style.width = "100%";
+                              loaderContainer.style.height = "100%";
+                              loaderContainer.style.backgroundColor =
+                                "rgba(0,0,0,0.7)";
+                              loaderContainer.style.display = "flex";
+                              loaderContainer.style.flexDirection = "column";
+                              loaderContainer.style.justifyContent = "center";
+                              loaderContainer.style.alignItems = "center";
+                              loaderContainer.style.zIndex = "9999";
+
+                              const spinner = document.createElement("div");
+                              spinner.style.border = "5px solid #f3f3f3";
+                              spinner.style.borderTop = "5px solid #3498db";
+                              spinner.style.borderRadius = "50%";
+                              spinner.style.width = "50px";
+                              spinner.style.height = "50px";
+                              spinner.style.animation =
+                                "spin 2s linear infinite";
+
+                              const style = document.createElement("style");
+                              style.textContent =
+                                "@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }";
+
+                              const message = document.createElement("div");
+                              message.textContent = "Ripristino in corso...";
+                              message.style.color = "white";
+                              message.style.marginTop = "20px";
+                              message.style.fontSize = "18px";
+
+                              loaderContainer.appendChild(spinner);
+                              loaderContainer.appendChild(message);
+                              document.head.appendChild(style);
+                              document.body.appendChild(loaderContainer);
+
                               try {
-                                const { default: Database } = await import("@/models/database");
+                                const { default: Database } = await import(
+                                  "@/models/database"
+                                );
                                 const db = Database.getInstance();
-                                const result = await db.restore(`backup_${selectedTimestamp}`);
+
+                                // Usa il percorso del file invece del timestamp
+                                const result = await db.restore(
+                                  selectedBackup.filePath,
+                                );
+
                                 if (result.success) {
-                                  alert("Ripristino completato con successo. L'applicazione verrà riavviata.");
-                                  window.location.reload();
+                                  message.textContent =
+                                    "Ripristino completato con successo. L'applicazione verrà riavviata.";
+                                  setTimeout(() => {
+                                    window.location.reload();
+                                  }, 2000);
                                 } else {
-                                  alert(`Errore durante il ripristino: ${result.error}`);
+                                  message.textContent = `Errore durante il ripristino: ${result.error}`;
+                                  message.style.color = "#ff5555";
+                                  setTimeout(() => {
+                                    document.body.removeChild(loaderContainer);
+                                  }, 3000);
                                 }
                               } catch (error) {
-                                console.error("Errore durante il ripristino:", error);
-                                alert(`Errore durante il ripristino: ${error.message}`);
+                                console.error(
+                                  "Errore durante il ripristino:",
+                                  error,
+                                );
+                                message.textContent = `Errore durante il ripristino: ${error.message}`;
+                                message.style.color = "#ff5555";
+                                setTimeout(() => {
+                                  document.body.removeChild(loaderContainer);
+                                }, 3000);
                               }
                             };
-                            
+
                             buttonContainer.appendChild(cancelButton);
                             buttonContainer.appendChild(confirmButton);
-                            
+
                             dialogContent.appendChild(title);
                             dialogContent.appendChild(backupSelect);
                             dialogContent.appendChild(buttonContainer);
                             dialog.appendChild(dialogContent);
-                            
+
                             document.body.appendChild(dialog);
                           } catch (error) {
-                            console.error("Errore nel caricamento dei backup:", error);
-                            alert(`Errore nel caricamento dei backup: ${error.message}`);
+                            console.error(
+                              "Errore nel caricamento dei backup:",
+                              error,
+                            );
+                            alert(
+                              `Errore nel caricamento dei backup: ${error.message}`,
+                            );
                           }
                         }}
                       >

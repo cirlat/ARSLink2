@@ -569,6 +569,30 @@ const PatientForm = ({ patient, onSubmit }: PatientFormProps = {}) => {
       );
     }
 
+    // Formatta il numero di telefono con prefisso +39 se non presente
+    if (data.phone) {
+      // Rimuovi spazi e caratteri non numerici
+      let formattedPhone = data.phone
+        .replace(/\s+/g, "")
+        .replace(/[^0-9+]/g, "");
+
+      // Aggiungi il prefisso +39 se non presente
+      if (!formattedPhone.startsWith("+")) {
+        // Se inizia con 00, sostituisci con +
+        if (formattedPhone.startsWith("00")) {
+          formattedPhone = "+" + formattedPhone.substring(2);
+        } else if (formattedPhone.startsWith("0")) {
+          // Se inizia con 0, assumiamo sia un numero italiano e aggiungiamo +39
+          formattedPhone = "+39" + formattedPhone;
+        } else {
+          // Altrimenti aggiungiamo semplicemente +39
+          formattedPhone = "+39" + formattedPhone;
+        }
+      }
+
+      data.phone = formattedPhone;
+    }
+
     if (onSubmit) {
       onSubmit(data);
     } else {

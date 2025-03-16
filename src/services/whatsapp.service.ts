@@ -527,6 +527,9 @@ export class WhatsAppService {
     }
   }
 
+  // Variabile statica per tenere traccia della finestra WhatsApp aperta
+  private static whatsappWindow: any = null;
+  
   async sendNotification(
     appointment: Appointment,
     phoneNumber: string,
@@ -601,9 +604,6 @@ export class WhatsAppService {
         if (isRunningInElectron()) {
           // Implementazione reale per l'invio di messaggi WhatsApp
           try {
-            // Usa l'API Electron per eseguire un comando di shell che apre Chrome con WhatsApp Web
-            const { electronAPI } = await import("@/lib/electronBridge");
-
             // Formatta il numero di telefono per WhatsApp Web
             const formattedNumber = phoneNumber
               .replace(/\+/g, "")
@@ -612,116 +612,87 @@ export class WhatsAppService {
             // Costruisci l'URL diretto di WhatsApp con parametro per invio automatico
             const whatsappUrl = `https://web.whatsapp.com/send?phone=${formattedNumber}&text=${encodeURIComponent(message)}&source=&data=&app_absent=`;
 
-            // Costruisci il comando per avviare Chrome con i parametri corretti
-            const args = [
-              `--user-data-dir="${this.dataPath}"`,
-              "--app=" + whatsappUrl,
-            ];
+            // Verifica se esiste già una finestra WhatsApp aperta
+            if (!WhatsAppService.whatsappWindow || WhatsAppService.whatsappWindow.closed) {
+              // Se non esiste, apri una nuova finestra WhatsApp
+              console.log("Apertura nuova finestra WhatsApp Web...");
+              
+              // Costruisci il comando per avviare Chrome con i parametri corretti
+              const args = [
+                `--user-data-dir="${this.dataPath}"`,
+                "--app=https://web.whatsapp.com",
+              ];
 
-            const command = `"${this.browserPath}" ${args.join(" ")}`;
-            console.log(`Esecuzione comando per invio messaggio: ${command}`);
+              const command = `"${this.browserPath}" ${args.join(" ")}`;
+              console.log(`Esecuzione comando per WhatsApp Web: ${command}`);
 
-            // Esegui il comando per aprire WhatsApp Web
-            if (
-              typeof window !== "undefined" &&
-              typeof window.require === "function"
-            ) {
-              const childProcess = window.require("child_process");
-              childProcess.exec(command, (error, stdout, stderr) => {
-                if (error) {
-                  console.error(
-                    `Error sending WhatsApp message: ${error.message}`,
-                  );
-                  return;
-                }
-                console.log(`WhatsApp message sent: ${stdout}`);
-              });
-            } else {
-              // Fallback per ambiente browser
-              window.open(whatsappUrl, "_blank");
-            }
-
-            // Attendi un po' per dare tempo al browser di aprirsi e inviare il messaggio automaticamente
-            await new Promise((resolve) => setTimeout(resolve, 5000));
-
-            // Simula la pressione del tasto INVIO per inviare il messaggio
-            try {
+              // Esegui il comando per aprire WhatsApp Web
               if (
-                isRunningInElectron() &&
+                typeof window !== "undefined" &&
                 typeof window.require === "function"
               ) {
-                const robot = window.require("robotjs");
-                if (robot) {
-                  // Premi il tasto INVIO per inviare il messaggio
-                  robot.keyTap("enter");
-                  console.log("Messaggio inviato automaticamente con robotjs");
-                }
+                const childProcess = window.require("child_process");
+                const process = childProcess.exec(command, (error, stdout, stderr) => {
+                  if (error) {
+                    console.error(
+                      `Error opening WhatsApp Web: ${error.message}`,
+                    );
+                    return;
+                  }
+                  console.log(`WhatsApp Web opened: ${stdout}`);
+                });
+                
+                // Salva il riferimento al processo
+                WhatsAppService.whatsappWindow = process;
+                
+                // Attendi che WhatsApp Web si carichi completamente
+                await new Promise((resolve) => setTimeout(resolve, 10000));
               } else {
-                console.log(
-                  "Impossibile inviare automaticamente il messaggio: robotjs non disponibile",
-                );
+                // Fallback per ambiente browser
+                WhatsAppService.whatsappWindow = window.open("https://web.whatsapp.com", "_blank");
+                await new Promise((resolve) => setTimeout(resolve, 5000));
               }
-            } catch (robotError) {
-              console.error(
-                "Errore nell'invio automatico del messaggio:",
-                robotError,
-              );
             }
-
-            // Aggiorna lo stato della notifica a "sent"
-            await notificationModel.updateStatus(
-              notification.id!,
-              "sent",
-              new Date(),
-            );
-
-            // Aggiorna lo stato di notifica dell'appuntamento
-            await this.appointmentModel.updateWhatsAppNotification(
-              appointment.id,
-              true,
-            );
-
-            return true;
-          } catch (error) {
-            console.error("Errore nell'invio del messaggio WhatsApp:", error);
-            // Aggiorna lo stato della notifica a "failed"
-            await notificationModel.updateStatus(notification.id!, "failed");
-            throw error;
-          }
-        } else {
-          // In ambiente browser, simuliamo l'invio del messaggio
-          console.log(
-            `Simulazione invio WhatsApp a ${phoneNumber}: ${message}`,
-          );
-
-          // Simula un ritardo per l'invio del messaggio
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // Aggiorna lo stato della notifica a "sent"
-          await notificationModel.updateStatus(
-            notification.id!,
-            "sent",
-            new Date(),
-          );
-
-          // Aggiorna lo stato di notifica dell'appuntamento
-          await this.appointmentModel.updateWhatsAppNotification(
-            appointment.id,
-            true,
-          );
-
-          return true;
-        }
-      } catch (sendError) {
-        // Aggiorna lo stato della notifica a "failed"
-        await notificationModel.updateStatus(notification.id!, "failed");
-        throw sendError;
-      }
-    } catch (error) {
-      console.error("Error sending WhatsApp notification:", error);
-      throw error;
-    }
-  }
+            
+            // Ora naviga all'URL del messaggio specifico
+            if (
+              typeof window !== "undefined" &&
+              typeof window.require === "function" &&
+              typeof window.require("puppeteer") === "function"
+            ) {
+              // Usa puppeteer per controllare la finestra esistente
+              try {
+                const puppeteer = window.require("puppeteer");
+                const browser = await puppeteer.connect({
+                  browserURL: `http://localhost:9222`,
+                  defaultViewport: null,
+                });
+                
+                const pages = await browser.pages();
+                const page = pages[0]; // Usa la prima pagina
+                
+                // Naviga all'URL del messaggio
+                await page.goto(whatsappUrl, { waitUntil: 'networkidle2' });
+                
+                // Attendi che il campo di input sia visibile
+                await page.waitForSelector('div[contenteditable="true"]');
+                
+                // Premi il tasto INVIO per inviare il messaggio
+                await page.keyboard.press('Enter');
+                
+                // Attendi un po' per assicurarsi che il messaggio sia inviato
+                await new Promise((resolve) => setTimeout(resolve, 2000));
+                
+                // Disconnetti da puppeteer ma mantieni il browser aperto
+                await browser.disconnect();
+              } catch (puppeteerError) {
+                console.error("Errore nell'utilizzo di puppeteer:", puppeteerError);
+                
+                // Fallback: apri l'URL direttamente
+                if (WhatsAppService.whatsappWindow && typeof WhatsAppService.whatsappWindow.loadURL === 'function') {
+                  WhatsAppService.whatsappWindow.loadURL(whatsappUrl);
+                } else {
+                  // Usa un
 
   // Metodo helper per validare il formato del numero di telefono
   private isValidPhoneNumber(phoneNumber: string): boolean {

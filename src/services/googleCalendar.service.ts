@@ -272,18 +272,70 @@ export class GoogleCalendarService {
     }
 
     try {
-      // Get all unsynced appointments
+      // Ottieni tutti gli appuntamenti non sincronizzati
       const appointments = await this.appointmentModel.findUnsyncedAppointments();
       
       let successCount = 0;
       let failedCount = 0;
 
-      // Sync each appointment
+      // Verifica che ci siano token di accesso validi
+      const accessToken = localStorage.getItem("googleAccessToken");
+      const tokenExpiry = localStorage.getItem("googleTokenExpiry");
+      const refreshToken = localStorage.getItem("googleRefreshToken");
+      
+      // Se il token è scaduto, prova a rinnovarlo
+      if (accessToken && tokenExpiry && refreshToken) {
+        const now = Date.now();
+        const expiryTime = parseInt(tokenExpiry);
+        
+        if (now >= expiryTime) {
+          // Token scaduto, rinnova
+          const refreshed = await this.refreshAccessToken(refreshToken);
+          if (!refreshed) {
+            return { success: 0, failed: appointments.length };
+          }
+        }
+      } else if (!accessToken) {
+        return { success: 0, failed: appointments.length };
+      }
+      
+      // Ottieni il token di accesso aggiornato
+      const currentAccessToken = localStorage.getItem("googleAccessToken");
+      
+      // Sincronizza ogni appuntamento con Google Calendar
       for (const appointment of appointments) {
-        const success = await this.syncAppointment(appointment);
-        if (success) {
-          successCount++;
-        } else {
+        try {
+          // Prepara i dati dell'evento
+          const eventData = this.prepareEventData(appointment);
+          
+          // Invia la richiesta a Google Calendar API
+          const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${currentAccessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(eventData)
+          });
+          
+          if (response.ok) {
+            const eventResult = await response.json();
+            
+            // Aggiorna lo stato di sincronizzazione dell'appuntamento
+            await this.appointmentModel.updateGoogleCalendarSync(
+              appointment.id,
+              true,
+              eventResult.id
+            );
+            
+            successCount++;
+          } else {
+            const errorData = await response.json();
+            console.error("Errore nella sincronizzazione con Google Calendar:", errorData);
+            failedCount++;
+          }
+        } catch (appointmentError) {
+          console.error("Errore nella sincronizzazione dell'appuntamento:", appointmentError);
           failedCount++;
         }
       }
@@ -293,6 +345,91 @@ export class GoogleCalendarService {
       console.error("Error syncing all appointments:", error);
       return { success: 0, failed: 0 };
     }
+  }
+  
+  // Metodo per rinnovare il token di accesso
+  private async refreshAccessToken(refreshToken: string): Promise<boolean> {
+    try {
+      // Costruisci la richiesta per rinnovare il token
+      const tokenUrl = "https://oauth2.googleapis.com/token";
+      const tokenParams = new URLSearchParams();
+      tokenParams.append("client_id", this.clientId);
+      tokenParams.append("client_secret", this.clientSecret);
+      tokenParams.append("refresh_token", refreshToken);
+      tokenParams.append("grant_type", "refresh_token");
+
+      // Esegui la richiesta per ottenere un nuovo token
+      const response = await fetch(tokenUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: tokenParams.toString(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Errore nel rinnovo del token:", errorData);
+        return false;
+      }
+
+      const tokenData = await response.json();
+      const accessToken = tokenData.access_token;
+      const expiresIn = tokenData.expires_in || 3600;
+
+      // Salva il nuovo token in localStorage
+      localStorage.setItem("googleAccessToken", accessToken);
+      localStorage.setItem(
+        "googleTokenExpiry",
+        (Date.now() + expiresIn * 1000).toString()
+      );
+
+      return true;
+    } catch (error) {
+      console.error("Errore nel rinnovo del token di accesso:", error);
+      return false;
+    }
+  }
+  
+  // Metodo per preparare i dati dell'evento per Google Calendar
+  private prepareEventData(appointment: Appointment): any {
+    // Recupera le informazioni del paziente
+    let patientName = "Paziente";
+    try {
+      // In un'implementazione reale, qui recupereremmo il nome del paziente dal database
+      // Per ora, usiamo un nome generico
+      patientName = appointment.patient_name || "Paziente";
+    } catch (error) {
+      console.error("Errore nel recupero del nome del paziente:", error);
+    }
+    
+    // Calcola l'ora di fine in base alla durata
+    const endTime = this.calculateEndTime(
+      appointment.date,
+      appointment.time,
+      appointment.duration
+    );
+    
+    // Costruisci l'oggetto evento per Google Calendar
+    return {
+      summary: `Appuntamento: ${appointment.appointment_type}`,
+      description: `Paziente: ${patientName}\nNote: ${appointment.notes || "Nessuna nota"}`,
+      start: {
+        dateTime: `${new Date(appointment.date).toISOString().split("T")[0]}T${appointment.time}:00`,
+        timeZone: "Europe/Rome",
+      },
+      end: {
+        dateTime: endTime,
+        timeZone: "Europe/Rome",
+      },
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: "email", minutes: 24 * 60 },
+          { method: "popup", minutes: 30 },
+        ],
+      },
+    };
   }
 
   // Metodo helper per calcolare l'ora di fine dell'appuntamento
