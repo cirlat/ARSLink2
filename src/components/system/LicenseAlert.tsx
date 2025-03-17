@@ -178,51 +178,6 @@ const LicenseAlert = ({
           </CardContent>
         </Card>
 
-        <div className="mt-4 space-y-3">
-          <h4 className="text-sm font-medium">Per rinnovare la licenza:</h4>
-          <ul className="text-sm space-y-2">
-            <li className="flex items-start">
-              <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5" />
-              <span>
-                Contatta il nostro team via email:{" "}
-                <a
-                  href={`mailto:${contactEmail}`}
-                  className="text-blue-600 hover:underline"
-                >
-                  {contactEmail}
-                </a>
-              </span>
-            </li>
-            <li className="flex items-start">
-              <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5" />
-              <span>
-                Chiama il supporto tecnico:{" "}
-                <a
-                  href={`tel:${contactPhone}`}
-                  className="text-blue-600 hover:underline"
-                >
-                  {contactPhone}
-                </a>
-              </span>
-            </li>
-            <li className="flex items-start">
-              <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5" />
-              <span>
-                Visita il nostro sito web:{" "}
-                <a
-                  href={websiteUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline inline-flex items-center"
-                >
-                  Rinnova Online
-                  <ExternalLink className="h-3 w-3 ml-1" />
-                </a>
-              </span>
-            </li>
-          </ul>
-        </div>
-
         <AlertDialogFooter className="mt-6">
           <AlertDialogCancel onClick={onDismiss}>
             {isExpired ? "Chiudi" : "Ricordamelo dopo"}
